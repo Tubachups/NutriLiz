@@ -1,34 +1,93 @@
+import serial
+import time
+import threading
+import requests
 
-import serial  
-import time    
+latest_barcode = None
+BASE_URL = "https://world.openfoodfacts.org/api/v0/product/"
 
-# Initialize serial connection
-# - Port: /dev/ttyACM0 (common for Arduino/microcontroller USB connections)
-ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1.0)
+def get_latest_barcode():
+    """Get the latest scanned barcode and reset it."""
+    global latest_barcode
+    if latest_barcode:
+        barcode = latest_barcode
+        latest_barcode = None  # Reset after reading
+        return barcode
+    return None
 
-# Wait 3 seconds for the serial connection to stabilize
-# Some devices reset when a serial connection is established
-time.sleep(3)
-
-# Clear any data that might be in the input buffer
-# Ensures we start reading fresh data
-ser.reset_input_buffer()
-
-print("Serial OK")
-
-try:
-    while True:
-        # Small delay to prevent CPU overuse (10 milliseconds)
-        time.sleep(0.01)
+def get_product_data(barcode):
+    """Fetch product data from OpenFoodFacts API."""
+    try:
+        url = f"{BASE_URL}{barcode}.json"
+        response = requests.get(url, timeout=10)
+        data = response.json()
         
-        # Check if there's data waiting in the serial buffer
-        if ser.in_waiting > 0:
-            # Read one line from serial port and decode from bytes to string
-            # UTF-8 encoding is used for proper character representation
-            line = ser.readline().decode('utf-8').rstrip()
-            print(line)
+        if data.get('status') == 1:
+            product = data.get('product', {})
+            nutriments = product.get('nutriments', {})
+            ecoscore_data = product.get('ecoscore_data', {})
             
-except KeyboardInterrupt:
-    print("Close Serial communication.")
-    # Close the serial port to free up resources
-    ser.close() 
+            return {
+                'name': product.get('product_name', 'N/A'),
+                'type': product.get('categories', 'N/A'),
+                'manufacturing_places': product.get('manufacturing_places', 'N/A'),
+                'quantity': product.get('quantity', 'N/A'),
+                'serving_quantity': product.get('serving_quantity', 'N/A'),
+                'energy_kcal_100g': nutriments.get('energy-kcal_100g', 'N/A'),
+                'energy_kcal_serving': nutriments.get('energy-kcal_serving', 'N/A'),
+                'carbohydrates_100g': nutriments.get('carbohydrates_100g', 'N/A'),
+                'carbohydrates_serving': nutriments.get('carbohydrates_serving', 'N/A'),
+                'sugars_100g': nutriments.get('sugars_100g', 'N/A'),
+                'sugars_serving': nutriments.get('sugars_serving', 'N/A'),
+                'fat_100g': nutriments.get('fat_100g', 'N/A'),
+                'fat_serving': nutriments.get('fat_serving', 'N/A'),
+                'saturated_fat_100g': nutriments.get('saturated-fat_100g', 'N/A'),
+                'saturated_fat_serving': nutriments.get('saturated-fat_serving', 'N/A'),
+                'fruits_vegetables_100': nutriments.get('fruits-vegetables-nuts_100g', 'N/A'),
+                'fiber_100g': nutriments.get('fiber_100g', 'N/A'),
+                'fiber_serving': nutriments.get('fiber_serving', 'N/A'),
+                'proteins_100g': nutriments.get('proteins_100g', 'N/A'),
+                'proteins_serving': nutriments.get('proteins_serving', 'N/A'),
+                'salt_100g': nutriments.get('salt_100g', 'N/A'),
+                'salt_serving': nutriments.get('salt_serving', 'N/A'),
+                'sodium_100g': nutriments.get('sodium_100g', 'N/A'),
+                'sodium_serving': nutriments.get('sodium_serving', 'N/A'),
+                'calcium_100g': nutriments.get('calcium_100g', 'N/A'),
+                'calcium_serving': nutriments.get('calcium_serving', 'N/A'),
+                'nutri_score': product.get('nutriscore_score', 'N/A'),
+                'nutri_grade': product.get('nutriscore_grade', 'N/A'),
+                'co2_total': ecoscore_data.get('adjustments', {}).get('production_system', {}).get('value', 'N/A'),
+                'ef_total': ecoscore_data.get('score', 'N/A')
+            }
+        return None
+    except requests.exceptions.RequestException as e:
+        print(f"API request failed: {e}")
+        return None
+
+def barcode_scanner_thread():
+    """Thread function to continuously scan for barcodes."""
+    global latest_barcode
+    try:
+        ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1.0)
+        time.sleep(3)
+        ser.reset_input_buffer()
+        print("Serial OK - Barcode scanner ready")
+        
+        while True:
+            time.sleep(0.01)
+            if ser.in_waiting > 0:
+                line = ser.readline().decode('utf-8').rstrip()
+                print(f"Barcode scanned: {line}")
+                latest_barcode = line
+                
+    except KeyboardInterrupt:
+        print("Closing serial communication.")
+        ser.close()
+    except Exception as e:
+        print(f"Serial error: {e}")
+
+def start_barcode_scanner():
+    """Start the barcode scanner in a separate daemon thread."""
+    scanner_thread = threading.Thread(target=barcode_scanner_thread, daemon=True)
+    scanner_thread.start()
+    print("Barcode scanner thread started")
