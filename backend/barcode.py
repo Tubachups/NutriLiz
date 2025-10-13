@@ -19,7 +19,7 @@ def get_product_data(barcode):
     """Fetch product data from OpenFoodFacts API."""
     try:
         url = f"{BASE_URL}{barcode}.json"
-        response = requests.get(url, timeout=10)
+        response = requests.get(url)
         data = response.json()
         
         if data.get('status') == 1:
@@ -33,6 +33,11 @@ def get_product_data(barcode):
                 'manufacturing_places': product.get('manufacturing_places', 'N/A'),
                 'quantity': product.get('quantity', 'N/A'),
                 'serving_quantity': product.get('serving_quantity', 'N/A'),
+                'image_url': product.get('image_url', None),  # Main product image
+                'image_front_url': product.get('image_front_url', None),  # Front image
+                'image_front_small_url': product.get('image_front_small_url', None),  # Smaller front image
+                'image_ingredients_url': product.get('image_ingredients_url', None),  # Ingredients image
+                'image_nutrition_url': product.get('image_nutrition_url', None),
                 'energy_kcal_100g': nutriments.get('energy-kcal_100g', 'N/A'),
                 'energy_kcal_serving': nutriments.get('energy-kcal_serving', 'N/A'),
                 'carbohydrates_100g': nutriments.get('carbohydrates_100g', 'N/A'),
@@ -43,7 +48,6 @@ def get_product_data(barcode):
                 'fat_serving': nutriments.get('fat_serving', 'N/A'),
                 'saturated_fat_100g': nutriments.get('saturated-fat_100g', 'N/A'),
                 'saturated_fat_serving': nutriments.get('saturated-fat_serving', 'N/A'),
-                'fruits_vegetables_100': nutriments.get('fruits-vegetables-nuts_100g', 'N/A'),
                 'fiber_100g': nutriments.get('fiber_100g', 'N/A'),
                 'fiber_serving': nutriments.get('fiber_serving', 'N/A'),
                 'proteins_100g': nutriments.get('proteins_100g', 'N/A'),
@@ -56,8 +60,19 @@ def get_product_data(barcode):
                 'calcium_serving': nutriments.get('calcium_serving', 'N/A'),
                 'nutri_score': product.get('nutriscore_score', 'N/A'),
                 'nutri_grade': product.get('nutriscore_grade', 'N/A'),
-                'co2_total': ecoscore_data.get('adjustments', {}).get('production_system', {}).get('value', 'N/A'),
-                'ef_total': ecoscore_data.get('score', 'N/A')
+                # NOVA Group (1-4: unprocessed to ultra-processed)
+                'nova_group': product.get('nova_group', 'N/A'),
+                'nova_groups': product.get('nova_groups', 'N/A'),  # More detailed version
+                # Eco-Score
+                'ecoscore_score': product.get('ecoscore_score', 'N/A'),  # Numeric score (0-100)
+                'ecoscore_grade': product.get('ecoscore_grade', 'N/A'),  # Letter grade (a-e)
+                'ef_total': ecoscore_data.get('score', 'N/A'),
+                # Labels, certifications, and awards
+                'labels': product.get('labels', 'N/A'),  # Comma-separated string
+                'labels_tags': product.get('labels_tags', []),  # List of label tags
+                'labels_hierarchy': product.get('labels_hierarchy', []),  # Hierarchical labels
+                'certifications': product.get('certifications', 'N/A'),  # Alternative field
+                'awards': product.get('awards', 'N/A'),  # Awards if any
             }
         return None
     except requests.exceptions.RequestException as e:
