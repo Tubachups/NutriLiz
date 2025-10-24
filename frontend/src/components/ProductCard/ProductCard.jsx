@@ -3,6 +3,8 @@ import GeneralInfo from './GeneralInfo'
 import NutritionInfo from './NutritionInfo'
 import ScoresInfo from './ScoreInfo'
 import LabelsInfo from './LabelInfo'
+import Recommend from './Recommend'
+
 
 const ProductCard = ({ productData }) => {
   return (
@@ -33,6 +35,11 @@ const ProductCard = ({ productData }) => {
         labels={productData.labels}
         labelsTags={productData.labels_tags}
         awards={productData.awards}
+      />
+
+      <Recommend
+        recommendations={productData.recommendations}
+        count={productData.recommendations_count}
       />
     </div>
   )
