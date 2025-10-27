@@ -22,7 +22,10 @@ def get_product_data(barcode):
                 "nutriments", "nutriscore_score", "nutriscore_grade",
                 "nova_group", "nova_groups", "ecoscore_score", "ecoscore_grade",
                 "ecoscore_data", "labels", "certifications", "awards",
-                "brands", "brands_tags"
+                "brands", "brands_tags",
+                # Allergen fields
+                "allergens", "allergens_tags", "allergens_hierarchy",
+                "traces", "traces_tags", "traces_hierarchy"
             ]
         )
         
@@ -73,6 +76,13 @@ def get_product_data(barcode):
                 'labels': product_data.get('labels', 'N/A'),
                 'certifications': product_data.get('certifications', 'N/A'),
                 'awards': product_data.get('awards', 'N/A'),
+                # Allergen data
+                'allergens': product_data.get('allergens', ''),
+                'allergens_tags': product_data.get('allergens_tags', []),
+                'allergens_hierarchy': product_data.get('allergens_hierarchy', []),
+                'traces': product_data.get('traces', ''),
+                'traces_tags': product_data.get('traces_tags', []),
+                'traces_hierarchy': product_data.get('traces_hierarchy', []),
             }
         return None
     except Exception as e:

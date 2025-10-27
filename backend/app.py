@@ -2,7 +2,6 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from barcode import get_latest_barcode, start_barcode_scanner, get_product_data
 from recommend import get_recommendations
-from risk_assessment import analyze_health_risks
 
 app = Flask(__name__)
 CORS(app)
@@ -55,19 +54,6 @@ def get_product_recommendations(barcode):
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-@app.route('/api/health-risks/<barcode>')
-def get_health_risks(barcode):
-    """Get health risk assessment for a specific product."""
-    product_data = get_product_data(barcode)
-    if product_data:
-        health_risks = analyze_health_risks(product_data)
-        return jsonify({
-            'barcode': barcode,
-            'product_name': product_data.get('name'),
-            'health_risks': health_risks
-        })
-    return jsonify({'error': 'Product not found'}), 404
 
 
 if __name__ == '__main__':
