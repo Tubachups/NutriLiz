@@ -1,56 +1,54 @@
-import requests
+from google import genai
+from dotenv import load_dotenv
 import time
-import json
+import os
 
-# Configuration
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "gemma3:1b"
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 
-def call_llm(prompt, stream=True):
-    """Simple LLM caller with streaming support"""
+# Initialize Gemini client
+client = genai.Client(api_key=GEMINI_API_KEY)
+MODEL_NAME = "gemini-2.5-flash"
+
+def call_llm(prompt):
     try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={"model": MODEL_NAME, "prompt": prompt, "stream": stream},
-            timeout=300,
-            stream=stream
+        print("\n🤖 Generating analysis with Gemini AI...\n")
+        
+        start_time = time.time()
+        
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt
         )
-        response.raise_for_status()
         
-        full_response = ""
-        for line in response.iter_lines():
-            if line:
-                data = json.loads(line)
-                chunk = data.get("response", "")
-                full_response += chunk
-                print(chunk, end="", flush=True)
-                if data.get("done", False):
-                    break
+        end_time = time.time()
+        response_time = end_time - start_time
         
-        print()  # New line after streaming
+        full_response = response.text
+        
+        # Calculate performance metrics
+        estimated_tokens = len(full_response) // 4
+        tokens_per_second = estimated_tokens / response_time if response_time > 0 else 0
+        
+        print(full_response)
+        print("\n" + "="*60)
+        print(f"⏱️  Response Time: {response_time:.3f} seconds")
+        print(f"⚡ Speed: ~{tokens_per_second:.1f} tokens/second")
+        print("="*60 + "\n")
+        
         return full_response
-        
+
     except Exception as e:
-        print(f"\n❌ Error calling LLM: {e}")
+        print(f"\n❌ Error calling Gemini AI: {e}")
         return None
 
 
 def get_allergen_info(product_data):
     allergens_tags = product_data.get('allergens_tags', [])
     traces_tags = product_data.get('traces_tags', [])
-    
-    # Clean up allergen tags (remove 'en:' prefix and format)
-    clean_allergens = []
-    if allergens_tags:
-        clean_allergens = [tag.replace('en:', '').replace('-', ' ').title() 
-                          for tag in allergens_tags]
-    
-    # Clean up trace allergen tags
-    clean_traces = []
-    if traces_tags:
-        clean_traces = [tag.replace('en:', '').replace('-', ' ').title() 
-                       for tag in traces_tags]
-    
+
+    clean_allergens = [tag.replace('en:', '').replace('-', ' ').title() for tag in allergens_tags]
+    clean_traces = [tag.replace('en:', '').replace('-', ' ').title() for tag in traces_tags]
+
     return {
         'allergens': clean_allergens,
         'traces': clean_traces,
@@ -60,17 +58,16 @@ def get_allergen_info(product_data):
 
 
 def create_health_prompt(product_data):
-    """Build a focused prompt from product data"""
+    """Build a focused prompt from product data."""
     name = product_data.get('name', 'Unknown')
     barcode = product_data.get('barcode', 'N/A')
     n = product_data.get('nutriments', {})
-    
-    # Get allergen information
+
     allergen_info = get_allergen_info(product_data)
     allergen_str = ', '.join(allergen_info['allergens']) if allergen_info['allergens'] else 'None listed'
     traces_str = ', '.join(allergen_info['traces']) if allergen_info['traces'] else 'None'
-    
-    return f"""Analyze this food product for health risks:
+
+    return f"""Analyze this food product's nutritional content:
 
 Product: {name} (Barcode: {barcode})
 Category: {product_data.get('type', 'N/A')}
@@ -79,72 +76,41 @@ Category: {product_data.get('type', 'N/A')}
 ⚠️ MAY CONTAIN TRACES: {traces_str}
 
 Nutrition per 100g:
-• Calories: {n.get('energy-kcal_100g', 'N/A')} kcal
-• Sugar: {n.get('sugars_100g', 'N/A')}g
-• Fat: {n.get('fat_100g', 'N/A')}g (Saturated: {n.get('saturated-fat_100g', 'N/A')}g)
-• Salt: {n.get('salt_100g', 'N/A')}g (Sodium: {n.get('sodium_100g', 'N/A')}g)
-• Protein: {n.get('proteins_100g', 'N/A')}g
-• Fiber: {n.get('fiber_100g', 'N/A')}g
+- Calories: {n.get('energy-kcal_100g', 'N/A')} kcal
+- Sugar: {n.get('sugars_100g', 'N/A')}g
+- Fat: {n.get('fat_100g', 'N/A')}g (Saturated: {n.get('saturated-fat_100g', 'N/A')}g)
+- Salt: {n.get('salt_100g', 'N/A')}g (Sodium: {n.get('sodium_100g', 'N/A')}g)
+- Protein: {n.get('proteins_100g', 'N/A')}g
+- Fiber: {n.get('fiber_100g', 'N/A')}g
 
 Nutri-Score: {product_data.get('nutri_grade', 'N/A')}
 NOVA Group: {product_data.get('nova_group', 'N/A')}
 
-Provide a brief health assessment covering:
-1. Allergen warnings 
-2. High salt risk 
-3. High sugar risk 
-4. High saturated fat risk
-5. Overall assessment
+Format your response as:
+1. Allergen Alert: List allergens if any
+2. Sugar Content: - brief explanation
+3. Salt Content: - brief explanation  
+4. Saturated Fat: - brief explanation
+5. Overall Summary: 4 sentences on general nutritional quality
 
-Be concise, no disclaimer and important note"""
+Keep it factual and educational. Do not provide medical advice or personalized recommendations."""
 
 
 def analyze_product(product_data):
-    """Main analysis function"""
-    print("\n" + "="*70)    
+    """Main analysis function."""
+    print("\n" + "="*70)
     print(f"📦 {product_data.get('name', 'Unknown Product')}")
     print(f"🔢 Barcode: {product_data.get('barcode', 'N/A')}")
     print("="*70)
-    
-    # LLM analysis
-    print("\n🤖 AI Analysis:\n" + "-"*70)
+
     prompt = create_health_prompt(product_data)
     llm_response = call_llm(prompt)
-    print("-"*70)
-    
+
     allergen_info = get_allergen_info(product_data)
-    
+
     return {
         'product': product_data.get('name'),
         'barcode': product_data.get('barcode'),
         'allergens': allergen_info,
         'ai_analysis': llm_response
     }
-
-# Main scanner loop
-if __name__ == "__main__":
-    from barcode import get_product_data, get_latest_barcode, start_barcode_scanner
-    
-    print("🚀 Starting Health Scanner...")
-    start_barcode_scanner()
-    
-    print("\n📱 Ready to scan! (Ctrl+C to exit)\n")
-    
-    try:
-        while True:
-            barcode = get_latest_barcode()
-            
-            if barcode:
-                print(f"\n🔍 Scanning: {barcode}")
-                product_data = get_product_data(barcode)
-                
-                if product_data:
-                    analyze_product(product_data)
-                    print("\n✅ Ready for next scan...\n")
-                else:
-                    print(f"❌ Product not found\n")
-            
-            time.sleep(0.5)
-            
-    except KeyboardInterrupt:
-        print("\n\n👋 Goodbye!")

@@ -89,97 +89,155 @@ h1 {
   display: inline-block;
 }
 
-/* Recommendations Styling */
-.recommendations-section {
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 2px solid #ecf0f1;
-}
-
-.recommendations-section h3 {
-  color: #3498db;
-  margin-bottom: 20px;
-}
-
-.recommendations-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 20px;
-}
-
-.recommendation-card {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 15px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.recommendation-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.recommendation-image {
-  width: 120px;
-  height: 120px;
-  object-fit: contain;
-  border-radius: 6px;
-  margin-bottom: 10px;
+/* Assessment Section */
+.risk-assessment {
   background: white;
+  border-radius: 24px;
+  padding: 40px;
+  margin-top: 30px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.4s ease-out;
 }
 
-.recommendation-info {
-  text-align: center;
-  width: 100%;
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.recommendation-info h4 {
-  color: #2c3e50;
-  font-size: 1em;
-  margin: 8px 0;
-  line-height: 1.3;
-  min-height: 2.6em;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.risk-assessment h2 {
+  font-size: 2rem;
+  color: #2d3748;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 3px solid #667eea;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.recommendation-brand {
-  color: #7f8c8d;
-  font-size: 0.85em;
-  margin: 5px 0;
+.allergens-section {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-left: 5px solid #f59e0b;
+  padding: 25px;
+  border-radius: 16px;
+  margin-bottom: 30px;
 }
 
-.recommendation-similarity {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 4px 10px;
+.allergens-section h3 {
+  font-size: 1.5rem;
+  color: #92400e;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.allergens-section p {
+  font-size: 1.1rem;
+  color: #78350f;
+  margin: 10px 0;
+  line-height: 1.6;
+}
+
+.allergens-section strong {
+  color: #92400e;
+  font-weight: 700;
+}
+
+.ai-analysis {
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  border-left: 5px solid #667eea;
+  padding: 30px;
+  border-radius: 16px;
+  margin-top: 25px;
+}
+
+.ai-analysis h3 {
+  font-size: 1.5rem;
+  color: #3730a3;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-analysis pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 1.05rem;
+  line-height: 1.9;
+  color: #1e1b4b;
+  background: white;
+  padding: 25px;
   border-radius: 12px;
-  font-size: 0.85em;
-  font-weight: bold;
-  display: inline-block;
-  margin: 8px 0;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin: 0;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
-.recommendation-location {
-  color: #95a5a6;
-  font-size: 0.8em;
-  margin-top: 5px;
+/* Format numbered lists in AI analysis */
+.ai-analysis pre ol {
+  margin: 15px 0;
+  padding-left: 25px;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .recommendations-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 15px;
-  }
-  
-  .recommendation-image {
-    width: 100px;
-    height: 100px;
+.ai-analysis pre li {
+  margin-bottom: 15px;
+  line-height: 1.8;
+}
+
+/* Format bold text in AI analysis */
+.ai-analysis pre strong,
+.ai-analysis pre b {
+  color: #3730a3;
+  font-weight: 700;
+}
+
+.assessment-loading {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-left: 5px solid #3b82f6;
+  padding: 30px;
+  text-align: center;
+  border-radius: 16px;
+  margin-top: 30px;
+  font-size: 1.3rem;
+  color: #1e40af;
+  font-weight: 600;
+  animation: shimmer 1.5s ease-in-out infinite;
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.2);
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+.assessment-error {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-left: 5px solid #ef4444;
+  padding: 25px;
+  text-align: center;
+  border-radius: 16px;
+  margin-top: 30px;
+  font-size: 1.2rem;
+  color: #991b1b;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(239, 68, 68, 0.2);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .app-container h1 {
+    font-size: 2.8rem;
   }
 }
+

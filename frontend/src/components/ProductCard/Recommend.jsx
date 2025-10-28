@@ -1,3 +1,5 @@
+import '../../css/Recommend.css'
+
 const Recommend = ({ recommendations, count }) => {
   if (!recommendations || recommendations.length === 0) {
     return null
