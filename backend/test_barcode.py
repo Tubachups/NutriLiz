@@ -25,7 +25,7 @@ try:
         if ser.in_waiting > 0:
             # Read one line from serial port and decode from bytes to string
             # UTF-8 encoding is used for proper character representation
-            line = ser.readline().decode('utf-8').rstrip()
+            line = ser.readline().decode('utf-8', errors='ignore').rstrip()
             print(line)
             
 except KeyboardInterrupt:

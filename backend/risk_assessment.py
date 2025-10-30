@@ -3,11 +3,9 @@ from dotenv import load_dotenv
 import time
 import os
 
+load_dotenv()
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-
-# Initialize Gemini client
 client = genai.Client(api_key=GEMINI_API_KEY)
-MODEL_NAME = "gemini-2.5-flash"
 
 def call_llm(prompt):
     try:
@@ -16,7 +14,7 @@ def call_llm(prompt):
         start_time = time.time()
         
         response = client.models.generate_content(
-            model=MODEL_NAME,
+            model="gemini-2.5-flash", 
             contents=prompt
         )
         
