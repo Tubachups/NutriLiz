@@ -1,15 +1,19 @@
 from google import genai
+from dotenv import load_dotenv  
 import time
 import os
 
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+# Load environment variables from .env
+load_dotenv()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Start timing
 start_time = time.time()
 
 response = client.models.generate_content(
-    model="gemini-2.5-flash", contents="Do you know about OpenFoodFacts website?"
+    model="gemini-2.5-flash", 
+    contents="Do you know about OpenFoodFacts website?"
 )
 
 # End timing

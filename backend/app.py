@@ -21,11 +21,25 @@ def get_product(barcode):
     
     product_data = get_product_data(barcode)
     if product_data:
-        # Add recommendations to the response
-        if include_recommendations:
-            recommendations = get_recommendations(barcode, limit=9)
-            product_data['recommendations'] = recommendations
-            product_data['recommendations_count'] = len(recommendations)
+        # Only add recommendations if data source is OpenFoodFacts
+        data_source = product_data.get('source', 'unknown')
+        
+        if include_recommendations and data_source == 'openfoodfacts':
+            try:
+                recommendations = get_recommendations(barcode, limit=9)
+                product_data['recommendations'] = recommendations
+                product_data['recommendations_count'] = len(recommendations)
+            except Exception as e:
+                print(f"Error getting recommendations: {e}")
+                product_data['recommendations'] = []
+                product_data['recommendations_count'] = 0
+                product_data['recommendations_error'] = str(e)
+        elif data_source == 'appwrite':
+            # Explicitly set empty recommendations for Appwrite products
+            product_data['recommendations'] = []
+            product_data['recommendations_count'] = 0
+            product_data['recommendations_available'] = False
+            product_data['message'] = 'Recommendations only available for OpenFoodFacts products'
         
         return jsonify(product_data)
     return jsonify({'error': 'Product not found'}), 404
@@ -76,4 +90,4 @@ def assess_product(barcode):
     
     
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=5000, debug=True)

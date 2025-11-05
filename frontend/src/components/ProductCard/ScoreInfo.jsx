@@ -21,34 +21,42 @@ const getEcoscoreColor = (grade) => {
 
 const ScoresInfo = ({ nutriScore, nutriGrade, novaGroup, ecoscoreGrade, ecoscoreScore }) => {
   return (
-    <section>
-      <h3>Scores & Environmental Impact</h3>
-      <p><strong>Nutri-Score:</strong> {nutriScore} (Grade: <span style={{
-        backgroundColor: nutriGrade ? `var(--nutriscore-${nutriGrade})` : 'transparent',
-        padding: '2px 8px',
-        borderRadius: '4px',
-        fontWeight: 'bold'
-      }}>{nutriGrade?.toUpperCase()}</span>)</p>
+    <section className="bg-accent/30 rounded-lg p-4">
+      <h3 className="text-xl font-semibold mb-3 text-gray-800">📊 Scores & Environmental Impact</h3>
+      <div className="space-y-3 text-gray-700">
+        <div className="bg-white/60 rounded px-3 py-2">
+          <strong className="font-semibold">Nutri-Score:</strong> {nutriScore} (Grade:{' '}
+          <span 
+            className="inline-block px-2 py-1 rounded font-bold text-white"
+            style={{
+              backgroundColor: getEcoscoreColor(nutriGrade)
+            }}
+          >
+            {nutriGrade?.toUpperCase()}
+          </span>)
+        </div>
 
-      {novaGroup !== 'N/A' && (
-        <p><strong>NOVA Group:</strong> {novaGroup} - {getNovaLabel(novaGroup)}</p>
-      )}
+        {novaGroup !== 'N/A' && (
+          <div className="bg-white/60 rounded px-3 py-2">
+            <strong className="font-semibold">NOVA Group:</strong> {novaGroup} - {getNovaLabel(novaGroup)}
+          </div>
+        )}
 
-      {ecoscoreGrade !== 'N/A' && (
-        <p><strong>Eco-Score:</strong>
-          <span style={{
-            backgroundColor: getEcoscoreColor(ecoscoreGrade),
-            color: 'white',
-            padding: '2px 8px',
-            borderRadius: '4px',
-            fontWeight: 'bold',
-            marginLeft: '8px'
-          }}>
-            {ecoscoreGrade?.toUpperCase()}
-          </span>
-          {ecoscoreScore !== 'N/A' && ` (${ecoscoreScore}/100)`}
-        </p>
-      )}
+        {ecoscoreGrade !== 'N/A' && (
+          <div className="bg-white/60 rounded px-3 py-2">
+            <strong className="font-semibold">Eco-Score:</strong>
+            <span 
+              className="inline-block px-2 py-1 rounded font-bold text-white ml-2"
+              style={{
+                backgroundColor: getEcoscoreColor(ecoscoreGrade)
+              }}
+            >
+              {ecoscoreGrade?.toUpperCase()}
+            </span>
+            {ecoscoreScore !== 'N/A' && ` (${ecoscoreScore}/100)`}
+          </div>
+        )}
+      </div>
     </section>
   )
 }
