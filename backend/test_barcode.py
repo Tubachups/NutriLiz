@@ -23,10 +23,20 @@ try:
         
         # Check if there's data waiting in the serial buffer
         if ser.in_waiting > 0:
-            # Read one line from serial port and decode from bytes to string
-            # UTF-8 encoding is used for proper character representation
-            line = ser.readline().decode('utf-8', errors='ignore').rstrip()
-            print(line)
+            try:
+                # Read one line from serial port and decode from bytes to string
+                # UTF-8 encoding is used for proper character representation
+                line = ser.readline().decode('utf-8', errors='replace').rstrip()
+                
+                # Only print if line contains valid data (not just replacement characters)
+                # and has a reasonable length for a barcode
+                if line and len(line) > 0 and not line.isspace():
+                    print(line)
+            except Exception as e:
+                # Handle any decoding errors silently and clear the buffer
+                print(f"Data error (possibly from standby mode): {e}")
+                ser.reset_input_buffer()
+                continue
             
 except KeyboardInterrupt:
     print("Close Serial communication.")

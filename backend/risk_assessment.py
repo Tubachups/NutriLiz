@@ -55,20 +55,39 @@ def get_allergen_info(product_data):
     }
 
 
+
 def create_health_prompt(product_data):
-    """Build a focused prompt from product data."""
-    name = product_data.get('name', 'Unknown')
-    barcode = product_data.get('barcode', 'N/A')
-    n = product_data.get('nutriments', {})
+    """Build a comprehensive prompt from product data for AI analysis with comorbidity considerations."""
+    source = product_data.get('source', 'openfoodfacts').lower()
 
-    allergen_info = get_allergen_info(product_data)
-    allergen_str = ', '.join(allergen_info['allergens']) if allergen_info['allergens'] else 'None listed'
-    traces_str = ', '.join(allergen_info['traces']) if allergen_info['traces'] else 'None'
+    if source == 'openfoodfacts':
+        name = product_data.get('name', 'Unknown')
+        barcode = product_data.get('barcode', 'N/A')
+        n = product_data.get('nutriments', {})
 
-    return f"""Analyze this food product's nutritional content:
+        allergen_info = get_allergen_info(product_data)
+        allergen_str = ', '.join(allergen_info['allergens']) if allergen_info['allergens'] else 'None listed'
+        traces_str = ', '.join(allergen_info['traces']) if allergen_info['traces'] else 'None'
+
+        # Additional product details for context
+        ingredients = product_data.get('ingredients_text', 'Not available')
+        additives = product_data.get('additives_tags', [])
+        
+        # Processing level (NOVA group)
+        nova_group = product_data.get('nova_group', 'N/A')
+        nova_context = {
+            '1': 'Unprocessed or minimally processed foods',
+            '2': 'Processed culinary ingredients',
+            '3': 'Processed foods',
+            '4': 'Ultra-processed foods'
+        }
+        nova_desc = nova_context.get(str(nova_group), 'Unknown processing level')
+
+        return f"""Analyze this food product's nutritional content and assess its suitability for people with common health conditions:
 
 Product: {name} (Barcode: {barcode})
 Category: {product_data.get('type', 'N/A')}
+Processing Level: NOVA Group {nova_group} - {nova_desc}
 
 ⚠️ ALLERGENS: {allergen_str}
 ⚠️ MAY CONTAIN TRACES: {traces_str}
@@ -80,35 +99,102 @@ Nutrition per 100g:
 - Salt: {n.get('salt_100g', 'N/A')}g (Sodium: {n.get('sodium_100g', 'N/A')}g)
 - Protein: {n.get('proteins_100g', 'N/A')}g
 - Fiber: {n.get('fiber_100g', 'N/A')}g
+- Carbohydrates: {n.get('carbohydrates_100g', 'N/A')}g
 
 Nutri-Score: {product_data.get('nutri_grade', 'N/A')}
-NOVA Group: {product_data.get('nova_group', 'N/A')}
 
-Format your response as:
-1. Allergen Alert: List allergens if any
-2. Sugar Content: - brief explanation
-3. Salt Content: - brief explanation  
-4. Saturated Fat: - brief explanation
-5. Overall Summary: 4 sentences on general nutritional quality
+Ingredients: {ingredients[:500]}{'...' if len(ingredients) > 500 else ''}
 
-Keep it factual and educational. Do not provide medical advice or personalized recommendations."""
+Format your response as with maximum of 2 sentences per section (Dont add servings on analysis):
 
+1. **Sugar Analysis**: 
+
+2. **Sodium/Salt Analysis**: 
+
+3. **Saturated Fat Analysis**: 
+
+4. **Fiber Content**:
+
+5. **Processing Level **:
+
+6. **Comorbidity Assessment**:
+  - Offer tailored dietary guidance for individuals with conditions like diabetes, hypertension, high cholesterol, obesity, kidney disease, and heart disease — addressing safety, nutrient impacts (sodium, fat, protein, calories), and recommended servings to manage related health risks (2 sentences max overall).
+  
+7. **Overall Health Summary**: 
+   - General nutritional quality
+   - Healthier alternatives or serving suggestions
+
+Keep it factual, educational, and evidence-based. Do not provide medical advice or personalized treatment recommendations. Use clear warnings when products are particularly concerning for specific conditions."""
+
+    else:
+        # Appwrite source: build AI prompt from Appwrite data structure (fresh foods)
+        prod = product_data.get('product', {})
+        name = prod.get('name', product_data.get('product_name', 'Unknown'))
+        barcode = product_data.get('barcode', 'N/A')
+        category = prod.get('category', 'N/A')
+
+        n = product_data.get('nutrition', {})
+
+        sugar = n.get('sugar', 'N/A')
+        fat = n.get('fat', 'N/A')
+        saturated = n.get('saturated_fat', n.get('saturatedFat', 'N/A'))
+        salt = n.get('sodium', n.get('salt', 'N/A'))
+        protein = n.get('protein', 'N/A')
+        fiber = n.get('fiber', 'N/A')
+        carbs = n.get('carbohydrates', 'N/A')
+
+        return f"""Analyze this fresh food product's nutritional content and assess its suitability for people with common health conditions:
+
+Product: {name} (Barcode: {barcode})
+Category: {category}
+Type: Fresh Food (No additives or preservatives)
+
+Nutrition per 100g:
+- Sugar: {sugar}g
+- Fat: {fat}g (Saturated: {saturated}g)
+- Salt/Sodium: {salt}g
+- Protein: {protein}g
+- Fiber: {fiber}g
+- Carbohydrates: {carbs}g
+
+Format your response as with maximum of 2 sentences per section (Dont add servings on analysis):
+
+1. **Sugar Analysis**: 
+
+2. **Sodium/Salt Analysis**: 
+
+3. **Saturated Fat Analysis**: 
+
+4. **Fiber Content**:
+
+5. **Comorbidity Assessment**:
+  - Offer tailored dietary guidance for individuals with conditions like diabetes, hypertension, high cholesterol, obesity, kidney disease, and heart disease — addressing safety, nutrient impacts (sodium, fat, protein, calories), and recommended servings to manage related health risks (2 sentences max overall).
+
+6. **Overall Health Summary**: 
+   - General nutritional quality 
+   - Preparation suggestions to maximize health benefits 
+
+Keep it factual, educational, and evidence-based. Do not provide medical advice or personalized treatment recommendations. Emphasize the natural and wholesome nature of fresh foods."""
 
 def analyze_product(product_data):
-    """Main analysis function."""
     print("\n" + "="*70)
-    print(f"📦 {product_data.get('name', 'Unknown Product')}")
+    source = product_data.get('source', 'openfoodfacts').lower()
+    display_name = product_data.get('name') or product_data.get('product', {}).get('name', 'Unknown Product')
+    print(f"📦 {display_name}")
     print(f"🔢 Barcode: {product_data.get('barcode', 'N/A')}")
+    print(f"📍 Source: {source}")
     print("="*70)
 
+    # Generate AI prompt for both sources
     prompt = create_health_prompt(product_data)
     llm_response = call_llm(prompt)
 
     allergen_info = get_allergen_info(product_data)
 
     return {
-        'product': product_data.get('name'),
+        'product': display_name,
         'barcode': product_data.get('barcode'),
+        'source': source,
         'allergens': allergen_info,
         'ai_analysis': llm_response
     }

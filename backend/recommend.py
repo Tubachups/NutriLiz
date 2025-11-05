@@ -112,14 +112,14 @@ def get_recommendations(barcode, limit=9):
         search_params = {
             'categories_tags': primary_category,
             'countries_tags': 'en:philippines',
-            'page_size': 50,
+            'page_size': 25,
             'fields': 'code,product_name,brands,brands_tags,countries,countries_tags,manufacturing_places,nutriments,image_url,image_front_url,image_front_small_url'
         }
         
         search = requests.get(
             "https://world.openfoodfacts.org/api/v2/search",
             params=search_params,
-            timeout=10
+            # timeout=30
         )
         search.raise_for_status()
         search_data = search.json()
@@ -183,7 +183,3 @@ def get_recommendations(barcode, limit=9):
     
     print(f"Returning {len(result)} recommendations (excluding base product)")
     return result 
-  
-  
-  
-  

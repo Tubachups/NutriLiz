@@ -153,6 +153,10 @@ def barcode_scanner_thread():
                 if barcode:
                     print(f"📦 Scanned Barcode: {barcode}")
                     latest_barcode = barcode
+                    
+                    # Automatically search and print results
+                    result = search_by_barcode(barcode)
+                    print(f"🔍 Search Result: {result}")
 
             time.sleep(0.05)
 
@@ -181,8 +185,40 @@ def search_product(barcode):
         }), 400
     
     result = search_by_barcode(barcode)
-    status_code = 200 if result.get('success') else 404
+    status_code = 200 if result.get('success') != False else 404
     return jsonify(result), status_code
+
+
+@app.route('/api/latest-scan')
+def get_latest_scan():
+    """Get the most recently scanned barcode and its product info"""
+    global latest_barcode
+    
+    if not latest_barcode:
+        return jsonify({
+            'success': False,
+            'message': 'No barcode scanned yet'
+        }), 404
+    
+    result = search_by_barcode(latest_barcode)
+    return jsonify(result), 200
+
+
+@app.route('/api/latest-barcode')
+def get_latest_barcode():
+    """Get just the latest scanned barcode value"""
+    global latest_barcode
+    
+    if not latest_barcode:
+        return jsonify({
+            'success': False,
+            'message': 'No barcode scanned yet'
+        }), 404
+    
+    return jsonify({
+        'success': True,
+        'barcode': latest_barcode
+    }), 200
 
 
 # ─────────────── MAIN ENTRY ───────────────

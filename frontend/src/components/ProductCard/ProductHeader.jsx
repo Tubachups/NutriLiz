@@ -1,17 +1,17 @@
 const ProductHeader = ({ imageUrl, name }) => {
   return (
-    <div className="product-header">
+    <div className=" p-6">
       {imageUrl && (
         <img
           src={imageUrl}
           alt={name}
-          className="product-image"
+          className="w-full h-50 object-contain rounded-lg bg-white shadow-md mb-4"
           onError={(e) => {
             e.target.style.display = 'none'
           }}
         />
       )}
-      <h2>{name}</h2>
+      <h2 className="text-2xl font-bold text-gray-800 text-center">{name}</h2>
     </div>
   )
 }

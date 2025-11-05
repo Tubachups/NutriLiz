@@ -1,11 +1,18 @@
 const GeneralInfo = ({ type, manufacturingPlaces, quantity, servingQuantity }) => {
   return (
-    <section>
-      <h3>General Information</h3>
-      <p><strong>Type:</strong> {type}</p>
-      <p><strong>Manufacturing Places:</strong> {manufacturingPlaces}</p>
-      <p><strong>Quantity:</strong> {quantity}</p>
-      <p><strong>Serving Quantity:</strong> {servingQuantity}</p>
+    <section className="bg-primary/50 rounded-lg p-4">
+      <h3 className="text-xl font-semibold mb-3 text-gray-800">ℹ️ General Information</h3>
+      <div className="space-y-2 text-gray-700">
+        <p>
+          <strong className="font-semibold">Type:</strong> {type}
+        </p>
+        <p>
+          <strong className="font-semibold">Manufacturing Places:</strong> {manufacturingPlaces}
+        </p>
+        <p>
+          <strong className="font-semibold">Serving Quantity:</strong> {quantity}
+        </p>
+      </div>
     </section>
   )
 }

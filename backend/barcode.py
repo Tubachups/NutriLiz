@@ -1,14 +1,147 @@
+from dotenv import load_dotenv
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+from appwrite.client import Client
+from appwrite.services.databases import Databases
+from appwrite.services.storage import Storage
+from appwrite.query import Query
+from appwrite.exception import AppwriteException
+import os
 import serial
 import time
 import threading
 import openfoodfacts
+
+# ─────────────── LOAD ENVIRONMENT ───────────────
+load_dotenv()
+
+app = Flask(__name__)
+CORS(app)
+
+client = Client()
+client.set_endpoint(os.getenv('APPWRITE_ENDPOINT'))
+client.set_project(os.getenv('APPWRITE_PROJECT_ID'))
+client.set_key(os.getenv('APPWRITE_API_KEY'))
+
+databases = Databases(client)
+storage = Storage(client)
+
+DATABASE_ID = os.getenv('APPWRITE_DATABASE_ID')
+COLLECTION_ID = os.getenv('APPWRITE_COLLECTION_ID')
+BUCKET_ID = os.getenv('APPWRITE_BUCKET_ID')
 
 latest_barcode = None
 
 # Initialize OpenFoodFacts API
 api = openfoodfacts.API(user_agent="NutriLiz/1.0")
 
-def get_product_data(barcode):
+def get_product_data_appwrite(barcode_value):
+    try:
+        # ───────────── TRY sm_bar FIRST ─────────────
+        barcode_str = str(barcode_value).strip()
+        original_length = len(barcode_str)
+        
+        if len(barcode_str) > 13:
+            barcode_str = barcode_str[:13]
+
+        sm_bar_trimmed = int(barcode_str)
+        
+        result = databases.list_documents(
+            DATABASE_ID,
+            COLLECTION_ID,
+            queries=[Query.equal("sm_bar", [sm_bar_trimmed])]
+        )
+
+        # ───────────── IF NOT FOUND, TRY rs_bar ─────────────
+        if not result['documents']:
+            rs_query_value = int(barcode_value) if barcode_value.isdigit() and len(barcode_value) <= 15 else barcode_value
+
+            result = databases.list_documents(
+                DATABASE_ID,
+                COLLECTION_ID,
+                queries=[Query.equal("rs_bar", [rs_query_value])]
+            )
+
+        # ───────────── HANDLE RESULTS ─────────────
+        if not result['documents']:
+            return {
+                'success': False,
+                'barcode': barcode_value,
+                'message': 'No product found for this barcode',
+                'searched': {
+                    'sm_bar': sm_bar_trimmed,
+                    'rs_bar': barcode_value,
+                    'trimmed': original_length > 13
+                }
+            }
+
+        # Format the document data based on your actual schema
+        doc = result['documents'][0]
+        
+        # Build image URL
+        file_id = doc.get('image_id') or doc.get('imageId') or doc.get('$id')
+        image_url = None
+        if file_id:
+            image_url = (
+                f"{os.getenv('APPWRITE_ENDPOINT')}/storage/buckets/"
+                f"{BUCKET_ID}/files/{file_id}/preview?project={os.getenv('APPWRITE_PROJECT_ID')}"
+            )
+        
+        # Extract and format product data matching your schema
+        product_data = {
+            'source': 'appwrite',
+            'barcode': barcode_value,
+            'document_id': doc.get('$id'),
+            'sm_bar': doc.get('sm_bar'),
+            'rs_bar': doc.get('rs_bar'),
+            'product': {
+                'name': doc.get('name', 'N/A'),
+                'category': doc.get('category', 'N/A'),
+            },
+            'image_url': image_url,
+            'nutrition': {
+                # Macronutrients
+                'carbohydrates': doc.get('carbohydrates', 'N/A'),
+                'protein': doc.get('protein', 'N/A'),
+                'fat': doc.get('fat', 'N/A'),
+                'fiber': doc.get('fiber', 'N/A'),
+                'sugar': doc.get('sugar', 'N/A'),
+                
+                # Minerals
+                'calcium': doc.get('calcium', 'N/A'),
+                'iron': doc.get('iron', 'N/A'),
+                'water': doc.get('water', 'N/A'),
+                'potassium': doc.get('potassium', 'N/A'),
+                'magnesium': doc.get('magnesium', 'N/A'),
+                'sodium': doc.get('sodium', 'N/A'),
+                'phosphorus': doc.get('phosphorus', 'N/A'),
+                
+                # Vitamins
+                'vitamin_c': doc.get('vitamin_c', 'N/A'),
+                'vitamin_a': doc.get('vitamin_a', 'N/A'),
+                'vitamin_e': doc.get('vitamin_e', 'N/A'),
+            },
+        }
+        
+        return product_data
+
+    except AppwriteException as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'error_type': 'AppwriteException',
+            'barcode': barcode_value
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'error_type': type(e).__name__,
+            'barcode': barcode_value
+        }
+
+
+def get_product_data_openfoodfacts(barcode):
     """Fetch product data from OpenFoodFacts using SDK."""
     try:
         # Use SDK's product lookup with correct syntax
@@ -34,6 +167,7 @@ def get_product_data(barcode):
             ecoscore_data = product_data.get('ecoscore_data', {})
             
             return {
+                'source': 'openfoodfacts',
                 'barcode': barcode,
                 'name': product_data.get('product_name', 'N/A'),
                 'type': product_data.get('categories', 'N/A'),
@@ -89,6 +223,19 @@ def get_product_data(barcode):
         print(f"SDK request failed: {e}")
         return None
 
+def get_product_data(barcode):
+    # Try OpenFoodFacts first
+    openfoodfacts_data = get_product_data_openfoodfacts(barcode)
+    if openfoodfacts_data:
+        return openfoodfacts_data
+    
+    # Fall back to custom database
+    custom_data = get_product_data_appwrite(barcode)
+    if custom_data:
+        return custom_data
+    
+    return None
+
 
 def barcode_scanner_thread():
     global latest_barcode
@@ -101,9 +248,10 @@ def barcode_scanner_thread():
         while True:
             time.sleep(0.01)
             if ser.in_waiting > 0:
-                line = ser.readline().decode('utf-8').rstrip()
-                print(f"Barcode scanned: {line}")
-                latest_barcode = line
+                line = ser.readline().decode('utf-8', errors='replace').rstrip()
+                if line and len(line) > 0 and not line.isspace():
+                    print(f"Barcode scanned: {line}")
+                    latest_barcode = line
                 
     except KeyboardInterrupt:
         print("Closing serial communication.")
