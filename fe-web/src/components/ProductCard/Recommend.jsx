@@ -20,7 +20,7 @@ const Recommend = ({ recommendations, count }) => {
               <img 
                 src={rec.image_url} 
                 alt={rec.name}
-                className="w-full h-40 object-cover"
+                className="w-full h-60 object-contain"
               />
             )}
             <div className="p-4">

@@ -34,7 +34,7 @@ export const useProductScanner = () => {
       if (response.ok) {
         setProductData(data)
       } else {
-        setError('Product not found')
+        setError('Search query limit reached. Please retry after 1 minute.')
       }
     } catch (err) {
       setError('Failed to fetch product data', err)

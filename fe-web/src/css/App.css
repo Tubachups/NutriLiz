@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import url('https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Delius&display=swap');
 
 @theme {
   --color-primary: #ECF4E8;
@@ -7,6 +7,6 @@
   --color-accent: #ABE7B2;
   --color-dark: #93BFC7;
 
-  --font-display: 'Rubik', sans-serif;
+  --font-display: 'Delius', cursive;
 
 }
