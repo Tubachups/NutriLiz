@@ -33,7 +33,7 @@ BUCKET_ID = os.getenv('APPWRITE_BUCKET_ID')
 latest_barcode = None
 
 # Initialize OpenFoodFacts API
-api = openfoodfacts.API(user_agent="NutriLiz/1.0")
+api = openfoodfacts.API(user_agent="NutriLiz/1.0", timeout=15)
 
 def get_product_data_appwrite(barcode_value):
     try:
@@ -223,16 +223,19 @@ def get_product_data_openfoodfacts(barcode):
         print(f"SDK request failed: {e}")
         return None
 
+
 def get_product_data(barcode):
-    # Try OpenFoodFacts first
+    # Try Appwrite first
+    custom_data = get_product_data_appwrite(barcode)
+    
+    # Check if Appwrite returned valid product data
+    if custom_data and custom_data.get('success') is not False:
+        return custom_data
+    
+    # Fall back to OpenFoodFacts if not found in Appwrite
     openfoodfacts_data = get_product_data_openfoodfacts(barcode)
     if openfoodfacts_data:
         return openfoodfacts_data
-    
-    # Fall back to custom database
-    custom_data = get_product_data_appwrite(barcode)
-    if custom_data:
-        return custom_data
     
     return None
 

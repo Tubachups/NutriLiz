@@ -42,7 +42,7 @@ def get_product(barcode):
             product_data['message'] = 'Recommendations only available for OpenFoodFacts products'
         
         return jsonify(product_data)
-    return jsonify({'error': 'Product not found'}), 404
+    return jsonify({'error': 'Search query limit reached. Please retry after 1 minute.'}), 404
 
 @app.route('/api/recommendations/<barcode>')
 def get_product_recommendations(barcode):
@@ -77,7 +77,7 @@ def assess_product(barcode):
         product_data = get_product_data(barcode)
         
         if not product_data:
-            return jsonify({'error': 'Product not found'}), 404
+            return jsonify({'error': 'Search query limit reached. Please retry after 1 minute.'}), 404
         
         # Run AI analysis
         assessment = analyze_product(product_data)

@@ -83,9 +83,9 @@ const App = () => {
                     <h3 className="text-xl font-semibold mb-3 text-gray-800">
                       🤖 AI Analysis
                     </h3>
-                    <pre className="whitespace-pre-wrap font-sans text-gray-700 leading-relaxed">
+                    <p className="whitespace-pre-wrap leading-relaxed text-gray-700 ">
                       {cleanAnalysis(assessment.ai_analysis)}
-                    </pre>
+                    </p>
                   </div>
                 )}
               </div>

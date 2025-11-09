@@ -115,12 +115,10 @@ Format your response as with maximum of 2 sentences per section (Dont add servin
 
 4. **Fiber Content**:
 
-5. **Processing Level **:
-
-6. **Comorbidity Assessment**:
+5. **Comorbidity Assessment**:
   - Offer tailored dietary guidance for individuals with conditions like diabetes, hypertension, high cholesterol, obesity, kidney disease, and heart disease — addressing safety, nutrient impacts (sodium, fat, protein, calories), and recommended servings to manage related health risks (2 sentences max overall).
   
-7. **Overall Health Summary**: 
+6. **Overall Health Summary**: 
    - General nutritional quality
    - Healthier alternatives or serving suggestions
 
