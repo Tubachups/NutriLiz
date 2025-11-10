@@ -44,6 +44,7 @@ def get_product(barcode):
         return jsonify(product_data)
     return jsonify({'error': 'Search query limit reached. Please retry after 1 minute.'}), 404
 
+
 @app.route('/api/recommendations/<barcode>')
 def get_product_recommendations(barcode):
     try:
