@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "fe-mobile",
-    "slug": "fe-mobile",
+    "name": "fe-mob",
+    "slug": "fe-mob",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "femobile",
+    "scheme": "femob",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
