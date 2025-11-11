@@ -3,7 +3,6 @@ import GeneralInfo from './GeneralInfo'
 import NutritionInfo from './NutritionInfo'
 import ScoresInfo from './ScoreInfo'
 import LabelsInfo from './LabelInfo'
-import Recommend from './Recommend'
 
 
 const ProductCard = ({ productData }) => {
@@ -19,7 +18,7 @@ const ProductCard = ({ productData }) => {
           type={productData.type}
           manufacturingPlaces={productData.manufacturing_places}
           quantity={productData.quantity}
-          servingQuantity={productData.serving_quantity}
+          ingredientsText={productData.ingredients_text}
         />
 
         <NutritionInfo nutritionData={productData} />
@@ -38,10 +37,7 @@ const ProductCard = ({ productData }) => {
           awards={productData.awards}
         />
 
-        <Recommend
-          recommendations={productData.recommendations}
-          count={productData.recommendations_count}
-        />
+        
       </div>
     </div>
   )
