@@ -6,7 +6,7 @@ const Recommend = ({ recommendations, count }) => {
   }
 
   return (
-    <section className="bg-secondary/30 rounded-lg p-4">
+    <section className="bg-white rounded-lg p-4">
       <h3 className="text-xl font-semibold mb-4 text-gray-800">
         🔍 Recommended Similar Products ({count})
       </h3>

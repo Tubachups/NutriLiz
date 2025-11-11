@@ -1,4 +1,4 @@
-const GeneralInfo = ({ type, manufacturingPlaces, quantity, servingQuantity }) => {
+const GeneralInfo = ({ type, manufacturingPlaces, quantity, ingredientsText }) => {
   return (
     <section className="bg-primary/50 rounded-lg p-4">
       <h3 className="text-xl font-semibold mb-3 text-gray-800">ℹ️ General Information</h3>
@@ -11,6 +11,9 @@ const GeneralInfo = ({ type, manufacturingPlaces, quantity, servingQuantity }) =
         </p>
         <p>
           <strong className="font-semibold">Serving Quantity:</strong> {quantity}
+        </p>
+        <p>
+          <strong className="font-semibold">Ingredients:</strong> {ingredientsText}
         </p>
       </div>
     </section>

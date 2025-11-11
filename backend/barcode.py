@@ -158,7 +158,7 @@ def get_product_data_openfoodfacts(barcode):
                 "brands", "brands_tags",
                 # Allergen fields
                 "allergens", "allergens_tags", "allergens_hierarchy",
-                "traces", "traces_tags", "traces_hierarchy"
+                "traces", "traces_tags", "traces_hierarchy", "ingredients_text"
             ]
         )
         
@@ -217,6 +217,7 @@ def get_product_data_openfoodfacts(barcode):
                 'traces': product_data.get('traces', ''),
                 'traces_tags': product_data.get('traces_tags', []),
                 'traces_hierarchy': product_data.get('traces_hierarchy', []),
+                'ingredients_text': product_data.get('ingredients_text', 'N/A')
             }
         return None
     except Exception as e:
