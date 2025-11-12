@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Alert } from 'react-native';
-import { PaperProvider, Button, Text, Card, ActivityIndicator } from 'react-native-paper';
+import { PaperProvider, Button, Text, Card, ActivityIndicator, IconButton } from 'react-native-paper';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useProductAPI } from '../hooks/useProductAPI';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ export default function Index() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [cameraVisible, setCameraVisible] = useState(true);
+  const [torchEnabled, setTorchEnabled] = useState(false);
   const { fetchProduct, loading } = useProductAPI();
   const router = useRouter();
 
@@ -19,10 +20,12 @@ export default function Index() {
     useCallback(() => {
       setCameraVisible(true);
       setScanned(false);
+      setTorchEnabled(false); // Reset torch when screen comes into focus
       
       return () => {
         // Cleanup when screen loses focus
         setCameraVisible(false);
+        setTorchEnabled(false);
       };
     }, [])
   );
@@ -69,6 +72,10 @@ export default function Index() {
     }
   };
 
+  const toggleTorch = () => {
+    setTorchEnabled(!torchEnabled);
+  };
+
   if (!cameraVisible) {
     return (
       <View style={styles.container}>
@@ -87,6 +94,7 @@ export default function Index() {
       <CameraView
         style={styles.camera}
         facing="back"
+        enableTorch={torchEnabled}
         onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
         barcodeScannerSettings={{
           barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'],
@@ -105,6 +113,16 @@ export default function Index() {
           <Text style={styles.scannedText}>✓ Barcode Scanned</Text>
         </View>
       )}
+
+      <View style={styles.topBar}>
+        <IconButton
+          icon={torchEnabled ? "flashlight" : "flashlight-off"}
+          iconColor="white"
+          size={30}
+          onPress={toggleTorch}
+          style={styles.torchButton}
+        />
+      </View>
 
       <View style={styles.bottomBar}>
         <Button 
@@ -157,6 +175,16 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  topBar: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  torchButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   bottomBar: {
     position: 'absolute',
