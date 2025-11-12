@@ -1,30 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { ScrollView, View, StyleSheet, Image } from 'react-native';
-import { Text, Card, Chip, ActivityIndicator, Divider } from 'react-native-paper';
+import { useEffect, useState } from 'react';
+import { ScrollView, View, StyleSheet } from 'react-native';
+import { ActivityIndicator } from 'react-native-paper';
 import { useLocalSearchParams } from 'expo-router';
 import { useProductAPI } from '../hooks/useProductAPI';
+import ProductHeader from './components/product-detail/ProductHeader';
+import NutritionInfo from './components/product-detail/NutritionInfo';
+import ScoresCard from './components/product-detail/ScoresCard';
+import IngredientsCard from './components/product-detail/IngredientsCard';
+import AllergensCard from './components/product-detail/AllergensCard';
+import AIAssessment from './components/product-detail/AIAssessment';
+import RecommendationsCard from './components/product-detail/RecommendationsCard';
 
 export default function ProductDetail() {
   const { barcode, productData: productDataString } = useLocalSearchParams();
   const [productData, setProductData] = useState(null);
   const [assessment, setAssessment] = useState(null);
   const { fetchAssessment, loading } = useProductAPI();
-
-  const formatAllergenText = (allergenString) => {
-    if (!allergenString) return '';
-    
-    // Remove 'en:' prefix and replace dashes/underscores with spaces
-    return allergenString
-      .split(',')
-      .map(allergen => 
-        allergen
-          .replace(/^en:/gi, '')
-          .replace(/[-_]/g, ' ')
-          .trim()
-          .replace(/\b\w/g, char => char.toUpperCase())
-      )
-      .join(', ');
-  };
 
   useEffect(() => {
     if (productDataString) {
@@ -48,175 +39,30 @@ export default function ProductDetail() {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Product Header */}
-      <Card style={styles.card}>
-        {productData.image_url && (
-          <Card.Cover source={{ uri: productData.image_url }} style={styles.image} />
-        )}
-        <Card.Content>
-          <Text variant="headlineMedium" style={styles.productName}>
-            {isAppwriteProduct ? productData.product?.name : productData.name}
-          </Text>
-          {!isAppwriteProduct && productData.type && (
-            <Chip style={styles.chip}>{productData.type}</Chip>
-          )}
-        </Card.Content>
-      </Card>
-
-      {/* Nutrition Info */}
-      <Card style={styles.card}>
-        <Card.Title title="🥗 Nutrition Information" />
-        <Card.Content>
-          {isAppwriteProduct ? (
-            <View>
-              {Object.entries(productData.nutrition).map(([key, value]) => (
-                <View key={key} style={styles.nutritionRow}>
-                  <Text style={styles.nutritionLabel}>
-                    {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:
-                  </Text>
-                  <Text style={styles.nutritionValue}>{value}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View>
-              <View style={styles.nutritionRow}>
-                <Text style={styles.nutritionLabel}>Energy:</Text>
-                <Text style={styles.nutritionValue}>
-                  {productData.energy_kcal_100g} kcal / 100g
-                </Text>
-              </View>
-              <View style={styles.nutritionRow}>
-                <Text style={styles.nutritionLabel}>Carbohydrates:</Text>
-                <Text style={styles.nutritionValue}>
-                  {productData.carbohydrates_100g}g / 100g
-                </Text>
-              </View>
-              <View style={styles.nutritionRow}>
-                <Text style={styles.nutritionLabel}>Sugars:</Text>
-                <Text style={styles.nutritionValue}>
-                  {productData.sugars_100g}g / 100g
-                </Text>
-              </View>
-              <View style={styles.nutritionRow}>
-                <Text style={styles.nutritionLabel}>Fat:</Text>
-                <Text style={styles.nutritionValue}>
-                  {productData.fat_100g}g / 100g
-                </Text>
-              </View>
-              <View style={styles.nutritionRow}>
-                <Text style={styles.nutritionLabel}>Proteins:</Text>
-                <Text style={styles.nutritionValue}>
-                  {productData.proteins_100g}g / 100g
-                </Text>
-              </View>
-              <View style={styles.nutritionRow}>
-                <Text style={styles.nutritionLabel}>Fiber:</Text>
-                <Text style={styles.nutritionValue}>
-                  {productData.fiber_100g}g / 100g
-                </Text>
-              </View>
-            </View>
-          )}
-        </Card.Content>
-      </Card>
-
-      {/* Scores (OpenFoodFacts only) */}
+      <ProductHeader productData={productData} isAppwriteProduct={isAppwriteProduct} />
+      
+      <NutritionInfo productData={productData} isAppwriteProduct={isAppwriteProduct} />
+      
+      {!isAppwriteProduct && <ScoresCard productData={productData} />}
+      
       {!isAppwriteProduct && (
-        <Card style={styles.card}>
-          <Card.Title title="📊 Scores" />
-          <Card.Content>
-            {productData.nutri_grade !== 'N/A' && (
-              <View style={styles.scoreRow}>
-                <Text>Nutri-Score:</Text>
-                <Chip style={styles.scoreChip}>{productData.nutri_grade?.toUpperCase()}</Chip>
-              </View>
-            )}
-            {productData.nova_group !== 'N/A' && (
-              <View style={styles.scoreRow}>
-                <Text>NOVA Group:</Text>
-                <Chip style={styles.scoreChip}>{productData.nova_group}</Chip>
-              </View>
-            )}
-          </Card.Content>
-        </Card>
+        <IngredientsCard ingredientsText={productData.ingredients_text} />
       )}
-
-      {/* Ingredients (OpenFoodFacts only) */}
-      {!isAppwriteProduct && productData.ingredients_text && productData.ingredients_text !== 'N/A' && (
-        <Card style={styles.card}>
-          <Card.Title title="🧪 Ingredients" />
-          <Card.Content>
-            <Text style={styles.ingredientsText}>
-              {productData.ingredients_text}
-            </Text>
-          </Card.Content>
-        </Card>
+      
+      {!isAppwriteProduct && (
+        <AllergensCard 
+          allergens={productData.allergens} 
+          traces={productData.traces} 
+        />
       )}
-
-      {/* Allergens (OpenFoodFacts only) */}
-      {!isAppwriteProduct && (productData.allergens || productData.traces) && (
-        <Card style={styles.card}>
-          <Card.Title title="⚠️ Allergen Information" />
-          <Card.Content>
-            {productData.allergens && productData.allergens !== '' && (
-              <View style={styles.allergenSection}>
-                <Text style={styles.allergenLabel}>Contains:</Text>
-                <Text style={styles.allergenText}>{formatAllergenText(productData.allergens)}</Text>
-              </View>
-            )}
-            {productData.traces && productData.traces !== '' && (
-              <View style={styles.allergenSection}>
-                <Text style={styles.allergenLabel}>May contain traces of:</Text>
-                <Text style={styles.allergenText}>{formatAllergenText(productData.traces)}</Text>
-              </View>
-            )}
-          </Card.Content>
-        </Card>
-      )}
-
-      {/* AI Assessment */}
-      {loading && (
-        <Card style={styles.card}>
-          <Card.Content>
-            <ActivityIndicator size="small" />
-            <Text style={styles.centerText}>Generating health assessment...</Text>
-          </Card.Content>
-        </Card>
-      )}
-
-      {assessment && assessment.ai_analysis && (
-        <Card style={styles.card}>
-          <Card.Title title="🤖 Health Assessment" />
-          <Card.Content>
-            <Text style={styles.analysisText}>
-              {assessment.ai_analysis.replace(/\*\*/g, '')}
-            </Text>
-          </Card.Content>
-        </Card>
-      )}
-
-      {/* Recommendations (OpenFoodFacts only) */}
-      {!isAppwriteProduct && productData.recommendations && productData.recommendations.length > 0 && (
-        <Card style={styles.card}>
-          <Card.Title title={`🔍 Similar Products (${productData.recommendations_count})`} />
-          <Card.Content>
-            {productData.recommendations.slice(0, 9).map((rec) => (
-              <Card key={rec.barcode} style={styles.recCard}>
-                {rec.image_url && (
-                  <Card.Cover source={{ uri: rec.image_url }} style={styles.recImage} />
-                )}
-                <Card.Content>
-                  <Text variant="titleSmall">{rec.name}</Text>
-                  <Text variant="bodySmall">{rec.brand}</Text>
-                  <Chip style={styles.matchChip}>
-                    Match: {(rec.similarity_score * 100).toFixed(1)}%
-                  </Chip>
-                </Card.Content>
-              </Card>
-            ))}
-          </Card.Content>
-        </Card>
+      
+      <AIAssessment loading={loading} assessment={assessment} />
+      
+      {!isAppwriteProduct && (
+        <RecommendationsCard 
+          recommendations={productData.recommendations}
+          recommendationsCount={productData.recommendations_count}
+        />
       )}
     </ScrollView>
   );
@@ -231,77 +77,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  card: {
-    margin: 10,
-    backgroundColor: 'white',
-  },
-  image: {
-    height: 200,
-  },
-  productName: {
-    marginTop: 10,
-    fontWeight: 'bold',
-  },
-  chip: {
-    marginTop: 10,
-    alignSelf: 'flex-start',
-  },
-  nutritionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  nutritionLabel: {
-    fontWeight: '600',
-  },
-  nutritionValue: {
-    color: '#666',
-  },
-  scoreRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginVertical: 5,
-  },
-  scoreChip: {
-    backgroundColor: '#93BFC7',
-  },
-  analysisText: {
-    lineHeight: 22,
-    color: '#333',
-  },
-  centerText: {
-    textAlign: 'center',
-    marginTop: 10,
-  },
-  recCard: {
-    marginBottom: 10,
-  },
-  recImage: {
-    height: 150,
-  },
-  matchChip: {
-    marginTop: 5,
-    alignSelf: 'flex-start',
-    backgroundColor: '#CBF3BB',
-  },
-  ingredientsText: {
-    lineHeight: 20,
-    color: '#333',
-  },
-  allergenSection: {
-    marginBottom: 12,
-  },
-  allergenLabel: {
-    fontWeight: '600',
-    marginBottom: 4,
-    color: '#d32f2f',
-  },
-  allergenText: {
-    color: '#666',
-    lineHeight: 20,
   },
 });
