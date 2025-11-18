@@ -1,38 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
-import { PaperProvider, Button, Text, Card, ActivityIndicator, IconButton } from 'react-native-paper';
+import React, { useState, useCallback } from 'react';
+import { View, StyleSheet, Alert } from 'react-native';
+import { Button, Text, ActivityIndicator, IconButton } from 'react-native-paper';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useProductAPI } from '../hooks/useProductAPI';
-import { useRouter } from 'expo-router';
+import { useProductAPI } from '../../hooks/useProductAPI';
+import { useRouter, Link } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
 
 export default function Index() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-  const [cameraVisible, setCameraVisible] = useState(true);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const { fetchProduct, loading } = useProductAPI();
   const router = useRouter();
 
-  // Reset camera visibility when screen comes into focus
+  // Reset scan state every time screen is focused
   useFocusEffect(
     useCallback(() => {
-      setCameraVisible(true);
       setScanned(false);
-      setTorchEnabled(false); // Reset torch when screen comes into focus
-      
+      setTorchEnabled(false);
+
       return () => {
-        // Cleanup when screen loses focus
-        setCameraVisible(false);
         setTorchEnabled(false);
       };
     }, [])
   );
 
-  if (!permission) {
-    return <View />;
-  }
+  if (!permission) return <View />;
 
   if (!permission.granted) {
     return (
@@ -52,11 +45,9 @@ export default function Index() {
       setScanned(true);
       console.log(`Scanned: ${data}`);
 
-      // Fetch product data
       const productData = await fetchProduct(data);
-      
+
       if (productData) {
-        // Navigate to product detail screen
         router.push({
           pathname: '/product-detail',
           params: { 
@@ -66,28 +57,10 @@ export default function Index() {
         });
       } else {
         Alert.alert('Error', 'Product not found');
-        // Reset scan state if product not found
         setTimeout(() => setScanned(false), 2000);
       }
     }
   };
-
-  const toggleTorch = () => {
-    setTorchEnabled(!torchEnabled);
-  };
-
-  if (!cameraVisible) {
-    return (
-      <View style={styles.container}>
-        <Text variant="titleMedium" style={styles.message}>
-          Camera Closed
-        </Text>
-        <Button mode="contained" onPress={() => setCameraVisible(true)}>
-          Open Camera
-        </Button>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -101,6 +74,7 @@ export default function Index() {
         }}
       />
 
+      {/* Loading overlay */}
       {loading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#ffffff" />
@@ -108,59 +82,45 @@ export default function Index() {
         </View>
       )}
 
+      {/* Scanned overlay */}
       {scanned && !loading && (
         <View style={styles.scannedOverlay}>
           <Text style={styles.scannedText}>✓ Barcode Scanned</Text>
         </View>
       )}
 
+      {/* Torch button */}
       <View style={styles.topBar}>
         <IconButton
           icon={torchEnabled ? "flashlight" : "flashlight-off"}
           iconColor="white"
           size={30}
-          onPress={toggleTorch}
+          onPress={() => setTorchEnabled(!torchEnabled)}
           style={styles.torchButton}
         />
       </View>
 
+      {/* Bottom content */}
       <View style={styles.bottomBar}>
-        <Button 
-          mode="contained" 
-          onPress={() => setCameraVisible(false)}
-          style={styles.closeButton}
-        >
-          Close Camera
-        </Button>
+        <Link href="/login">Login Page</Link>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-  },
-  camera: {
-    flex: 1,
-  },
-  message: {
-    textAlign: 'center',
-    color: 'white',
-    marginBottom: 16,
-  },
+  container: { flex: 1, backgroundColor: '#121212' },
+  camera: { flex: 1 },
+  message: { textAlign: 'center', color: 'white', marginBottom: 16 },
+
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: {
-    color: 'white',
-    marginTop: 10,
-    fontSize: 16,
-  },
+  loadingText: { color: 'white', marginTop: 10, fontSize: 16 },
+
   scannedOverlay: {
     position: 'absolute',
     top: 50,
@@ -176,6 +136,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+
   topBar: {
     position: 'absolute',
     top: 40,
@@ -183,9 +144,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  torchButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
+  torchButton: { backgroundColor: 'rgba(0, 0, 0, 0.5)' },
+
   bottomBar: {
     position: 'absolute',
     bottom: 0,
@@ -193,8 +153,5 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 20,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  closeButton: {
-    backgroundColor: '#f44336',
   },
 });
