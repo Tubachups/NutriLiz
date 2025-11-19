@@ -18,6 +18,18 @@ export default function TabsLayout() {
           tabBarInactiveTintColor: '#757575',
         }}
       >
+
+        <Tabs.Screen
+          name="login"
+          options={{
+            title: 'Login',
+            headerShown: true,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="person" size={size} color={color} />
+            ),
+          }}
+        />
+
         <Tabs.Screen 
           name="index" 
           options={{ 
@@ -30,13 +42,13 @@ export default function TabsLayout() {
           }} 
         />
 
-        <Tabs.Screen
-          name="login"
-          options={{
-            title: 'Login',
+        <Tabs.Screen 
+          name="home" 
+          options={{ 
+            title: 'Home',
             headerShown: true,
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person" size={size} color={color} />
+              <Ionicons name="home" size={size} color={color} />
             ),
           }}
         />
