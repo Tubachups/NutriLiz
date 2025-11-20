@@ -25,7 +25,7 @@ export default function ProductDetail() {
       // Fetch AI assessment
       fetchAssessment(barcode).then(setAssessment);
     }
-  }, []);
+  }, [barcode, productDataString]);
 
   if (!productData) {
     return (

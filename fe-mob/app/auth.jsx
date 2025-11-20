@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/auth-context";
 
 export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [userName, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -44,7 +45,7 @@ export default function AuthScreen() {
 
     if (isSignUp) {
       // Sign up logic
-      const error = await signUp(email, password);
+      const error = await signUp(email, password, userName);
       if (error) {
         setError(error);
         return
@@ -68,10 +69,31 @@ export default function AuthScreen() {
       <View style={styles.formContainer}>
         <Text style={styles.title}>{isSignUp ? "Create Account" : "Welcome Back!"}</Text>
 
+        {isSignUp && (
+          <TextInput
+            label='Username'
+            value={userName}
+            onChangeText={
+              (text) => {
+                setUsername(text)
+                setError(null);
+            }}
+            autoCapitalize="none"
+            placeholder="john_doe"
+            placeholderTextColor="#999"
+            mode="outlined"
+            style={styles.input}
+          />
+        )}
+
         <TextInput
           label='Email'
           value={email}
-          onChangeText={setEmail}
+          onChangeText={
+            (text) => {
+              setEmail(text)
+              setError(null);
+          }}
           autoCapitalize="none"
           keyboardType="email-address"
           placeholder="example@gmail.com"
@@ -83,7 +105,11 @@ export default function AuthScreen() {
         <TextInput
           label='Password'
           value={password}
-          onChangeText={setPassword}
+          onChangeText={
+            (text) => {
+              setPassword(text)
+              setError(null); 
+          }}
           autoCapitalize="none"
           secureTextEntry
           mode="outlined"
