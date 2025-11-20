@@ -1,157 +1,199 @@
-import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
-import { Button, Text, ActivityIndicator, IconButton } from 'react-native-paper';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useProductAPI } from '../../hooks/useProductAPI';
-import { useRouter, Link } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button, Card } from 'react-native-paper';
+import { useAuth } from "@/hooks/auth-context";
+import { useLocalSearchParams } from 'expo-router';
 
-export default function Index() {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [scanned, setScanned] = useState(false);
-  const [torchEnabled, setTorchEnabled] = useState(false);
-  const { fetchProduct, loading } = useProductAPI();
-  const router = useRouter();
+export default function HomeScreen() {
+  const { signOut, user } = useAuth();
+  const params = useLocalSearchParams();
 
-  // Reset scan state every time screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      setScanned(false);
-      setTorchEnabled(false);
-
-      return () => {
-        setTorchEnabled(false);
-      };
-    }, [])
-  );
-
-  if (!permission) return <View />;
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <Text variant="titleMedium" style={styles.message}>
-          We need your permission to use the camera
-        </Text>
-        <Button mode="contained" onPress={requestPermission}>
-          Grant Camera Permission
-        </Button>
-      </View>
-    );
-  }
-
-  const handleBarcodeScanned = async ({ type, data }) => {
-    if (!scanned && !loading) {
-      setScanned(true);
-      console.log(`Scanned: ${data}`);
-
-      const productData = await fetchProduct(data);
-
-      if (productData) {
-        router.push({
-          pathname: '/product-detail',
-          params: { 
-            barcode: data,
-            productData: JSON.stringify(productData)
-          }
-        });
-      } else {
-        Alert.alert('Error', 'Product not found');
-        setTimeout(() => setScanned(false), 2000);
-      }
-    }
-  };
+  // Check if profile data is available
+  const hasProfileData = params.weight && params.height;
 
   return (
-    <View style={styles.container}>
-      <CameraView
-        style={styles.camera}
-        facing="back"
-        enableTorch={torchEnabled}
-        onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'],
-        }}
-      />
-
-      {/* Loading overlay */}
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#ffffff" />
-          <Text style={styles.loadingText}>Loading product...</Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <Text style={styles.title}>NutriLiz</Text>
+          <Text style={styles.subtitle}>Your Nutrition Companion</Text>
+          {user && (<Text style={styles.welcomeUser}>Hello, {user.name}!</Text>
+          )}
         </View>
-      )}
 
-      {/* Scanned overlay */}
-      {scanned && !loading && (
-        <View style={styles.scannedOverlay}>
-          <Text style={styles.scannedText}>✓ Barcode Scanned</Text>
+        {hasProfileData && (
+          <Card style={styles.profileCard}>
+            <Card.Content>
+              <Text style={styles.cardTitle}>Your Health Profile</Text>
+              
+              <View style={styles.profileSection}>
+                <Text style={styles.sectionTitle}>Body Measurements</Text>
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>Weight:</Text>
+                  <Text style={styles.dataValue}>{params.weight} kg</Text>
+                </View>
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>Height:</Text>
+                  <Text style={styles.dataValue}>{params.height} cm</Text>
+                </View>
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>BMI:</Text>
+                  <Text style={[styles.dataValue, styles.bmiValue]}>
+                    {params.bmi} kg/m² {params.bmiCategory}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.profileSection}>
+                <Text style={styles.sectionTitle}>Blood Tests</Text>
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>Blood Sugar:</Text>
+                  <Text style={styles.dataValue}>
+                    {params.sugarLevel} {params.sugarLevel !== 'N/A' && 'mg/dL'}
+                  </Text>
+                </View>
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>Cholesterol:</Text>
+                  <Text style={styles.dataValue}>
+                    {params.cholesterolLevel} {params.cholesterolLevel !== 'N/A' && 'mg/dL'}
+                  </Text>
+                </View>
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>Triglycerides:</Text>
+                  <Text style={styles.dataValue}>
+                    {params.triglycerides} {params.triglycerides !== 'N/A' && 'mg/dL'}
+                  </Text>
+                </View>
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>Creatinine:</Text>
+                  <Text style={styles.dataValue}>
+                    {params.creatinine} {params.creatinine !== 'N/A' && 'mg/dL'}
+                  </Text>
+                </View>
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>Uric Acid:</Text>
+                  <Text style={styles.dataValue}>
+                    {params.uricAcid} {params.uricAcid !== 'N/A' && 'mg/dL'}
+                  </Text>
+                </View>
+              </View>
+            </Card.Content>
+          </Card>
+        )}
+
+        <View style={styles.content}>
+          <Text style={styles.welcomeText}>Welcome to NutriLiz!</Text>
+          <Text style={styles.description}>
+            Track your nutrition and make healthier choices.
+          </Text>
+          {!hasProfileData && (
+            <Text style={styles.hint}>
+              👉 Go to Profile tab to set up your health metrics
+            </Text>
+          )}
+          <Button mode='text' icon={'logout'} onPress={signOut}>
+            Sign out
+          </Button>
         </View>
-      )}
-
-      {/* Torch button */}
-      <View style={styles.topBar}>
-        <IconButton
-          icon={torchEnabled ? "flashlight" : "flashlight-off"}
-          iconColor="white"
-          size={30}
-          onPress={() => setTorchEnabled(!torchEnabled)}
-          style={styles.torchButton}
-        />
-      </View>
-
-      {/* Bottom content */}
-      <View style={styles.bottomBar}>
-        <Link href="/login">Login Page</Link>
-      </View>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
-  camera: { flex: 1 },
-  message: { textAlign: 'center', color: 'white', marginBottom: 16 },
-
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  container: {
+    flex: 1,
+    backgroundColor: '#ECF4E8',
   },
-  loadingText: { color: 'white', marginTop: 10, fontSize: 16 },
-
-  scannedOverlay: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  scannedText: {
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    padding: 10,
-    borderRadius: 5,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-
-  topBar: {
-    position: 'absolute',
-    top: 40,
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  torchButton: { backgroundColor: 'rgba(0, 0, 0, 0.5)' },
-
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  scrollContent: {
     padding: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  header: {
+    marginBottom: 30,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#93BFC7',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+  },
+  welcomeUser: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2d5016',
+    marginTop: 12,
+  },
+  profileCard: {
+    marginBottom: 24,
+    backgroundColor: '#fff',
+    elevation: 2,
+    borderRadius: 12,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#93BFC7',
+    marginBottom: 16,
+  },
+  profileSection: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ABE7B2',
+    paddingBottom: 4,
+  },
+  dataRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  dataLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  dataValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+  },
+  bmiValue: {
+    color: '#2d5016',
+  },
+  content: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 12,
+    elevation: 1,
+  },
+  welcomeText: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#333',
+  },
+  description: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  hint: {
+    fontSize: 14,
+    color: '#93BFC7',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontStyle: 'italic',
   },
 });

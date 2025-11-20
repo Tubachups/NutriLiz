@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signUp = async (email, password) => {
+  const signUp = async (email, password, name) => {
     try {
       const randomID = ID.unique();
 
@@ -31,7 +31,8 @@ export function AuthProvider({ children }) {
       await account.create({
         userId: randomID, // Pass as separate arguments, not an object
         email,
-        password
+        password,
+        name  
       });
     }
     catch (error) {
@@ -62,7 +63,7 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => {
     try {
-      await account.deleteSession("current");
+      await account.deleteSession({ sessionId: "current"});
       setUser(null);
     } catch (error) {
       console.log("Error signing out: ", error);
