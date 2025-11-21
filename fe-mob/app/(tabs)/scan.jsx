@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Button, Text, ActivityIndicator, IconButton } from 'react-native-paper';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useProductAPI } from '../../hooks/useProductAPI';
+import { useProductAPI } from '@/hooks/useProductAPI';
 import { useRouter, Link } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 
