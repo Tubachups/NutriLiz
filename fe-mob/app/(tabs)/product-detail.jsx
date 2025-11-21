@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, View, StyleSheet } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
 import { useLocalSearchParams } from 'expo-router';
-import { useProductAPI } from '../../hooks/useProductAPI';
+import { useProductAPI } from '@/hooks/useProductAPI';
 import ProductHeader from '../components/product-detail/ProductHeader';
 import NutritionInfo from '../components/product-detail/NutritionInfo';
 import ScoresCard from '../components/product-detail/ScoresCard';
