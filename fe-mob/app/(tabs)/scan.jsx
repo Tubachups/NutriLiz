@@ -43,6 +43,7 @@ export default function Index() {
   const handleBarcodeScanned = async ({ type, data }) => {
     if (!scanned && !loading) {
       setScanned(true);
+      setTorchEnabled(false);
       console.log(`Scanned: ${data}`);
 
       const productData = await fetchProduct(data);

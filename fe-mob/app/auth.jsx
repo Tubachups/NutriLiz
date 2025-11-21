@@ -131,6 +131,10 @@ export default function AuthScreen() {
         <Button mode="text" onPress={toggleAuthMode}>
           {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
         </Button>
+
+        <Button mode="text" onPress={() => router.push('/forgotPass')}>
+          Forgot Password?
+        </Button>
       </View>
     </KeyboardAvoidingView>
   );

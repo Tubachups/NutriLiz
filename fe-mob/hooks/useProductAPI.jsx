@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 // Update this to your backend IP address
-const API_BASE_URL = 'http://172.28.246.90:5000'; // Change to your Pi's IP
+const API_BASE_URL = 'http://192.168.100.69:5000'; // Change to your Pi's IP
 
 export const useProductAPI = () => {
   const [loading, setLoading] = useState(false);

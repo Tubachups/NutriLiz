@@ -2,14 +2,12 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card } from 'react-native-paper';
 import { useAuth } from "@/hooks/auth-context";
-import { useLocalSearchParams } from 'expo-router';
 
 export default function HomeScreen() {
-  const { signOut, user } = useAuth();
-  const params = useLocalSearchParams();
+  const { signOut, user, userProfile } = useAuth();
 
   // Check if profile data is available
-  const hasProfileData = params.weight && params.height;
+  const hasProfileData = userProfile?.weight && userProfile?.height;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -30,16 +28,16 @@ export default function HomeScreen() {
                 <Text style={styles.sectionTitle}>Body Measurements</Text>
                 <View style={styles.dataRow}>
                   <Text style={styles.dataLabel}>Weight:</Text>
-                  <Text style={styles.dataValue}>{params.weight} kg</Text>
+                  <Text style={styles.dataValue}>{userProfile.weight} kg</Text>
                 </View>
                 <View style={styles.dataRow}>
                   <Text style={styles.dataLabel}>Height:</Text>
-                  <Text style={styles.dataValue}>{params.height} cm</Text>
+                  <Text style={styles.dataValue}>{userProfile.height} cm</Text>
                 </View>
                 <View style={styles.dataRow}>
                   <Text style={styles.dataLabel}>BMI:</Text>
                   <Text style={[styles.dataValue, styles.bmiValue]}>
-                    {params.bmi} kg/m² {params.bmiCategory}
+                    {userProfile.bmi} kg/m² {userProfile.bmiCategory}
                   </Text>
                 </View>
               </View>
@@ -49,31 +47,31 @@ export default function HomeScreen() {
                 <View style={styles.dataRow}>
                   <Text style={styles.dataLabel}>Blood Sugar:</Text>
                   <Text style={styles.dataValue}>
-                    {params.sugarLevel} {params.sugarLevel !== 'N/A' && 'mg/dL'}
+                    {userProfile.sugarLevel} {userProfile.sugarLevel !== 'N/A' && 'mg/dL'}
                   </Text>
                 </View>
                 <View style={styles.dataRow}>
                   <Text style={styles.dataLabel}>Cholesterol:</Text>
                   <Text style={styles.dataValue}>
-                    {params.cholesterolLevel} {params.cholesterolLevel !== 'N/A' && 'mg/dL'}
+                    {userProfile.cholesterolLevel} {userProfile.cholesterolLevel !== 'N/A' && 'mg/dL'}
                   </Text>
                 </View>
                 <View style={styles.dataRow}>
                   <Text style={styles.dataLabel}>Triglycerides:</Text>
                   <Text style={styles.dataValue}>
-                    {params.triglycerides} {params.triglycerides !== 'N/A' && 'mg/dL'}
+                    {userProfile.triglycerides} {userProfile.triglycerides !== 'N/A' && 'mg/dL'}
                   </Text>
                 </View>
                 <View style={styles.dataRow}>
                   <Text style={styles.dataLabel}>Creatinine:</Text>
                   <Text style={styles.dataValue}>
-                    {params.creatinine} {params.creatinine !== 'N/A' && 'mg/dL'}
+                    {userProfile.creatinine} {userProfile.creatinine !== 'N/A' && 'mg/dL'}
                   </Text>
                 </View>
                 <View style={styles.dataRow}>
                   <Text style={styles.dataLabel}>Uric Acid:</Text>
                   <Text style={styles.dataValue}>
-                    {params.uricAcid} {params.uricAcid !== 'N/A' && 'mg/dL'}
+                    {userProfile.uricAcid} {userProfile.uricAcid !== 'N/A' && 'mg/dL'}
                   </Text>
                 </View>
               </View>
