@@ -104,7 +104,7 @@ export function AuthProvider({ children }) {
       await sendPasswordRecovery(email);
       return { success: true };
     } catch (error) {
-      Alert.alert("Error", error.message);
+      Alert.alert("Error", 'You’ve requested too many password recovery emails in a short period. For security, this action is limited per hour. Please wait a few hours before trying again.');
       return { success: false, error: error.message };
     }
   };
