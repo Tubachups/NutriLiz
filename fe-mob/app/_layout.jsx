@@ -12,7 +12,7 @@ function RouteGuard({ children }) {
   useEffect(() => {
     if (isLoadingUser) return; // Don't do anything while loading
 
-    const inAuthGroup = segments.includes("auth") || segments.includes("forgotPass") || segments.includes("resetPass");
+    const inAuthGroup = segments.includes("auth") || segments.includes("forgotPass") ;
 
     if (!user && !inAuthGroup) {
       // User is not signed in and not on auth screen
@@ -59,12 +59,6 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="forgotPass"
-              options={{
-                headerShown: false
-              }}
-            />
-            <Stack.Screen
-              name="resetPass"
               options={{
                 headerShown: false
               }}

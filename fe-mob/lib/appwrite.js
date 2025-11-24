@@ -10,7 +10,7 @@ export const account = new Account(client);
 export async function sendPasswordRecovery(email) {
   try {
     // This generates the deep link to your resetPass page
-    const redirectUrl = 'https://dessert-list-cart.vercel.app/'; // Adjust according to your app's URL scheme
+    const redirectUrl = 'http://localhost:3000'; // Adjust according to your app's URL scheme
     
     await account.createRecovery(
       email,
@@ -19,21 +19,6 @@ export async function sendPasswordRecovery(email) {
     return { success: true };
   } catch (error) {
     console.error("Recovery Error:", error);
-    throw new Error(error.message);
-  }
-}
-
-export async function completePasswordRecovery(userId, secret, password, passwordAgain) {
-  try {
-    await account.updateRecovery(
-      userId,
-      secret,
-      password,
-      passwordAgain
-    );
-    return { success: true };
-  } catch (error) {
-    console.error("Update Recovery Error:", error);
     throw new Error(error.message);
   }
 }
