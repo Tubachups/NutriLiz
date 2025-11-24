@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { account ,sendPasswordRecovery, completePasswordRecovery } from '../lib/appwrite.js';
+import { account ,sendPasswordRecovery } from '../lib/appwrite.js';
 import { ID } from "react-native-appwrite";
 import {Alert } from 'react-native';
 import { saveUserProfile, getUserProfile } from '../lib/appwriteDb.js';
@@ -109,18 +109,8 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const resetPassword = async (userId, secret, password, confirmPassword) => {
-    try {
-      await completePasswordRecovery(userId, secret, password, confirmPassword);
-      return { success: true };
-    } catch (error) {
-      Alert.alert("Error", error.message);
-      return { success: false, error: error.message };
-    }
-  };
-
   return (
-    <AuthContext.Provider value={{ user, isLoadingUser, userProfile, signUp, signIn, signOut, updateUserProfile, forgotPassword, resetPassword }}>
+    <AuthContext.Provider value={{ user, isLoadingUser, userProfile, signUp, signIn, signOut, updateUserProfile, forgotPassword}}>
       {children}
     </AuthContext.Provider>
   );
