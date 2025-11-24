@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "NutriLiz",
-    "slug": "nutriliz", //deep linking
+    "slug": "nutriliz",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -57,6 +57,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "92e80c4f-ad20-4ea0-8c6c-efbba4b66514"
+      }
+    },
+    "owner": "abootsieko"
   }
 }

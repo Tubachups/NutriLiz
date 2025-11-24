@@ -1,5 +1,4 @@
 import { Client, Account } from 'react-native-appwrite';
-import * as Linking from 'expo-linking';
 
 export const client = new Client()
   .setEndpoint(process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT) // Your Appwrite Endpoint
@@ -11,7 +10,7 @@ export const account = new Account(client);
 export async function sendPasswordRecovery(email) {
   try {
     // This generates the deep link to your resetPass page
-    const redirectUrl = Linking.createURL('/resetPass');
+    const redirectUrl = 'https://dessert-list-cart.vercel.app/'; // Adjust according to your app's URL scheme
     
     await account.createRecovery(
       email,

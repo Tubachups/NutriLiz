@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  
   const { forgotPassword } = useAuth();
 
   const handleSendLink = async () => {
