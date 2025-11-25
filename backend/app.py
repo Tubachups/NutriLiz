@@ -3,9 +3,14 @@ from flask_cors import CORS
 from barcode import get_latest_barcode, start_barcode_scanner, get_product_data
 from recommend import get_recommendations
 from risk_assessment import analyze_product
+import os
 
 app = Flask(__name__)
 CORS(app)
+
+# Only start physical scanner if specifically enabled (e.g. on the Pi)
+if os.environ.get('ENABLE_PHYSICAL_SCANNER') == 'true':
+    start_barcode_scanner()
 
 start_barcode_scanner()
 
