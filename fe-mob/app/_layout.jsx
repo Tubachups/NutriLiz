@@ -1,6 +1,6 @@
 import { AuthProvider, useAuth } from "@/hooks/auth-context";
 import { useRouter, Stack, useSegments } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 
@@ -8,6 +8,7 @@ function RouteGuard({ children }) {
   const router = useRouter();
   const { user, isLoadingUser } = useAuth();
   const segments = useSegments();
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
 
   useEffect(() => {
     if (isLoadingUser) return; // Don't do anything while loading
@@ -21,10 +22,12 @@ function RouteGuard({ children }) {
       // User is signed in but on auth screen
       router.replace("/(tabs)");
     }
+
+    setIsNavigationReady(true);
   }, [user, segments, isLoadingUser]);
 
   // Show loading screen while checking authentication
-  if (isLoadingUser) {
+  if (isLoadingUser || !isNavigationReady) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#93BFC7" />

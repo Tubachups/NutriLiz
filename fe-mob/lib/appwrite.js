@@ -12,10 +12,10 @@ export async function sendPasswordRecovery(email) {
     // This generates the deep link to your resetPass page
     const redirectUrl = 'https://nutri-liz.vercel.app/'; // Adjust according to your app's URL scheme
     
-    await account.createRecovery(
-      email,
-      redirectUrl
-    );
+    await account.createRecovery({
+      email: email,
+      url: redirectUrl
+  });
     return { success: true };
   } catch (error) {
     console.error("Recovery Error:", error);
