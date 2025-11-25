@@ -56,11 +56,11 @@ function App() {
 
     try {
       // Use updateRecovery to complete the password reset
-      await account.updateRecovery(
+      await account.updateRecovery({
         userId,
         secret,
         password
-      )
+    })
 
       setSuccess(true)
       setError('')
@@ -79,7 +79,7 @@ function App() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-secondary p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-primary to-secondary p-4">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center">
           <div className="text-6xl mb-4">✅</div>
           <h1 className="text-2xl md:text-3xl font-display font-bold text-dark mb-4">
@@ -97,7 +97,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-secondary to-accent p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-primary via-secondary to-accent p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 sm:p-8">
         <div className="text-center mb-6">
           <div className="text-5xl mb-3">🔒</div>
