@@ -10,7 +10,7 @@ export const account = new Account(client);
 export async function sendPasswordRecovery(email) {
   try {
     // This generates the deep link to your resetPass page
-    const redirectUrl = 'http://localhost:3000'; // Adjust according to your app's URL scheme
+    const redirectUrl = 'https://nutri-liz.vercel.app/'; // Adjust according to your app's URL scheme
     
     await account.createRecovery(
       email,
