@@ -1,39 +1,39 @@
 import { client } from './appwrite.js';
-import {  Databases, ID, Query } from 'react-native-appwrite';
+import { TablesDB, ID, Query } from 'react-native-appwrite';
 
-const databases = new Databases(client);
+const tablesDB = new TablesDB(client);
 
-const DATABASE_ID = process.env .EXPO_PUBLIC_APPWRITE_DATABASE_ID; 
-const PROFILES_COLLECTION_ID = process.env .EXPO_PUBLIC_APPWRITE_PROFILES_COLLECTION_ID; 
+const DATABASE_ID = process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID; 
+const PROFILES_TABLE_ID = process.env.EXPO_PUBLIC_APPWRITE_PROFILES_COLLECTION_ID; 
 
 export const saveUserProfile = async (userId, profileData) => {
   try {
     // Try to get existing profile
-    const existingProfiles = await databases.listDocuments(
-      DATABASE_ID,
-      PROFILES_COLLECTION_ID,
-      [Query.equal('userId', userId)]
-    );
+    const existingProfiles = await tablesDB.listRows({
+      databaseId: DATABASE_ID,
+      tableId: PROFILES_TABLE_ID,
+      queries: [Query.equal('userId', userId)]
+    });
 
-    if (existingProfiles.documents.length > 0) {
+    if (existingProfiles.rows.length > 0) {
       // Update existing profile
-      return await databases.updateDocument(
-        DATABASE_ID,
-        PROFILES_COLLECTION_ID,
-        existingProfiles.documents[0].$id,
-        profileData
-      );
+      return await tablesDB.updateRow({
+        databaseId: DATABASE_ID,
+        tableId: PROFILES_TABLE_ID,
+        rowId: existingProfiles.rows[0].$id,
+        data: profileData
+      });
     } else {
       // Create new profile
-      return await databases.createDocument(
-        DATABASE_ID,
-        PROFILES_COLLECTION_ID,
-        ID.unique(),
-        {
+      return await tablesDB.createRow({
+        databaseId: DATABASE_ID,
+        tableId: PROFILES_TABLE_ID,
+        rowId: ID.unique(),
+        data: {
           userId,
           ...profileData
         }
-      );
+      });
     }
   } catch (error) {
     console.error('Error saving profile:', error);
@@ -43,13 +43,13 @@ export const saveUserProfile = async (userId, profileData) => {
 
 export const getUserProfile = async (userId) => {
   try {
-    const profiles = await databases.listDocuments(
-      DATABASE_ID,
-      PROFILES_COLLECTION_ID,
-      [Query.equal('userId', userId)]
-    );
+    const profiles = await tablesDB.listRows({
+      databaseId: DATABASE_ID,
+      tableId: PROFILES_TABLE_ID,
+      queries: [Query.equal('userId', userId)]
+    });
 
-    return profiles.documents.length > 0 ? profiles.documents[0] : null;
+    return profiles.rows.length > 0 ? profiles.rows[0] : null;
   } catch (error) {
     console.error('Error fetching profile:', error);
     throw error;
