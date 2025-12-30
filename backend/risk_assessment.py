@@ -55,10 +55,53 @@ def get_allergen_info(product_data):
     }
 
 
+def analyze_product(product_data, user_profile=None):
+    print("\n" + "="*70)
+    source = product_data.get('source', 'openfoodfacts').lower()
+    display_name = product_data.get('name') or product_data.get('product', {}).get('name', 'Unknown Product')
+    print(f"📦 {display_name}")
+    print(f"🔢 Barcode: {product_data.get('barcode', 'N/A')}")
+    print(f"📍 Source: {source}")
+    if user_profile:
+        print(f"👤 Personalized for user with BMI: {user_profile.get('bmi', 'N/A')}")
+    print("="*70)
 
-def create_health_prompt(product_data):
+    # Generate AI prompt with optional user profile
+    prompt = create_health_prompt(product_data, user_profile)
+    llm_response = call_llm(prompt)
+
+    allergen_info = get_allergen_info(product_data)
+
+    return {
+        'product': display_name,
+        'barcode': product_data.get('barcode'),
+        'source': source,
+        'allergens': allergen_info,
+        'ai_analysis': llm_response,
+        'personalized': user_profile is not None
+    }
+    
+def create_health_prompt(product_data, user_profile=None):
     """Build a comprehensive prompt from product data for AI analysis with comorbidity considerations."""
     source = product_data.get('source', 'openfoodfacts').lower()
+    
+    # Build personalized health context if user profile is provided
+    personal_context = ""
+    if user_profile:
+        personal_context = f"""
+USER HEALTH PROFILE (Personalize your assessment based on this):
+- Weight: {user_profile.get('weight', 'N/A')} kg
+- Height: {user_profile.get('height', 'N/A')} cm
+- BMI: {user_profile.get('bmi', 'N/A')} {user_profile.get('bmiCategory', '')}
+- Blood Sugar Level: {user_profile.get('sugarLevel', 'N/A')} mg/dL
+- Cholesterol Level: {user_profile.get('cholesterolLevel', 'N/A')} mg/dL
+- Triglycerides: {user_profile.get('triglycerides', 'N/A')} mg/dL
+- Creatinine: {user_profile.get('creatinine', 'N/A')} mg/dL
+- Uric Acid: {user_profile.get('uricAcid', 'N/A')} mg/dL
+
+⚠️ IMPORTANT: Provide PERSONALIZED recommendations based on this user's specific health metrics. 
+If any blood markers are abnormal, highlight specific concerns for THIS user.
+"""
 
     if source == 'openfoodfacts':
         name = product_data.get('name', 'Unknown')
@@ -69,11 +112,9 @@ def create_health_prompt(product_data):
         allergen_str = ', '.join(allergen_info['allergens']) if allergen_info['allergens'] else 'None listed'
         traces_str = ', '.join(allergen_info['traces']) if allergen_info['traces'] else 'None'
 
-        # Additional product details for context
         ingredients = product_data.get('ingredients_text', 'Not available')
         additives = product_data.get('additives_tags', [])
         
-        # Processing level (NOVA group)
         nova_group = product_data.get('nova_group', 'N/A')
         nova_context = {
             '1': 'Unprocessed or minimally processed foods',
@@ -83,8 +124,17 @@ def create_health_prompt(product_data):
         }
         nova_desc = nova_context.get(str(nova_group), 'Unknown processing level')
 
-        return f"""Analyze this food product's nutritional content and assess its suitability for people with common health conditions:
+        personalized_section = ""
+        if user_profile:
+            personalized_section = """
+7. **Personalized Assessment for This User**:
+   - Based on the user's BMI, blood sugar, cholesterol, and other metrics, explain specific risks
+   - Provide tailored serving size recommendations for this specific user
+   - Highlight any red flags based on their health profile
+"""
 
+        return f"""Analyze this food product's nutritional content and assess its suitability for people with common health conditions:
+{personal_context}
 Product: {name} (Barcode: {barcode})
 Category: {product_data.get('type', 'N/A')}
 Processing Level: NOVA Group {nova_group} - {nova_desc}
@@ -121,11 +171,11 @@ Format your response as with maximum of 2 sentences per section (Dont add servin
 6. **Overall Health Summary**: 
    - General nutritional quality
    - Healthier alternatives or serving suggestions
-
+{personalized_section}
 Keep it factual, educational, and evidence-based. Do not provide medical advice or personalized treatment recommendations. Use clear warnings when products are particularly concerning for specific conditions."""
 
     else:
-        # Appwrite source: build AI prompt from Appwrite data structure (fresh foods)
+        # Appwrite source (similar changes for fresh foods)
         prod = product_data.get('product', {})
         name = prod.get('name', product_data.get('product_name', 'Unknown'))
         barcode = product_data.get('barcode', 'N/A')
@@ -141,8 +191,17 @@ Keep it factual, educational, and evidence-based. Do not provide medical advice 
         fiber = n.get('fiber', 'N/A')
         carbs = n.get('carbohydrates', 'N/A')
 
-        return f"""Analyze this fresh food product's nutritional content and assess its suitability for people with common health conditions:
+        personalized_section = ""
+        if user_profile:
+            personalized_section = """
+7. **Personalized Assessment for This User**:
+   - Based on the user's BMI, blood sugar, cholesterol, and other metrics, explain specific risks
+   - Provide tailored serving size recommendations for this specific user
+   - Highlight any red flags based on their health profile
+"""
 
+        return f"""Analyze this fresh food product's nutritional content and assess its suitability for people with common health conditions:
+{personal_context}
 Product: {name} (Barcode: {barcode})
 Category: {category}
 Type: Fresh Food (No additives or preservatives)
@@ -171,28 +230,5 @@ Format your response as with maximum of 2 sentences per section (Dont add servin
 6. **Overall Health Summary**: 
    - General nutritional quality 
    - Preparation suggestions to maximize health benefits 
-
+{personalized_section}
 Keep it factual, educational, and evidence-based. Do not provide medical advice or personalized treatment recommendations. Emphasize the natural and wholesome nature of fresh foods."""
-
-def analyze_product(product_data):
-    print("\n" + "="*70)
-    source = product_data.get('source', 'openfoodfacts').lower()
-    display_name = product_data.get('name') or product_data.get('product', {}).get('name', 'Unknown Product')
-    print(f"📦 {display_name}")
-    print(f"🔢 Barcode: {product_data.get('barcode', 'N/A')}")
-    print(f"📍 Source: {source}")
-    print("="*70)
-
-    # Generate AI prompt for both sources
-    prompt = create_health_prompt(product_data)
-    llm_response = call_llm(prompt)
-
-    allergen_info = get_allergen_info(product_data)
-
-    return {
-        'product': display_name,
-        'barcode': product_data.get('barcode'),
-        'source': source,
-        'allergens': allergen_info,
-        'ai_analysis': llm_response
-    }

@@ -1,18 +1,61 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from barcode import get_latest_barcode, start_barcode_scanner, get_product_data
 from recommend import get_recommendations
 from risk_assessment import analyze_product
 import os
+import cv2
+
 
 app = Flask(__name__)
 CORS(app)
+
+camera = None
+
+def get_camera():
+    global camera
+    if camera is None:
+        camera = cv2.VideoCapture(1)
+        if not camera.isOpened():
+            print("Warning: Could not open camera")
+            return None
+        
+        # Lower resolution for Raspberry Pi 4 performance
+        camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        camera.set(cv2.CAP_PROP_FPS, 15)
+        # Reduce buffer size to minimize latency
+        camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    return camera
 
 # Only start physical scanner if specifically enabled (e.g. on the Pi)
 if os.environ.get('ENABLE_PHYSICAL_SCANNER') == 'true':
     start_barcode_scanner()
 
 start_barcode_scanner()
+
+def generate_frames():
+    cam = get_camera()
+    if cam is None:
+        return
+    
+    while True:
+        success, frame = cam.read()
+        if not success:
+            break
+        else:
+            # Encode frame to JPEG
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+
+        # Yield frame in MJPEG format
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/video')
+def video():
+    # This route returns the multipart stream
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/api/latest-barcode')
 def api_get_latest_barcode():
@@ -76,17 +119,22 @@ def get_product_recommendations(barcode):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/assess/<barcode>')
+@app.route('/api/assess/<barcode>', methods=['GET', 'POST'])
 def assess_product(barcode):
-    """Perform AI risk assessment on a product"""
+    """Perform AI risk assessment on a product - supports personalized assessment"""
     try:
         product_data = get_product_data(barcode)
         
         if not product_data:
             return jsonify({'error': 'Search query limit reached. Please retry after 1 minute.'}), 404
         
-        # Run AI analysis
-        assessment = analyze_product(product_data)
+        # Get user profile from POST body (for personalized assessment)
+        user_profile = None
+        if request.method == 'POST':
+            user_profile = request.get_json()
+        
+        # Run AI analysis with optional user profile
+        assessment = analyze_product(product_data, user_profile)
         
         return jsonify(assessment)
         
@@ -96,4 +144,4 @@ def assess_product(barcode):
     
     
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
