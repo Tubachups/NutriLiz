@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useScanContext } from './scan-context'
 
 export const useProductScanner = () => {
-  const [productData, setProductData] = useState(null)
+  const { productData, updateProductData } = useScanContext()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const lastBarcodeRef = useRef(null)
 
   useEffect(() => {
     const pollForBarcode = async () => {
@@ -11,7 +13,9 @@ export const useProductScanner = () => {
         const response = await fetch('http://localhost:5000/api/latest-barcode')
         const data = await response.json()
 
-        if (data.barcode) {
+        // Only fetch if it's a new barcode
+        if (data.barcode && data.barcode !== lastBarcodeRef.current) {
+          lastBarcodeRef.current = data.barcode
           fetchProductData(data.barcode)
         }
       } catch (err) {
@@ -32,7 +36,7 @@ export const useProductScanner = () => {
       const data = await response.json()
 
       if (response.ok) {
-        setProductData(data)
+        updateProductData(data)
       } else {
         setError('Search query limit reached. Please retry after 1 minute.')
       }

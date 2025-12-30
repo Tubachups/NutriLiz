@@ -8,87 +8,165 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as TestRouteImport } from './routes/test'
-import { Route as AboutRouteImport } from './routes/about'
-import { Route as IndexRouteImport } from './routes/index'
+import { createFileRoute } from '@tanstack/react-router'
 
-const TestRoute = TestRouteImport.update({
-  id: '/test',
-  path: '/test',
+import { Route as rootRouteImport } from './routes/__root'
+
+const ScanLazyRouteImport = createFileRoute('/scan')()
+const ProfileLazyRouteImport = createFileRoute('/profile')()
+const LoginLazyRouteImport = createFileRoute('/login')()
+const ImageSearchLazyRouteImport = createFileRoute('/image-search')()
+const ForgotPasswordLazyRouteImport = createFileRoute('/forgot-password')()
+const IndexLazyRouteImport = createFileRoute('/')()
+
+const ScanLazyRoute = ScanLazyRouteImport.update({
+  id: '/scan',
+  path: '/scan',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
+} as any).lazy(() => import('./routes/scan.lazy').then((d) => d.Route))
+const ProfileLazyRoute = ProfileLazyRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
+} as any).lazy(() => import('./routes/profile.lazy').then((d) => d.Route))
+const LoginLazyRoute = LoginLazyRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/login.lazy').then((d) => d.Route))
+const ImageSearchLazyRoute = ImageSearchLazyRouteImport.update({
+  id: '/image-search',
+  path: '/image-search',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/image-search.lazy').then((d) => d.Route))
+const ForgotPasswordLazyRoute = ForgotPasswordLazyRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/forgot-password.lazy').then((d) => d.Route),
+)
+const IndexLazyRoute = IndexLazyRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/index.lazy').then((d) => d.Route))
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/about': typeof AboutRoute
-  '/test': typeof TestRoute
+  '/': typeof IndexLazyRoute
+  '/forgot-password': typeof ForgotPasswordLazyRoute
+  '/image-search': typeof ImageSearchLazyRoute
+  '/login': typeof LoginLazyRoute
+  '/profile': typeof ProfileLazyRoute
+  '/scan': typeof ScanLazyRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/about': typeof AboutRoute
-  '/test': typeof TestRoute
+  '/': typeof IndexLazyRoute
+  '/forgot-password': typeof ForgotPasswordLazyRoute
+  '/image-search': typeof ImageSearchLazyRoute
+  '/login': typeof LoginLazyRoute
+  '/profile': typeof ProfileLazyRoute
+  '/scan': typeof ScanLazyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/about': typeof AboutRoute
-  '/test': typeof TestRoute
+  '/': typeof IndexLazyRoute
+  '/forgot-password': typeof ForgotPasswordLazyRoute
+  '/image-search': typeof ImageSearchLazyRoute
+  '/login': typeof LoginLazyRoute
+  '/profile': typeof ProfileLazyRoute
+  '/scan': typeof ScanLazyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/test'
+  fullPaths:
+    | '/'
+    | '/forgot-password'
+    | '/image-search'
+    | '/login'
+    | '/profile'
+    | '/scan'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/test'
-  id: '__root__' | '/' | '/about' | '/test'
+  to:
+    | '/'
+    | '/forgot-password'
+    | '/image-search'
+    | '/login'
+    | '/profile'
+    | '/scan'
+  id:
+    | '__root__'
+    | '/'
+    | '/forgot-password'
+    | '/image-search'
+    | '/login'
+    | '/profile'
+    | '/scan'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AboutRoute: typeof AboutRoute
-  TestRoute: typeof TestRoute
+  IndexLazyRoute: typeof IndexLazyRoute
+  ForgotPasswordLazyRoute: typeof ForgotPasswordLazyRoute
+  ImageSearchLazyRoute: typeof ImageSearchLazyRoute
+  LoginLazyRoute: typeof LoginLazyRoute
+  ProfileLazyRoute: typeof ProfileLazyRoute
+  ScanLazyRoute: typeof ScanLazyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/test': {
-      id: '/test'
-      path: '/test'
-      fullPath: '/test'
-      preLoaderRoute: typeof TestRouteImport
+    '/scan': {
+      id: '/scan'
+      path: '/scan'
+      fullPath: '/scan'
+      preLoaderRoute: typeof ScanLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/image-search': {
+      id: '/image-search'
+      path: '/image-search'
+      fullPath: '/image-search'
+      preLoaderRoute: typeof ImageSearchLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof IndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AboutRoute: AboutRoute,
-  TestRoute: TestRoute,
+  IndexLazyRoute: IndexLazyRoute,
+  ForgotPasswordLazyRoute: ForgotPasswordLazyRoute,
+  ImageSearchLazyRoute: ImageSearchLazyRoute,
+  LoginLazyRoute: LoginLazyRoute,
+  ProfileLazyRoute: ProfileLazyRoute,
+  ScanLazyRoute: ScanLazyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

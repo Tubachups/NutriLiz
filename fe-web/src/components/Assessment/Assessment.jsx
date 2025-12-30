@@ -31,6 +31,17 @@ const Assessment = ({ assessment, loading, error, isAppwriteProduct }) => {
         🔍 Health Risk Assessment
       </h2>
 
+      {/* Personalization Status Badge - Place it here */}
+      {assessment?.personalized ? (
+        <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm inline-flex items-center mb-4">
+          👤 Personalized for your health profile
+        </div>
+      ) : (
+        <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm inline-flex items-center mb-4">
+          💡 Add your health profile for personalized recommendations
+        </div>
+      )}
+
       {!isAppwriteProduct && assessment.allergens && (
         <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <h3 className="text-xl font-semibold mb-3 text-yellow-900">
