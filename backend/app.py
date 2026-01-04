@@ -15,7 +15,7 @@ camera = None
 def get_camera():
     global camera
     if camera is None:
-        camera = cv2.VideoCapture(1)
+        camera = cv2.VideoCapture(0)
         if not camera.isOpened():
             print("Warning: Could not open camera")
             return None
@@ -28,9 +28,9 @@ def get_camera():
         camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     return camera
 
-# Only start physical scanner if specifically enabled (e.g. on the Pi)
-if os.environ.get('ENABLE_PHYSICAL_SCANNER') == 'true':
-    start_barcode_scanner()
+# # Only start physical scanner if specifically enabled (e.g. on the Pi)
+# if os.environ.get('ENABLE_PHYSICAL_SCANNER') == 'true':
+#     start_barcode_scanner()
 
 start_barcode_scanner()
 

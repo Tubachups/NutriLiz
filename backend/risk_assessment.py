@@ -128,9 +128,7 @@ If any blood markers are abnormal, highlight specific concerns for THIS user.
         if user_profile:
             personalized_section = """
 7. **Personalized Assessment for This User**:
-   - Based on the user's BMI, blood sugar, cholesterol, and other metrics, explain specific risks
-   - Provide tailored serving size recommendations for this specific user
-   - Highlight any red flags based on their health profile
+   Synthesize specific risks, red flags, and tailored serving size recommendations for this user based on their BMI and blood metrics.
 """
 
         return f"""Analyze this food product's nutritional content and assess its suitability for people with common health conditions:
@@ -155,7 +153,7 @@ Nutri-Score: {product_data.get('nutri_grade', 'N/A')}
 
 Ingredients: {ingredients[:500]}{'...' if len(ingredients) > 500 else ''}
 
-Format your response as with maximum of 2 sentences per section (Dont add servings on analysis):
+Format your response strictly with a maximum of 2 sentences per numbered section (Do not list servings inside the analysis sections):
 
 1. **Sugar Analysis**: 
 
@@ -164,13 +162,9 @@ Format your response as with maximum of 2 sentences per section (Dont add servin
 3. **Saturated Fat Analysis**: 
 
 4. **Fiber Content**:
-
-5. **Comorbidity Assessment**:
-  - Offer tailored dietary guidance for individuals with conditions like diabetes, hypertension, high cholesterol, obesity, kidney disease, and heart disease — addressing safety, nutrient impacts (sodium, fat, protein, calories), and recommended servings to manage related health risks (2 sentences max overall).
   
-6. **Overall Health Summary**: 
-   - General nutritional quality
-   - Healthier alternatives or serving suggestions
+5. **Overall Health Summary**: 
+   Summarize the general nutritional quality and suggest one healthier alternative or serving tip.
 {personalized_section}
 Keep it factual, educational, and evidence-based. Do not provide medical advice or personalized treatment recommendations. Use clear warnings when products are particularly concerning for specific conditions."""
 
@@ -194,10 +188,8 @@ Keep it factual, educational, and evidence-based. Do not provide medical advice 
         personalized_section = ""
         if user_profile:
             personalized_section = """
-7. **Personalized Assessment for This User**:
-   - Based on the user's BMI, blood sugar, cholesterol, and other metrics, explain specific risks
-   - Provide tailored serving size recommendations for this specific user
-   - Highlight any red flags based on their health profile
+6. **Personalized Assessment for This User**:
+   Synthesize specific risks, red flags, and tailored serving size recommendations for this user based on their BMI and blood metrics.
 """
 
         return f"""Analyze this fresh food product's nutritional content and assess its suitability for people with common health conditions:
@@ -214,7 +206,7 @@ Nutrition per 100g:
 - Fiber: {fiber}g
 - Carbohydrates: {carbs}g
 
-Format your response as with maximum of 2 sentences per section (Dont add servings on analysis):
+Format your response strictly with a maximum of 2 sentences per numbered section (Do not list servings inside the analysis sections):
 
 1. **Sugar Analysis**: 
 
@@ -224,11 +216,7 @@ Format your response as with maximum of 2 sentences per section (Dont add servin
 
 4. **Fiber Content**:
 
-5. **Comorbidity Assessment**:
-  - Offer tailored dietary guidance for individuals with conditions like diabetes, hypertension, high cholesterol, obesity, kidney disease, and heart disease — addressing safety, nutrient impacts (sodium, fat, protein, calories), and recommended servings to manage related health risks (2 sentences max overall).
-
-6. **Overall Health Summary**: 
-   - General nutritional quality 
-   - Preparation suggestions to maximize health benefits 
+5. **Overall Health Summary**: 
+   Summarize the general nutritional quality and suggest one preparation method to maximize health benefits.
 {personalized_section}
 Keep it factual, educational, and evidence-based. Do not provide medical advice or personalized treatment recommendations. Emphasize the natural and wholesome nature of fresh foods."""

@@ -3,6 +3,7 @@ import { View, StyleSheet, Alert } from 'react-native';
 import { Button, Text, ActivityIndicator, IconButton } from 'react-native-paper';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useProductAPI } from '@/hooks/useProductAPI';
+import { useProductHistory } from '@/hooks/useProductHistory';
 import { useRouter, Link } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -11,6 +12,7 @@ export default function Index() {
   const [scanned, setScanned] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const { fetchProduct, loading } = useProductAPI();
+  const { addProduct } = useProductHistory();
   const router = useRouter();
 
   // Reset scan state every time screen is focused
@@ -49,6 +51,9 @@ export default function Index() {
       const productData = await fetchProduct(data);
 
       if (productData) {
+        // Save to history
+        await addProduct(productData, data);
+        
         router.push({
           pathname: '/product-detail',
           params: { 
