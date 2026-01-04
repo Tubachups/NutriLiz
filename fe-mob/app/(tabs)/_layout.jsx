@@ -1,8 +1,11 @@
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { PaperProvider } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { TouchableOpacity } from 'react-native';
 
 export default function TabsLayout() {
+  const router = useRouter();
+
   return (
     <PaperProvider>
       <Tabs
@@ -83,6 +86,14 @@ export default function TabsLayout() {
             title: 'Product Details',
             headerShown: true,
             href: null, // Hidden in tab bar
+            headerLeft: () => (
+              <TouchableOpacity 
+                onPress={() => router.replace('/list')} 
+                style={{ marginLeft: 16 }}
+              >
+                <Ionicons name="arrow-back" size={24} color="#000" />
+              </TouchableOpacity>
+            ),
           }}
         />
       </Tabs>
