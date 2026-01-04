@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 // Update this to your backend IP address
-const API_BASE_URL = 'https://nutriliz-be.onrender.com'; // Change to your Pi's IP
+const API_BASE_URL = 'http://192.168.100.69:5000';
 
 export const useProductAPI = () => {
   const [loading, setLoading] = useState(false);
@@ -30,12 +30,24 @@ export const useProductAPI = () => {
     }
   };
 
-  const fetchAssessment = async (barcode) => {
+  // Updated to accept userProfile for personalized assessment
+  const fetchAssessment = async (barcode, userProfile = null) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/assess/${barcode}`);
+      // Use POST with userProfile if available, otherwise GET
+      const options = userProfile
+        ? {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(userProfile),
+          }
+        : { method: 'GET' };
+
+      const response = await fetch(`${API_BASE_URL}/api/assess/${barcode}`, options);
       const data = await response.json();
 
       if (response.ok) {

@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from "@/hooks/auth-context";
+import { ProductHistoryProvider } from "@/hooks/useProductHistory";
 import { useRouter, Stack, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -13,7 +14,7 @@ function RouteGuard({ children }) {
   useEffect(() => {
     if (isLoadingUser) return; // Don't do anything while loading
 
-    const inAuthGroup = segments.includes("auth") || segments.includes("forgotPass") ;
+    const inAuthGroup = segments.includes("auth") || segments.includes("forgotPass");
 
     if (!user && !inAuthGroup) {
       // User is not signed in and not on auth screen
@@ -41,48 +42,51 @@ function RouteGuard({ children }) {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <SafeAreaProvider>
-        <RouteGuard>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            <Stack.Screen
-              name="(tabs)"
-              options={{
-                headerShown: false
+      <ProductHistoryProvider>
+        <SafeAreaProvider>
+          <RouteGuard>
+            <Stack
+              screenOptions={{
+                headerShown: false,
               }}
-            />
-            <Stack.Screen
-              name="auth"
-              options={{
-                headerShown: false
-              }}
-            />
-            <Stack.Screen
-              name="forgotPass"
-              options={{
-                headerShown: false
-              }}
-            />
-            <Stack.Screen
-              name="TestBarcode"
-              options={{
-                title: 'Test Barcode',
-                headerShown: true,
-                headerStyle: {
-                  backgroundColor: '#ECF4E8',
-                },
-                headerTintColor: '#000',
-                headerTitleStyle: {
-                  fontWeight: 'bold',
-                },
-              }}
-            />
-          </Stack>
-        </RouteGuard>
-      </SafeAreaProvider>
+            >
+              <Stack.Screen
+                name="(tabs)"
+                options={{
+                  headerShown: false
+                }}
+              />
+              <Stack.Screen
+                name="auth"
+                options={{
+                  headerShown: false
+                }}
+              />
+              <Stack.Screen
+                name="forgotPass"
+                options={{
+                  headerShown: false
+                }}
+              />
+              <Stack.Screen
+                name="TestBarcode"
+                options={{
+                  title: 'Test Barcode',
+                  headerShown: true,
+                  headerStyle: {
+                    backgroundColor: '#ECF4E8',
+                  },
+                  headerTintColor: '#000',
+                  headerTitleStyle: {
+                    fontWeight: 'bold',
+                  },
+                }}
+              />
+            </Stack>
+          </RouteGuard>
+        </SafeAreaProvider>
+      </ProductHistoryProvider>
+
     </AuthProvider>
   );
 }

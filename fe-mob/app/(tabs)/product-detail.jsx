@@ -3,6 +3,7 @@ import { ScrollView, View, StyleSheet } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
 import { useLocalSearchParams } from 'expo-router';
 import { useProductAPI } from '@/hooks/useProductAPI';
+import { useAuth } from '@/hooks/auth-context';
 import ProductHeader from '../components/product-detail/ProductHeader';
 import NutritionInfo from '../components/product-detail/NutritionInfo';
 import ScoresCard from '../components/product-detail/ScoresCard';
@@ -16,6 +17,7 @@ export default function ProductDetail() {
   const [productData, setProductData] = useState(null);
   const [assessment, setAssessment] = useState(null);
   const { fetchAssessment, loading } = useProductAPI();
+  const { userProfile } = useAuth();
 
   useEffect(() => {
     if (productDataString) {
@@ -23,9 +25,9 @@ export default function ProductDetail() {
       setProductData(data);
       
       // Fetch AI assessment
-      fetchAssessment(barcode).then(setAssessment);
+      fetchAssessment(barcode, userProfile).then(setAssessment);
     }
-  }, [barcode, productDataString]);
+  }, [barcode, productDataString, userProfile]);
 
   if (!productData) {
     return (
