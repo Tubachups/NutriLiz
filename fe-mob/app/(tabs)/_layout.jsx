@@ -44,7 +44,7 @@ export default function TabsLayout() {
           }}
         />
 
-        
+
 
         <Tabs.Screen
           name="scan"
@@ -53,6 +53,16 @@ export default function TabsLayout() {
             headerShown: true,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="scan" size={size} color={color} />
+            ),
+          }}
+        />
+
+        <Tabs.Screen
+          name="food-scan"
+          options={{
+            title: 'Food Photo',
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="food-apple" size={24} color={color} />
             ),
           }}
         />
@@ -87,8 +97,25 @@ export default function TabsLayout() {
             headerShown: true,
             href: null, // Hidden in tab bar
             headerLeft: () => (
-              <TouchableOpacity 
-                onPress={() => router.replace('/list')} 
+              <TouchableOpacity
+                onPress={() => router.replace('/list')}
+                style={{ marginLeft: 16 }}
+              >
+                <Ionicons name="arrow-back" size={24} color="#000" />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+
+        <Tabs.Screen
+          name="food-detail"
+          options={{
+            title: 'Food Details',
+            headerShown: true,
+            href: null, // Hidden in tab bar
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => router.replace('/list')}
                 style={{ marginLeft: 16 }}
               >
                 <Ionicons name="arrow-back" size={24} color="#000" />

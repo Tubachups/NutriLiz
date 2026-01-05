@@ -3,6 +3,7 @@ from flask_cors import CORS
 from barcode import get_latest_barcode, start_barcode_scanner, get_product_data
 from recommend import get_recommendations
 from risk_assessment import analyze_product
+from food_recognition import analyze_food_image, get_food_recommendations
 import os
 import cv2
 
@@ -142,6 +143,56 @@ def assess_product(barcode):
         print(f"Error in assessment: {e}")
         return jsonify({'error': str(e)}), 500
     
+@app.route('/api/analyze-food-image', methods=['POST'])
+def analyze_food():
+    """Analyze a food image to identify the food and get nutritional info."""
+    try:
+        data = request.get_json()
+        
+        if not data or 'image' not in data:
+            return jsonify({'error': 'No image data provided'}), 400
+        
+        image_data = data['image']
+        user_profile = data.get('userProfile', None)
+        
+        # Remove data URL prefix if present
+        if ',' in image_data:
+            image_data = image_data.split(',')[1]
+        
+        # Analyze the food image
+        result = analyze_food_image(image_data, user_profile)
+        
+        if result['success']:
+            # Optionally get recommendations
+            if data.get('includeRecommendations', False):
+                recommendations = get_food_recommendations(result['data'])
+                result['data']['recommendations'] = recommendations
+            
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        print(f"Error analyzing food image: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/food-alternatives', methods=['POST'])
+def food_alternatives():
+    """Get healthier alternatives for a food."""
+    try:
+        data = request.get_json()
+        
+        if not data or 'food_name' not in data:
+            return jsonify({'error': 'Food name required'}), 400
+        
+        recommendations = get_food_recommendations(data)
+        return jsonify({'recommendations': recommendations})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
     
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
