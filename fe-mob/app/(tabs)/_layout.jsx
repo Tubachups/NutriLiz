@@ -1,6 +1,7 @@
 import { Tabs, useRouter } from "expo-router";
 import { PaperProvider } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { TouchableOpacity } from 'react-native';
 
 export default function TabsLayout() {
@@ -62,7 +63,7 @@ export default function TabsLayout() {
           options={{
             title: 'Food Photo',
             tabBarIcon: ({ color }) => (
-              <Ionicons name="food-apple" size={24} color={color} />
+              <MaterialCommunityIcons name="food" size={24} color={color} />
             ),
           }}
         />

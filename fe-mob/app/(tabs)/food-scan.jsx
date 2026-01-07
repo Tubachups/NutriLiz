@@ -4,8 +4,9 @@ import { Button, Text, ActivityIndicator, IconButton, Card } from 'react-native-
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useFoodImageAPI } from '@/hooks/useFoodImageAPI';
+import { useProductHistory } from '@/hooks/useProductHistory';
 import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useAuth } from '@/hooks/auth-context';
 import { getUserProfile } from '@/lib/appwriteDb';
 
@@ -14,18 +15,35 @@ export default function FoodScan() {
   const [permission, requestPermission] = useCameraPermissions();
   const [capturedImage, setCapturedImage] = useState(null);
   const [torchEnabled, setTorchEnabled] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const cameraRef = useRef(null);
   const { analyzeFoodImage, loading } = useFoodImageAPI();
+  const { addFoodItem } = useProductHistory();
   const { user } = useAuth();
   const router = useRouter();
+  const isFocused = useIsFocused();
 
   useFocusEffect(
     useCallback(() => {
       setCapturedImage(null);
       setTorchEnabled(false);
-      return () => setTorchEnabled(false);
+      setCameraReady(false);
+
+      // Add a small delay before activating camera to let the other camera release
+      const timer = setTimeout(() => {
+        setCameraReady(true);
+      }, 100);
+
+      return () => {
+        clearTimeout(timer);
+        setTorchEnabled(false);
+        setCameraReady(false);
+      };
     }, [])
   );
+
+  // Only show camera when both focused AND ready
+  const isCameraActive = isFocused && cameraReady && !capturedImage;
 
   if (!permission) return <View />;
 
@@ -50,7 +68,7 @@ export default function FoodScan() {
           quality: 0.7,
         });
         setCapturedImage(photo);
-        await analyzePhoto(photo.base64);
+        await analyzePhoto(photo.base64, photo.uri);
       } catch (error) {
         Alert.alert('Error', 'Failed to take picture');
       }
@@ -68,11 +86,11 @@ export default function FoodScan() {
 
     if (!result.canceled && result.assets[0]) {
       setCapturedImage(result.assets[0]);
-      await analyzePhoto(result.assets[0].base64);
+      await analyzePhoto(result.assets[0].base64, result.assets[0].uri);
     }
   };
 
-  const analyzePhoto = async (base64Image) => {
+  const analyzePhoto = async (base64Image, imageUri = null) => {
     // Get user profile for personalized assessment
     let userProfile = null;
     if (user) {
@@ -86,6 +104,9 @@ export default function FoodScan() {
     const foodData = await analyzeFoodImage(base64Image, userProfile);
 
     if (foodData && foodData.identified) {
+      // Save to history
+      await addFoodItem(foodData, imageUri);
+      
       router.push({
         pathname: '/food-detail',
         params: { foodData: JSON.stringify(foodData) },
@@ -126,12 +147,19 @@ export default function FoodScan() {
 
   return (
     <View style={styles.container}>
-      <CameraView
-        ref={cameraRef}
-        style={styles.camera}
-        facing="back"
-        enableTorch={torchEnabled}
-      />
+      {isCameraActive ? (
+        <CameraView
+          ref={cameraRef}
+          style={styles.camera}
+          facing="back"
+          enableTorch={torchEnabled}
+          active={true}
+        />
+      ) : (
+        <View style={[styles.camera, styles.cameraPlaceholder]}>
+          <ActivityIndicator size="large" color="#ffffff" />
+        </View>
+      )}
 
       {loading && (
         <View style={styles.loadingOverlay}>
@@ -182,6 +210,7 @@ export default function FoodScan() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
   camera: { flex: 1 },
+  cameraPlaceholder: { justifyContent: 'center', alignItems: 'center' },
   preview: { flex: 1, resizeMode: 'contain' },
   message: { textAlign: 'center', color: 'white', marginBottom: 16 },
 
