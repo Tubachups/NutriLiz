@@ -5,27 +5,40 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useProductAPI } from '@/hooks/useProductAPI';
 import { useProductHistory } from '@/hooks/useProductHistory';
 import { useRouter, Link } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 
 export default function Index() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const { fetchProduct, loading } = useProductAPI();
   const { addProduct } = useProductHistory();
   const router = useRouter();
+  const isFocused = useIsFocused();
 
   // Reset scan state every time screen is focused
   useFocusEffect(
     useCallback(() => {
       setScanned(false);
       setTorchEnabled(false);
+      setCameraReady(false);
+
+      // Add a small delay before activating camera to let the other camera release
+      const timer = setTimeout(() => {
+        setCameraReady(true);
+      }, 100);
 
       return () => {
+        clearTimeout(timer);
         setTorchEnabled(false);
+        setCameraReady(false);
       };
     }, [])
   );
+
+  // Only show camera when both focused AND ready
+  const isCameraActive = isFocused && cameraReady;
 
   if (!permission) return <View />;
 
@@ -70,15 +83,22 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      <CameraView
-        style={styles.camera}
-        facing="back"
-        enableTorch={torchEnabled}
-        onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'],
-        }}
-      />
+      {isCameraActive ? (
+        <CameraView
+          style={styles.camera}
+          facing="back"
+          active={true}
+          enableTorch={torchEnabled}
+          onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'],
+          }}
+        />
+      ) : (
+        <View style={[styles.camera, styles.cameraPlaceholder]}>
+          <ActivityIndicator size="large" color="#ffffff" />
+        </View>
+      )}
 
       {/* Loading overlay */}
       {loading && (
@@ -112,6 +132,7 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
   camera: { flex: 1 },
+  cameraPlaceholder: { justifyContent: 'center', alignItems: 'center' },
   message: { textAlign: 'center', color: 'white', marginBottom: 16 },
 
   loadingOverlay: {

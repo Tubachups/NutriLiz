@@ -103,6 +103,45 @@ export function ProductHistoryProvider({ children }) {
     return tempProduct;
   }, [user, products]);
 
+  // Add a food item (from photo scan) to history
+  const addFoodItem = useCallback(async (foodData, imageUri = null) => {
+    // Generate a unique identifier for food items (no barcode)
+    const foodId = `food_${Date.now()}`;
+    
+    const newProduct = {
+      barcode: foodId, // Use generated ID as identifier
+      name: foodData.name || foodData.food_name || 'Unknown Food',
+      brand: '', // Food items don't have brands
+      image: imageUri || null,
+      nutriscore: foodData.health_score || foodData.nutrition_score || null,
+      scannedAt: new Date().toISOString(),
+      productData: foodData, // Store full food data for navigation
+      type: 'food', // Mark as food item to distinguish from barcode products
+    };
+
+    // Add new entry (food items are always unique since they have generated IDs)
+    const tempId = `temp_${Date.now()}`;
+    const tempProduct = { ...newProduct, id: tempId };
+    setProducts(prev => [tempProduct, ...prev]);
+
+    // Save to Appwrite if user is logged in
+    if (user) {
+      try {
+        const savedProduct = await saveProductToHistory(user.$id, newProduct);
+        // Update the temp product with the real ID from Appwrite
+        setProducts(prev => 
+          prev.map(p => p.id === tempId ? { ...newProduct, id: savedProduct.$id } : p)
+        );
+        return { ...newProduct, id: savedProduct.$id };
+      } catch (error) {
+        console.error('Failed to save food item to Appwrite:', error);
+        // Keep the temp product in local state even if save fails
+      }
+    }
+
+    return tempProduct;
+  }, [user]);
+
   // Delete selected products
   const deleteSelected = useCallback(async () => {
     const idsToDelete = Array.from(selectedIds);
@@ -206,6 +245,7 @@ export function ProductHistoryProvider({ children }) {
     hasSelection: selectedIds.size > 0,
     allSelected: products.length > 0 && selectedIds.size === products.length,
     addProduct,
+    addFoodItem,
     deleteProduct,
     deleteSelected,
     clearAll,
