@@ -71,12 +71,24 @@ Provide your best estimates for nutritional values based on standard food databa
 Return ONLY valid JSON, no additional text."""
 
         # Add personalization if user profile provided
+       # Add personalization if user profile provided
         if user_profile:
             health_context = build_health_context(user_profile)
             prompt += f"\n\nUser Health Context:\n{health_context}\n\nAlso include a 'personalized_advice' field with specific recommendations for this user."
 
-        # Decode base64 image
-        image_bytes = base64.b64decode(image_data)
+        # Detect mime type from base64 header or default to jpeg
+        mime_type = "image/jpeg"
+        try:
+            # Decode a small portion to detect image type
+            image_bytes = base64.b64decode(image_data)
+            if image_bytes[:8] == b'\x89PNG\r\n\x1a\n':
+                mime_type = "image/png"
+            elif image_bytes[:2] == b'\xff\xd8':
+                mime_type = "image/jpeg"
+            elif image_bytes[:4] == b'RIFF' and image_bytes[8:12] == b'WEBP':
+                mime_type = "image/webp"
+        except Exception:
+            pass  # Use default jpeg if detection fails
         
         # Create content with image for Gemini
         response = client.models.generate_content(
@@ -88,7 +100,7 @@ Return ONLY valid JSON, no additional text."""
                         {"text": prompt},
                         {
                             "inline_data": {
-                                "mime_type": "image/jpeg",
+                                "mime_type": mime_type,
                                 "data": image_data
                             }
                         }
@@ -133,19 +145,73 @@ def build_health_context(user_profile: dict) -> str:
     """Build health context string from user profile."""
     context_parts = []
     
-    if user_profile.get('age'):
-        context_parts.append(f"Age: {user_profile['age']}")
-    if user_profile.get('gender'):
-        context_parts.append(f"Gender: {user_profile['gender']}")
-    if user_profile.get('weight') and user_profile.get('height'):
-        bmi = user_profile['weight'] / ((user_profile['height']/100) ** 2)
-        context_parts.append(f"BMI: {bmi:.1f}")
-    if user_profile.get('allergies'):
-        context_parts.append(f"Allergies: {', '.join(user_profile['allergies'])}")
-    if user_profile.get('health_conditions'):
-        context_parts.append(f"Health conditions: {', '.join(user_profile['health_conditions'])}")
-    if user_profile.get('dietary_restrictions'):
-        context_parts.append(f"Dietary restrictions: {', '.join(user_profile['dietary_restrictions'])}")
+    try:
+        if user_profile.get('age'):
+            context_parts.append(f"Age: {user_profile['age']}")
+        if user_profile.get('gender'):
+            context_parts.append(f"Gender: {user_profile['gender']}")
+        if user_profile.get('weight') and user_profile.get('height'):
+            try:
+                weight = float(user_profile['weight'])
+                height = float(user_profile['height'])
+                bmi = weight / ((height/100) ** 2)
+                context_parts.append(f"BMI: {bmi:.1f}")
+            except (ValueError, TypeError, ZeroDivisionError):
+                pass
+        
+        # Handle allergies - could be list, string, or JSON string
+        allergies = user_profile.get('allergies')
+        if allergies:
+            if isinstance(allergies, list):
+                allergies_str = ', '.join(str(a) for a in allergies if a)
+            elif isinstance(allergies, str):
+                # Try to parse as JSON, otherwise use as-is
+                try:
+                    parsed = json.loads(allergies)
+                    allergies_str = ', '.join(str(a) for a in parsed if a) if isinstance(parsed, list) else allergies
+                except json.JSONDecodeError:
+                    allergies_str = allergies
+            else:
+                allergies_str = str(allergies)
+            if allergies_str:
+                context_parts.append(f"Allergies: {allergies_str}")
+        
+        # Handle health conditions - could be list, string, or JSON string
+        health_conditions = user_profile.get('health_conditions') or user_profile.get('healthConditions')
+        if health_conditions:
+            if isinstance(health_conditions, list):
+                conditions_str = ', '.join(str(c) for c in health_conditions if c)
+            elif isinstance(health_conditions, str):
+                try:
+                    parsed = json.loads(health_conditions)
+                    conditions_str = ', '.join(str(c) for c in parsed if c) if isinstance(parsed, list) else health_conditions
+                except json.JSONDecodeError:
+                    conditions_str = health_conditions
+            else:
+                conditions_str = str(health_conditions)
+            if conditions_str:
+                context_parts.append(f"Health conditions: {conditions_str}")
+        
+        # Handle dietary restrictions - could be list, string, or JSON string
+        dietary_restrictions = user_profile.get('dietary_restrictions') or user_profile.get('dietaryRestrictions')
+        if dietary_restrictions:
+            if isinstance(dietary_restrictions, list):
+                restrictions_str = ', '.join(str(d) for d in dietary_restrictions if d)
+            elif isinstance(dietary_restrictions, str):
+                try:
+                    parsed = json.loads(dietary_restrictions)
+                    restrictions_str = ', '.join(str(d) for d in parsed if d) if isinstance(parsed, list) else dietary_restrictions
+                except json.JSONDecodeError:
+                    restrictions_str = dietary_restrictions
+            else:
+                restrictions_str = str(dietary_restrictions)
+            if restrictions_str:
+                context_parts.append(f"Dietary restrictions: {restrictions_str}")
+                
+    except Exception as e:
+        print(f"Error building health context: {e}")
+        # Return empty context if there's an error
+        return ""
     
     return '\n'.join(context_parts)
 
