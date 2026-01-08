@@ -9,7 +9,7 @@ const IngredientsCard = ({ ingredientsText }) => {
 
   return (
     <Card style={styles.card}>
-      <Card.Title title="🧪 Ingredients" />
+      <Card.Title title="🧪 Ingredients" titleStyle={styles.cardTitle} />
       <Card.Content>
         <Text style={styles.ingredientsText}>
           {ingredientsText}
@@ -25,6 +25,10 @@ const styles = StyleSheet.create({
   card: {
     margin: 10,
     backgroundColor: 'white',
+  },
+  cardTitle: {
+    color: '#1e7d5dff',
+    fontWeight: 'bold',
   },
   ingredientsText: {
     lineHeight: 20,

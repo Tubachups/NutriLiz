@@ -161,12 +161,12 @@ export default function TabsLayout() {
           },
           headerShadowVisible: false,
           headerTitleAlign: 'center',
-          tabBarActiveTintColor: '#7fc1baff',
+          tabBarActiveTintColor: '#7fc1c0ff',
           tabBarInactiveTintColor: '#717674ff',
 
           tabBarStyle: {
-            backgroundColor: '#ECF4E8',
-            borderTopColor: '#ABE7B2',
+            backgroundColor: '#d7eee6ff',
+            borderTopColor: '#ABE7B2',  //top and bottom border legend!
             height: 60 + insets.bottom,
             paddingBottom: 8 + insets.bottom,
             paddingTop: 8,
@@ -211,7 +211,7 @@ export default function TabsLayout() {
           options={{
             title: 'Home',
             headerShown: true,
-            headerTitle: 'NutriLiz Home',
+            headerTitle: 'Home',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="home" size={size} color={color} />
             ),

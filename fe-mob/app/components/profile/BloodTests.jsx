@@ -26,8 +26,9 @@ const BloodTests = ({
         onChangeText={setSugarLevel}
         keyboardType="decimal-pad"
         mode="outlined"
+        textColor="#082e21ff"
         style={styles.input}
-        outlineColor="#ABE7B2"
+        outlineColor="#abe7cdff"
         activeOutlineColor="#93BFC7"
         placeholder="e.g., 95"
         right={<TextInput.Affix text="mg/dL" />}
@@ -38,6 +39,7 @@ const BloodTests = ({
         value={cholesterolLevel}
         onChangeText={setCholesterolLevel}
         keyboardType="decimal-pad"
+        textColor="#082e21ff"
         mode="outlined"
         style={styles.input}
         outlineColor="#ABE7B2"
@@ -52,6 +54,7 @@ const BloodTests = ({
         onChangeText={setTriglycerides}
         keyboardType="decimal-pad"
         mode="outlined"
+        textColor="#082e21ff"
         style={styles.input}
         outlineColor="#ABE7B2"
         activeOutlineColor="#93BFC7"
@@ -65,6 +68,7 @@ const BloodTests = ({
         onChangeText={setCreatinine}
         keyboardType="decimal-pad"
         mode="outlined"
+        textColor="#082e21ff"
         style={styles.input}
         outlineColor="#ABE7B2"
         activeOutlineColor="#93BFC7"
@@ -78,6 +82,7 @@ const BloodTests = ({
         onChangeText={setUricAcid}
         keyboardType="decimal-pad"
         mode="outlined"
+        textColor="#082e21ff"
         style={styles.input}
         outlineColor="#ABE7B2"
         activeOutlineColor="#93BFC7"
@@ -91,7 +96,7 @@ const BloodTests = ({
 const styles = StyleSheet.create({
   sectionTitle: {
     fontWeight: '600',
-    color: '#93BFC7',
+    color: '#5d8c86ff',
     marginBottom: 12,
     marginTop: 8,
   },

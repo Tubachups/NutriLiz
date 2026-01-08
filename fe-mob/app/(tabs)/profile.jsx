@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { Button, Text, Card, Divider } from 'react-native-paper';
+import { Button, Text, Card, Divider, Portal, Modal } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import ProfileHeader from '../components/profile/ProfileHeader';
 import BodyMeasure from '../components/profile/BodyMeasure';
 import BloodTests from '../components/profile/BloodTests';
@@ -16,6 +17,9 @@ const ProfileScreen = () => {
   const [triglycerides, setTriglycerides] = useState('');
   const [creatinine, setCreatinine] = useState('');
   const [uricAcid, setUricAcid] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showRequiredModal, setShowRequiredModal] = useState(false);
 
   const router = useRouter();
   const { userProfile, updateUserProfile } = useAuth();
@@ -62,11 +66,7 @@ const ProfileScreen = () => {
 
   const handleSave = async () => {
     if (!weight || !height) {
-      Alert.alert(
-        'Required Fields',
-        'Please enter both weight and height to calculate BMI.',
-        [{ text: 'OK' }]
-      );
+      setShowRequiredModal(true);
       return;
     }
 
@@ -84,15 +84,82 @@ const ProfileScreen = () => {
 
     try {
       await updateUserProfile(profileData);
-      Alert.alert('Profile Saved', 'Your health profile has been saved successfully.', [{ text: 'OK' }]);
+      setShowSuccessModal(true);
     } catch (error) {
-      Alert.alert('Error', 'Failed to save profile. Please try again.');
-
+      setShowErrorModal(true);
     }
   };
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <Portal>
+        {/* Success Modal */}
+        <Modal
+          visible={showSuccessModal}
+          onDismiss={() => setShowSuccessModal(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <Ionicons name="checkmark-circle-outline" size={48} color="#67caa9" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>Profile Saved</Text>
+            <Text style={styles.modalMessage}>Your health profile has been saved successfully.</Text>
+            <Button
+              mode="contained"
+              onPress={() => setShowSuccessModal(false)}
+              style={styles.modalButton}
+              buttonColor="#67caa9"
+              textColor="#fff"
+            >
+              OK
+            </Button>
+          </View>
+        </Modal>
+
+        {/* Error Modal */}
+        <Modal
+          visible={showErrorModal}
+          onDismiss={() => setShowErrorModal(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <Ionicons name="alert-circle-outline" size={48} color="#E63E11" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>Error</Text>
+            <Text style={styles.modalMessage}>Failed to save profile. Please try again.</Text>
+            <Button
+              mode="contained"
+              onPress={() => setShowErrorModal(false)}
+              style={styles.modalButton}
+              buttonColor="#67caa9"
+              textColor="#fff"
+            >
+              OK
+            </Button>
+          </View>
+        </Modal>
+
+        {/* Required Fields Modal */}
+        <Modal
+          visible={showRequiredModal}
+          onDismiss={() => setShowRequiredModal(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <Ionicons name="information-circle-outline" size={48} color="#67caa9" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>Required Fields</Text>
+            <Text style={styles.modalMessage}>Please enter both weight and height to calculate BMI.</Text>
+            <Button
+              mode="contained"
+              onPress={() => setShowRequiredModal(false)}
+              style={styles.modalButton}
+              buttonColor="#67caa9"
+              textColor="#fff"
+            >
+              OK
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
+
       <ScrollView style={styles.container}>
         <View style={styles.content}>
           <Card style={styles.card}>
@@ -127,7 +194,7 @@ const ProfileScreen = () => {
                 mode="contained"
                 onPress={handleSave}
                 style={styles.button}
-                buttonColor="#93BFC7"
+                buttonColor="#62a58aff"
                 textColor="#fff"
               >
                 Save Profile
@@ -149,7 +216,7 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ECF4E8',
+    backgroundColor: '#e8f4edff',
   },
   content: {
     padding: 16,
@@ -161,7 +228,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     marginVertical: 16,
-    backgroundColor: '#ABE7B2',
+    backgroundColor: '#95d9bdff',
   },
   button: {
     marginTop: 8,
@@ -171,12 +238,40 @@ const styles = StyleSheet.create({
   infoSection: {
     marginTop: 16,
     padding: 16,
-    backgroundColor: '#CBF3BB',
+    backgroundColor: '#bbf3cbff',
     borderRadius: 8,
   },
   infoText: {
-    color: '#555',
+    color: '#444b49ff',
     textAlign: 'center',
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    margin: 20,
+    borderRadius: 16,
+    padding: 24,
+  },
+  modalContent: {
+    alignItems: 'center',
+  },
+  modalIcon: {
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  modalButton: {
+    minWidth: 120,
+    borderRadius: 25,
   },
 });
 

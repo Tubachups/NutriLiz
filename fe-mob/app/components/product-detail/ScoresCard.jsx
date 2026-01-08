@@ -17,7 +17,7 @@ const ScoresCard = ({ productData }) => {
 
   return (
     <Card style={styles.card}>
-      <Card.Title title="📊 Scores" />
+      <Card.Title title="📊 Scores" titleStyle={styles.cardTitle} />
       <Card.Content>
         {productData.nutri_grade !== 'N/A' && (
           <View style={styles.nutriScoreContainer}>
@@ -49,6 +49,10 @@ const styles = StyleSheet.create({
   card: {
     margin: 10,
     backgroundColor: 'white',
+  },
+  cardTitle: {
+    color: '#1e7d5dff',
+    fontWeight: 'bold',
   },
   nutriScoreContainer: {
     marginVertical: 10,

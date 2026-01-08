@@ -2,10 +2,14 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Card } from 'react-native-paper';
 
+
 const NutritionInfo = ({ productData, isAppwriteProduct }) => {
   return (
     <Card style={styles.card}>
-      <Card.Title title="🥗 Nutrition Information" />
+      <Card.Title 
+        title="🥗 Nutrition Information" 
+        titleStyle={styles.cardTitle}
+      />
       <Card.Content>
         {isAppwriteProduct ? (
           <View>
@@ -70,6 +74,10 @@ const styles = StyleSheet.create({
     margin: 10,
     backgroundColor: 'white',
   },
+  cardTitle: {
+    color: '#1e7d5dff',
+    fontWeight: 'bold',
+  },
   nutritionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -79,8 +87,9 @@ const styles = StyleSheet.create({
   },
   nutritionLabel: {
     fontWeight: '600',
+    color: '#1e7d5dff',
   },
   nutritionValue: {
-    color: '#666',
+    color: '#6f7472ff',
   },
 });
