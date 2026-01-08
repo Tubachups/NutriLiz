@@ -104,6 +104,7 @@ export default function ForgotPassword() {
           activeUnderlineColor="#67caa9ff"
           placeholder="example@email.com"
           placeholderTextColor="#999"
+          right={<TextInput.Icon icon="email-outline" color="#83b9a8ff" />}
         />
 
         <Button

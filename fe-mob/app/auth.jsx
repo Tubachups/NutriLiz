@@ -71,6 +71,7 @@ export default function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
+  const [securePassword, setSecurePassword] = useState(true);
 
   const theme = useTheme();
   const router = useRouter();
@@ -149,8 +150,8 @@ export default function AuthScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={0}
       >
-        <Animated.View style={[styles.formContainer, { paddingTop: isSignUp ? height * 0.12 : height * 0.03 }, animatedStyle]}>
-          <Text style={styles.title}>{isSignUp ? "Create your Account!" : "Welcome to NutriLiz!"}</Text>
+        <Animated.View style={[styles.formContainer, { paddingTop: isSignUp ? height * 0.08 : height * 0.03 }, animatedStyle]}>
+          <Text style={styles.title}>{isSignUp ? "Create your account!" : "Welcome to NutriLiz!"}</Text>
 
           {isSignUp && (
             <TextInput
@@ -167,6 +168,7 @@ export default function AuthScreen() {
               style={styles.input}
               underlineColor="#ddd"
               activeUnderlineColor="#67caa9ff"
+              right={<TextInput.Icon icon="account-outline" color="#83b9a8ff" />}
             />
           )}
 
@@ -185,6 +187,7 @@ export default function AuthScreen() {
             style={styles.input}
             underlineColor="#ddd"
             activeUnderlineColor="#67caa9ff"
+            right={<TextInput.Icon icon="email-outline" color="#83b9a8ff" />}
           />
 
           <TextInput
@@ -195,13 +198,20 @@ export default function AuthScreen() {
               setError(null);
             }}
             autoCapitalize="none"
-            secureTextEntry
+            secureTextEntry={securePassword}
             placeholder="enter your password"
             placeholderTextColor="#999"
             mode="flat"
             style={styles.input}
             underlineColor="#ddd"
             activeUnderlineColor="#67caa9ff"
+            right={
+              <TextInput.Icon 
+                icon={securePassword ? "eye-off-outline" : "eye-outline"} 
+                color="#83b9a8ff"
+                onPress={() => setSecurePassword(!securePassword)}
+              />
+            }
           />
 
           {error && <Text style={{ color: theme.colors.error }}> {error}</Text>}
