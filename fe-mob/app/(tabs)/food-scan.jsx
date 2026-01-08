@@ -65,7 +65,7 @@ export default function FoodScan() {
       try {
         const photo = await cameraRef.current.takePictureAsync({
           base64: true,
-          quality: 0.7,
+          quality: 0.5,
         });
         setCapturedImage(photo);
         await analyzePhoto(photo.base64, photo.uri);
