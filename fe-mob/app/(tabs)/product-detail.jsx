@@ -73,7 +73,7 @@ export default function ProductDetail() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ECF4E8',
+    backgroundColor: '#e8f4eeff',
   },
   centerContainer: {
     flex: 1,

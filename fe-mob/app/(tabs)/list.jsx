@@ -1,5 +1,6 @@
-import React, { useCallback } from 'react';
-import { View, StyleSheet, FlatList, Alert, Image } from 'react-native';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { View, StyleSheet, FlatList, Alert, Image, Dimensions, Animated } from 'react-native';
+
 import {
   Text,
   Card,
@@ -12,9 +13,118 @@ import {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useProductHistory } from '@/hooks/useProductHistory';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
+
+const { width, height } = Dimensions.get('window');
+
+const TopographicBackground = () => (
+  <Svg
+    style={StyleSheet.absoluteFill}
+    width={width}
+    height={height}
+    viewBox={`0 0 ${width} ${height}`}
+    preserveAspectRatio="xMidYMid slice"
+  >
+    {/* Base color */}
+    <Path d={`M0,0 L${width},0 L${width},${height} L0,${height} Z`} fill="#e6fdf6ff" />
+    
+    {/* Topographic contour lines */}
+    {[...Array(20)].map((_, i) => (
+      <Path
+        key={i}
+        d={`M${-50},${50 + i * 40} 
+            Q${width * 0.25},${30 + i * 40} ${width * 0.5},${60 + i * 40}
+            Q${width * 0.75},${90 + i * 40} ${width + 50},${50 + i * 40}`}
+        stroke="rgba(171, 231, 198, 0.4)"
+        strokeWidth="1.5"
+        fill="none"
+      />
+    ))}
+    
+    {[...Array(15)].map((_, i) => (
+      <Path
+        key={`c2-${i}`}
+        d={`M${-30},${80 + i * 50} 
+            Q${width * 0.3},${100 + i * 50} ${width * 0.6},${70 + i * 50}
+            Q${width * 0.85},${40 + i * 50} ${width + 30},${90 + i * 50}`}
+        stroke="rgba(203, 243, 187, 0.35)"
+        strokeWidth="1"
+        fill="none"
+      />
+    ))}
+  </Svg>
+);
+
+const TopographicHeader = ({ insetTop }) => (
+  <Svg
+    width={width}
+    height={90 + insetTop}
+    viewBox={`0 0 ${width} ${90 + insetTop}`}
+  >
+    {/* Base green background */}
+    <Path d={`M0,0 L${width},0 L${width},${70 + insetTop} L0,${70 + insetTop} Z`} fill="#77dfbcff" />
+    
+    {/* Topographic contour lines */}
+    {[...Array(10)].map((_, i) => (
+      <Path
+        key={i}
+        d={`M${-50},${insetTop + 5 + i * 8} 
+            Q${width * 0.25},${insetTop - 5 + i * 8} ${width * 0.5},${insetTop + 10 + i * 8}
+            Q${width * 0.75},${insetTop + 25 + i * 8} ${width + 50},${insetTop + 5 + i * 8}`}
+        stroke="rgba(255, 255, 255, 0.3)"
+        strokeWidth="1.5"
+        fill="none"
+      />
+    ))}
+    
+    {[...Array(8)].map((_, i) => (
+      <Path
+        key={`c2-${i}`}
+        d={`M${-30},${insetTop + 8 + i * 10} 
+            Q${width * 0.3},${insetTop + 20 + i * 10} ${width * 0.6},${insetTop + i * 10}
+            Q${width * 0.85},${insetTop - 10 + i * 10} ${width + 30},${insetTop + 15 + i * 10}`}
+        stroke="rgba(200, 255, 233, 0.25)"
+        strokeWidth="1"
+        fill="none"
+      />
+    ))}
+
+    {/* Green wavy area at the bottom */}
+    <Path
+      d={`M0,${65 + insetTop} 
+          Q${width * 0.15},${72 + insetTop} ${width * 0.3},${68 + insetTop}
+          Q${width * 0.5},${62 + insetTop} ${width * 0.7},${72 + insetTop}
+          Q${width * 0.85},${78 + insetTop} ${width},${68 + insetTop}
+          L${width},${90 + insetTop} L0,${90 + insetTop} Z`}
+      fill="#67caa9ff"
+    />
+
+    {/* Dark wavy border line at top of green area */}
+    <Path
+      d={`M0,${65 + insetTop} 
+          Q${width * 0.15},${72 + insetTop} ${width * 0.3},${68 + insetTop}
+          Q${width * 0.5},${62 + insetTop} ${width * 0.7},${72 + insetTop}
+          Q${width * 0.85},${78 + insetTop} ${width},${68 + insetTop}`}
+      stroke="#45a787ff"
+      strokeWidth="2"
+      fill="none"
+    />
+
+    {/* Dark green border at bottom */}
+    <Path
+      d={`M0,${90 + insetTop} L${width},${90 + insetTop}`}
+      stroke="#3d8a6e"
+      strokeWidth="3"
+      fill="none"
+    />
+  </Svg>
+);
 
 export default function ProductList() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const selectionBarAnim = useRef(new Animated.Value(0)).current;
   
   const {
     products,
@@ -29,10 +139,27 @@ export default function ProductList() {
     selectAll,
     deselectAll,
     isSelected,
-    
   } = useProductHistory();
 
-  // Refresh list when screen is focused
+  // Animate selection bar
+  useEffect(() => {
+    Animated.timing(selectionBarAnim, {
+      toValue: hasSelection ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [hasSelection]);
+
+  const selectionBarTranslateY = selectionBarAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-50, 0],
+  });
+
+  const selectionBarOpacity = selectionBarAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
   useFocusEffect(
     useCallback(() => {
     }, [])
@@ -207,7 +334,7 @@ export default function ProductList() {
         mode="contained"
         onPress={() => router.push('/scan')}
         style={styles.scanButton}
-        buttonColor="#93BFC7"
+        buttonColor="#67caa9"
       >
         Scan a Product
       </Button>
@@ -216,65 +343,81 @@ export default function ProductList() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#93BFC7" />
-        <Text style={styles.loadingText}>Loading history...</Text>
+      <View style={styles.container}>
+        <TopographicBackground />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#67caa9" />
+          <Text style={styles.loadingText}>Loading history...</Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Product History</Text>
-          <Text style={styles.headerSubtitle}>
-            {products.length} product{products.length !== 1 ? 's' : ''}
-            {hasSelection && ` • ${selectedCount} selected`}
-          </Text>
-        </View>
+      <TopographicBackground />
+      
+      {/* Header with Topographic Background */}
+      <View style={styles.headerWrapper}>
+        <TopographicHeader insetTop={insets.top} />
+        <View style={[styles.headerContent, { top: insets.top + 15 }]}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerTitle}>Product History</Text>
+            <Text style={styles.headerSubtitle}>
+              {products.length} product{products.length !== 1 ? 's' : ''}
+              {hasSelection && ` • ${selectedCount} selected`}
+            </Text>
+          </View>
 
-        <View style={styles.headerActions}>
-          {products.length > 0 && (
-            <>
-              <IconButton
-                icon={allSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                size={24}
-                onPress={handleSelectAll}
-                iconColor="#1F2937"
-              />
-              <IconButton
-                icon="delete-sweep"
-                size={24}
-                onPress={handleClearAll}
-                iconColor="#E63E11"
-              />
-            </>
-          )}
+          <View style={styles.headerActions}>
+            {products.length > 0 && (
+              <>
+                <IconButton
+                  icon={allSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                  size={24}
+                  onPress={handleSelectAll}
+                  iconColor="#1F2937"
+                />
+                <IconButton
+                  icon="delete-sweep"
+                  size={24}
+                  onPress={handleClearAll}
+                  iconColor="#ce2d00ff"
+                />
+              </>
+            )}
+          </View>
         </View>
       </View>
 
-      {/* Selection Actions Bar */}
-      {hasSelection && (
-        <View style={styles.selectionBar}>
-          <Button
-            mode="text"
-            onPress={deselectAll}
-            textColor="#757575"
-          >
-            Cancel
-          </Button>
-          <Button
-            mode="contained"
-            onPress={handleDeleteSelected}
-            buttonColor="#E63E11"
-            icon="delete"
-          >
-            Delete ({selectedCount})
-          </Button>
-        </View>
-      )}
+      {/* Selection Actions Bar  */}
+      <Animated.View 
+        style={[
+          styles.selectionBar,
+          {
+            transform: [{ translateY: selectionBarTranslateY }],
+            opacity: selectionBarOpacity,
+          },
+          !hasSelection && styles.selectionBarHidden,
+        ]}
+        pointerEvents={hasSelection ? 'auto' : 'none'}
+      >
+        <Button
+          mode="text"
+          onPress={deselectAll}
+          textColor="#757575"
+        >
+          Cancel
+        </Button>
+        <Button
+          mode="contained"
+          onPress={handleDeleteSelected}
+          buttonColor="#f03b08ff"
+          icon="delete"
+        >
+          Delete ({selectedCount})
+        </Button>
+      </Animated.View>
 
       {/* Product List */}
       <FlatList
@@ -289,16 +432,45 @@ export default function ProductList() {
   );
 }
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ECF4E8',
   },
+   headerWrapper: {
+    backgroundColor: '#67caa9ff',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#297a5aff',
+    marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+  },
+  
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ECF4E8',
   },
   loadingText: {
     marginTop: 12,
@@ -310,8 +482,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#CBF3BB',
+    paddingBottom: 12,
+    backgroundColor: '#67caa9ff',
     borderBottomWidth: 1,
     borderBottomColor: '#ABE7B2',
   },
@@ -325,7 +497,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#757575',
+    color: '#297a5aff',
     marginTop: 2,
   },
   headerActions: {
@@ -337,9 +509,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    zIndex: 10,
+  },
+  selectionBarHidden: {
+    position: 'absolute',
+    top: -50,
   },
   listContent: {
     padding: 12,
@@ -349,12 +526,12 @@ const styles = StyleSheet.create({
   },
   productCard: {
     marginBottom: 10,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(251, 255, 254, 0.95)',
     borderRadius: 12,
     elevation: 2,
   },
   selectedCard: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: 'rgba(232, 245, 240, 0.95)',
     borderWidth: 2,
     borderColor: '#93BFC7',
   },
@@ -374,7 +551,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 8,
     marginRight: 12,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#e0e0e0ff',
     justifyContent: 'center',
     alignItems: 'center',
   },
