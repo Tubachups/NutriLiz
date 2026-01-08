@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { KeyboardAvoidingView, Platform, View, StyleSheet, Dimensions } from "react-native";
 import { TextInput, Button, Text, useTheme } from "react-native-paper";
 import { useAuth } from "@/hooks/auth-context";
-import Svg, { Path, Defs, Pattern, Circle } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming, 
+  Easing 
+} from "react-native-reanimated";
 
 const { width, height } = Dimensions.get("window");
 
@@ -65,20 +71,43 @@ export default function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
+  const [securePassword, setSecurePassword] = useState(true);
 
   const theme = useTheme();
   const router = useRouter();
-
   const { signUp, signIn } = useAuth();
 
-  const toggleAuthMode = () => {
-    setIsSignUp((prev) => !prev);
-  }
+  const translateX = useSharedValue(0);
+  const opacity = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+    opacity: opacity.value,
+  }));
+
+  const toggleAuthMode = (toSignUp) => {
+    const direction = toSignUp ? -1 : 1;
+    
+    // Fade out and slide
+    opacity.value = withTiming(0, { duration: 150, easing: Easing.ease });
+    translateX.value = withTiming(direction * -50, { duration: 180, easing: Easing.ease });
+
+    setTimeout(() => {
+      setIsSignUp(toSignUp);
+      
+      // Reset position to opposite side
+      translateX.value = direction * 50;
+      
+      // Fade in and slide back
+      opacity.value = withTiming(1, { duration: 150, easing: Easing.ease });
+      translateX.value = withTiming(0, { duration: 150, easing: Easing.ease });
+    }, 150);
+  };
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
-  }
+  };
 
   const handleAuth = async () => {
     if (!email || !password) {
@@ -101,19 +130,19 @@ export default function AuthScreen() {
       const error = await signUp(email, password, userName);
       if (error) {
         setError(error);
-        return
+        return;
       }
     } else {
       const error = await signIn(email, password);
       if (error) {
         setError(error);
-        return
+        return;
       }
     }
     router.replace("/");
-  }
+  };
 
-return (
+  return (
     <View style={styles.container}>
       <TopographicBackground />
       <KeyboardAvoidingView
@@ -121,15 +150,15 @@ return (
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={0}
       >
-        <View style={[styles.formContainer, { paddingTop: isSignUp ? height * 0.12 : height * 0.03 }]}>
-          <Text style={styles.title}>{isSignUp ? "Create Account" : "Welcome to NutriLiz!"}</Text>
+        <Animated.View style={[styles.formContainer, { paddingTop: isSignUp ? height * 0.08 : height * 0.03 }, animatedStyle]}>
+          <Text style={styles.title}>{isSignUp ? "Create your account!" : "Welcome to NutriLiz!"}</Text>
 
           {isSignUp && (
             <TextInput
               label='Username'
               value={userName}
               onChangeText={(text) => {
-                setUsername(text)
+                setUsername(text);
                 setError(null);
               }}
               autoCapitalize="none"
@@ -139,6 +168,7 @@ return (
               style={styles.input}
               underlineColor="#ddd"
               activeUnderlineColor="#67caa9ff"
+              right={<TextInput.Icon icon="account-outline" color="#83b9a8ff" />}
             />
           )}
 
@@ -146,7 +176,7 @@ return (
             label='Email'
             value={email}
             onChangeText={(text) => {
-              setEmail(text)
+              setEmail(text);
               setError(null);
             }}
             autoCapitalize="none"
@@ -157,23 +187,31 @@ return (
             style={styles.input}
             underlineColor="#ddd"
             activeUnderlineColor="#67caa9ff"
+            right={<TextInput.Icon icon="email-outline" color="#83b9a8ff" />}
           />
 
           <TextInput
             label='Password'
             value={password}
             onChangeText={(text) => {
-              setPassword(text)
-              setError(null); 
+              setPassword(text);
+              setError(null);
             }}
             autoCapitalize="none"
-            secureTextEntry
+            secureTextEntry={securePassword}
             placeholder="enter your password"
             placeholderTextColor="#999"
             mode="flat"
             style={styles.input}
             underlineColor="#ddd"
             activeUnderlineColor="#67caa9ff"
+            right={
+              <TextInput.Icon 
+                icon={securePassword ? "eye-off-outline" : "eye-outline"} 
+                color="#83b9a8ff"
+                onPress={() => setSecurePassword(!securePassword)}
+              />
+            }
           />
 
           {error && <Text style={{ color: theme.colors.error }}> {error}</Text>}
@@ -190,7 +228,7 @@ return (
 
           <Button 
             mode="text" 
-            onPress={toggleAuthMode}
+            onPress={() => toggleAuthMode(!isSignUp)}
             textColor="#666"
           >
             {isSignUp ? "Already have an account? " : "Don't have an Account? "}
@@ -204,7 +242,7 @@ return (
           >
             Forgot Password?
           </Button>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </View>
   );

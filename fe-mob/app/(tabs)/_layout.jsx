@@ -3,16 +3,18 @@ import { PaperProvider } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
     <PaperProvider>
       <Tabs
         screenOptions={{
           headerStyle: {
-            backgroundColor: '#CBF3BB',      // secondary
+            backgroundColor: '#77dfbcff',
           },
           headerTintColor: '#000',
           headerTitleStyle: {
@@ -20,32 +22,28 @@ export default function TabsLayout() {
           },
           headerShadowVisible: false,
           headerTitleAlign: 'center',
-          tabBarActiveTintColor: '#93BFC7',   // dark
-          tabBarInactiveTintColor: '#757575',
+          tabBarActiveTintColor: '#7fc1baff',
+          tabBarInactiveTintColor: '#717674ff',
 
-          // ⭐ Add tabBarStyle here
           tabBarStyle: {
-            backgroundColor: '#ECF4E8',      // primary
-            borderTopColor: '#ABE7B2',       // accent
-            height: 60,
-            paddingBottom: 8,
+            backgroundColor: '#ECF4E8',
+            borderTopColor: '#ABE7B2',
+            height: 60 + insets.bottom,
+            paddingBottom: 8 + insets.bottom,
             paddingTop: 8,
           },
         }}
       >
-
         <Tabs.Screen
-          name="profile"  // Keep this the same as your file name
+          name="profile"
           options={{
-            title: 'Profile',  // Changed from 'Login'
+            title: 'Profile',
             headerShown: true,
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person-circle" size={size} color={color} />  // Changed icon
+              <Ionicons name="person-circle" size={size} color={color} />
             ),
           }}
         />
-
-
 
         <Tabs.Screen
           name="scan"
@@ -96,7 +94,7 @@ export default function TabsLayout() {
           options={{
             title: 'Product Details',
             headerShown: true,
-            href: null, // Hidden in tab bar
+            href: null,
             headerLeft: () => (
               <TouchableOpacity
                 onPress={() => router.replace('/list')}
@@ -113,7 +111,7 @@ export default function TabsLayout() {
           options={{
             title: 'Food Details',
             headerShown: true,
-            href: null, // Hidden in tab bar
+            href: null,
             headerLeft: () => (
               <TouchableOpacity
                 onPress={() => router.replace('/list')}
