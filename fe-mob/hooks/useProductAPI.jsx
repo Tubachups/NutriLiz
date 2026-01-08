@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 // Update this to your backend IP address
-const API_BASE_URL = 'http://192.168.100.69:5000';
+const API_BASE_URL = 'http://192.168.1.5:5000';
 
 export const useProductAPI = () => {
   const [loading, setLoading] = useState(false);
