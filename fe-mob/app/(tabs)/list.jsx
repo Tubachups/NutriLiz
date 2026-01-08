@@ -1,5 +1,7 @@
-import React, { useCallback } from 'react';
-import { View, StyleSheet, FlatList, Alert, Image } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, StyleSheet, FlatList, Image, Dimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
 import {
   Text,
   Card,
@@ -8,13 +10,130 @@ import {
   ActivityIndicator,
   Button,
   Chip,
+  Portal,
+  Modal,
 } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useProductHistory } from '@/hooks/useProductHistory';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
+
+const { width, height } = Dimensions.get('window');
+
+const TopographicBackground = () => (
+  <Svg
+    style={StyleSheet.absoluteFill}
+    width={width}
+    height={height}
+    viewBox={`0 0 ${width} ${height}`}
+    preserveAspectRatio="xMidYMid slice"
+  >
+    {/* Base color */}
+    <Path d={`M0,0 L${width},0 L${width},${height} L0,${height} Z`} fill="#e6fdf6ff" />
+    
+    {/* Topographic contour lines */}
+    {[...Array(20)].map((_, i) => (
+      <Path
+        key={i}
+        d={`M${-50},${50 + i * 40} 
+            Q${width * 0.25},${30 + i * 40} ${width * 0.5},${60 + i * 40}
+            Q${width * 0.75},${90 + i * 40} ${width + 50},${50 + i * 40}`}
+        stroke="rgba(171, 231, 198, 0.4)"
+        strokeWidth="1.5"
+        fill="none"
+      />
+    ))}
+    
+    {[...Array(15)].map((_, i) => (
+      <Path
+        key={`c2-${i}`}
+        d={`M${-30},${80 + i * 50} 
+            Q${width * 0.3},${100 + i * 50} ${width * 0.6},${70 + i * 50}
+            Q${width * 0.85},${40 + i * 50} ${width + 30},${90 + i * 50}`}
+        stroke="rgba(203, 243, 187, 0.35)"
+        strokeWidth="1"
+        fill="none"
+      />
+    ))}
+  </Svg>
+);
+
+const TopographicHeader = ({ insetTop }) => (
+  <Svg
+    width={width}
+    height={90 + insetTop}
+    viewBox={`0 0 ${width} ${90 + insetTop}`}
+  >
+    {/* Base green background */}
+    <Path d={`M0,0 L${width},0 L${width},${70 + insetTop} L0,${70 + insetTop} Z`} fill="#77dfbcff" />
+    
+    {/* Topographic contour lines */}
+    {[...Array(10)].map((_, i) => (
+      <Path
+        key={i}
+        d={`M${-50},${insetTop + 5 + i * 8} 
+            Q${width * 0.25},${insetTop - 5 + i * 8} ${width * 0.5},${insetTop + 10 + i * 8}
+            Q${width * 0.75},${insetTop + 25 + i * 8} ${width + 50},${insetTop + 5 + i * 8}`}
+        stroke="rgba(255, 255, 255, 0.3)"
+        strokeWidth="1.5"
+        fill="none"
+      />
+    ))}
+    
+    {[...Array(8)].map((_, i) => (
+      <Path
+        key={`c2-${i}`}
+        d={`M${-30},${insetTop + 8 + i * 10} 
+            Q${width * 0.3},${insetTop + 20 + i * 10} ${width * 0.6},${insetTop + i * 10}
+            Q${width * 0.85},${insetTop - 10 + i * 10} ${width + 30},${insetTop + 15 + i * 10}`}
+        stroke="rgba(200, 255, 233, 0.25)"
+        strokeWidth="1"
+        fill="none"
+      />
+    ))}
+
+    {/* Green wavy area at the bottom */}
+    <Path
+      d={`M0,${65 + insetTop} 
+          Q${width * 0.15},${72 + insetTop} ${width * 0.3},${68 + insetTop}
+          Q${width * 0.5},${62 + insetTop} ${width * 0.7},${72 + insetTop}
+          Q${width * 0.85},${78 + insetTop} ${width},${68 + insetTop}
+          L${width},${90 + insetTop} L0,${90 + insetTop} Z`}
+      fill="#67caa9ff"
+    />
+
+    {/* Dark wavy border line at top of green area */}
+    <Path
+      d={`M0,${65 + insetTop} 
+          Q${width * 0.15},${72 + insetTop} ${width * 0.3},${68 + insetTop}
+          Q${width * 0.5},${62 + insetTop} ${width * 0.7},${72 + insetTop}
+          Q${width * 0.85},${78 + insetTop} ${width},${68 + insetTop}`}
+      stroke="#45a787ff"
+      strokeWidth="2"
+      fill="none"
+    />
+
+    {/* Dark green border at bottom */}
+    <Path
+      d={`M0,${90 + insetTop} L${width},${90 + insetTop}`}
+      stroke="#3d8a6e"
+      strokeWidth="3"
+      fill="none"
+    />
+  </Svg>
+);
 
 export default function ProductList() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  
+  const [showDeleteSingleModal, setShowDeleteSingleModal] = useState(false);
+  const [showDeleteSelectedModal, setShowDeleteSelectedModal] = useState(false);
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
+  const [showNoSelectionModal, setShowNoSelectionModal] = useState(false);
+  const [showEmptyListModal, setShowEmptyListModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
   
   const {
     products,
@@ -29,10 +148,8 @@ export default function ProductList() {
     selectAll,
     deselectAll,
     isSelected,
-    
   } = useProductHistory();
 
-  // Refresh list when screen is focused
   useFocusEffect(
     useCallback(() => {
     }, [])
@@ -48,47 +165,30 @@ export default function ProductList() {
 
   const handleDeleteSelected = () => {
     if (selectedCount === 0) {
-      Alert.alert('No Selection', 'Please select products to delete.');
+      setShowNoSelectionModal(true);
       return;
     }
-
-    Alert.alert(
-      'Delete Selected',
-      `Are you sure you want to delete ${selectedCount} selected product(s)?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            deleteSelected();
-          },
-        },
-      ]
-    );
+    setShowDeleteSelectedModal(true);
   };
+  const confirmDeleteSelected = () => {
+    deleteSelected();
+    setShowDeleteSelectedModal(false);
+  };
+
 
   const handleClearAll = () => {
     if (products.length === 0) {
-      Alert.alert('Empty List', 'There are no products to clear.');
+      setShowEmptyListModal(true);
       return;
     }
-
-    Alert.alert(
-      'Clear All',
-      'Are you sure you want to remove all products from history?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: () => {
-            clearAll();
-          },
-        },
-      ]
-    );
+    setShowClearAllModal(true);
   };
+
+  const confirmClearAll = () => {
+    clearAll();
+    setShowClearAllModal(false);
+  };
+
 
   const handleProductPress = (product) => {
     router.push({
@@ -101,18 +201,16 @@ export default function ProductList() {
   };
 
   const handleDeleteSingle = (productId, productName) => {
-    Alert.alert(
-      'Delete Product',
-      `Remove "${productName}" from history?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => deleteProduct(productId),
-        },
-      ]
-    );
+    setProductToDelete({ id: productId, name: productName });
+    setShowDeleteSingleModal(true);
+  };
+
+  const confirmDeleteSingle = () => {
+    if (productToDelete) {
+      deleteProduct(productToDelete.id);
+    }
+    setShowDeleteSingleModal(false);
+    setProductToDelete(null);
   };
 
   const formatDate = (isoString) => {
@@ -198,16 +296,17 @@ export default function ProductList() {
 
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyIcon}>📋</Text>
+      <Ionicons name="scan-sharp" size={64} color="#5ac09eff" style={styles.emptyIcon} />
       <Text style={styles.emptyTitle}>No Products Scanned</Text>
       <Text style={styles.emptySubtitle}>
-        Your scanned products will appear here
+        Your scanned products will appear here.
       </Text>
       <Button
         mode="contained"
         onPress={() => router.push('/scan')}
         style={styles.scanButton}
-        buttonColor="#93BFC7"
+        buttonColor="#5ec1a0ff"
+        textColor='#fff'
       >
         Scan a Product
       </Button>
@@ -216,65 +315,205 @@ export default function ProductList() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#93BFC7" />
-        <Text style={styles.loadingText}>Loading history...</Text>
+      <View style={styles.container}>
+        <TopographicBackground />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#67caa9" />
+          <Text style={styles.loadingText}>Loading history...</Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Product History</Text>
-          <Text style={styles.headerSubtitle}>
-            {products.length} product{products.length !== 1 ? 's' : ''}
-            {hasSelection && ` • ${selectedCount} selected`}
-          </Text>
-        </View>
+      <TopographicBackground />
+      
+      <Portal>
+        {/* Delete Single Product Modal */}
+        <Modal
+          visible={showDeleteSingleModal}
+          onDismiss={() => setShowDeleteSingleModal(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <Ionicons name="trash-outline" size={48} color="#E63E11" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>Delete Product</Text>
+            <Text style={styles.modalMessage}>
+              Remove "{productToDelete?.name}" from history?
+            </Text>
+            <View style={styles.modalButtons}>
+              <Button
+                mode="outlined"
+                onPress={() => setShowDeleteSingleModal(false)}
+                style={styles.cancelButton}
+                textColor="#666"
+              >
+                Cancel
+              </Button>
+              <Button
+                mode="contained"
+                onPress={confirmDeleteSingle}
+                style={styles.deleteButton}
+                buttonColor="#E63E11"
+                textColor="#fff"
+              >
+                Delete
+              </Button>
+            </View>
+          </View>
+        </Modal>
 
-        <View style={styles.headerActions}>
-          {products.length > 0 && (
-            <>
-              <IconButton
-                icon={allSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                size={24}
-                onPress={handleSelectAll}
-                iconColor="#1F2937"
-              />
-              <IconButton
-                icon="delete-sweep"
-                size={24}
-                onPress={handleClearAll}
-                iconColor="#E63E11"
-              />
-            </>
-          )}
+        {/* Delete Selected Modal */}
+        <Modal
+          visible={showDeleteSelectedModal}
+          onDismiss={() => setShowDeleteSelectedModal(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <Ionicons name="trash-outline" size={48} color="#E63E11" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>Delete Selected</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to delete {selectedCount} selected product(s)?
+            </Text>
+            <View style={styles.modalButtons}>
+              <Button
+                mode="outlined"
+                onPress={() => setShowDeleteSelectedModal(false)}
+                style={styles.cancelButton}
+                textColor="#666"
+              >
+                Cancel
+              </Button>
+              <Button
+                mode="contained"
+                onPress={confirmDeleteSelected}
+                style={styles.deleteButton}
+                buttonColor="#E63E11"
+                textColor="#fff"
+              >
+                Delete
+              </Button>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Clear All Modal */}
+        <Modal
+          visible={showClearAllModal}
+          onDismiss={() => setShowClearAllModal(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <Ionicons name="warning-outline" size={48} color="#E63E11" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>Clear All</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to remove all products from history?
+            </Text>
+            <View style={styles.modalButtons}>
+              <Button
+                mode="outlined"
+                onPress={() => setShowClearAllModal(false)}
+                style={styles.cancelButton}
+                textColor="#666"
+              >
+                Cancel
+              </Button>
+              <Button
+                mode="contained"
+                onPress={confirmClearAll}
+                style={styles.deleteButton}
+                buttonColor="#E63E11"
+                textColor="#fff"
+              >
+                Clear All
+              </Button>
+            </View>
+          </View>
+        </Modal>
+
+        {/* No Selection Modal */}
+        <Modal
+          visible={showNoSelectionModal}
+          onDismiss={() => setShowNoSelectionModal(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <Ionicons name="information-circle-outline" size={48} color="#67caa9" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>No Selection</Text>
+            <Text style={styles.modalMessage}>
+              Please select products to delete.
+            </Text>
+            <Button
+              mode="contained"
+              onPress={() => setShowNoSelectionModal(false)}
+              style={styles.okButton}
+              buttonColor="#67caa9"
+              textColor="#fff"
+            >
+              OK
+            </Button>
+          </View>
+        </Modal>
+
+        {/* Empty List Modal */}
+        <Modal
+          visible={showEmptyListModal}
+          onDismiss={() => setShowEmptyListModal(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <Ionicons name="information-circle-outline" size={48} color="#67caa9" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>Empty List</Text>
+            <Text style={styles.modalMessage}>
+              There are no products to clear.
+            </Text>
+            <Button
+              mode="contained"
+              onPress={() => setShowEmptyListModal(false)}
+              style={styles.okButton}
+              buttonColor="#67caa9"
+              textColor="#fff"
+            >
+              OK
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
+      
+      
+      {/* Header with Topographic Background */}
+      <View style={styles.headerWrapper}>
+        <TopographicHeader insetTop={insets.top} />
+        <View style={[styles.headerContent, { top: insets.top + 15 }]}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerTitle}>Product History</Text>
+            <Text style={styles.headerSubtitle}>
+              {products.length} product{products.length !== 1 ? 's' : ''}
+              {hasSelection && ` • ${selectedCount} selected`}
+            </Text>
+          </View>
+
+          <View style={styles.headerActions}>
+            {products.length > 0 && (
+              <>
+                <IconButton
+                  icon={allSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                  size={24}
+                  onPress={handleSelectAll}
+                  iconColor="#1F2937"
+                />
+                <IconButton
+                  icon="delete-sweep"
+                  size={24}
+                  onPress={handleClearAll}
+                  iconColor="#ce2d00ff"
+                />
+              </>
+            )}
+          </View>
         </View>
       </View>
-
-      {/* Selection Actions Bar */}
-      {hasSelection && (
-        <View style={styles.selectionBar}>
-          <Button
-            mode="text"
-            onPress={deselectAll}
-            textColor="#757575"
-          >
-            Cancel
-          </Button>
-          <Button
-            mode="contained"
-            onPress={handleDeleteSelected}
-            buttonColor="#E63E11"
-            icon="delete"
-          >
-            Delete ({selectedCount})
-          </Button>
-        </View>
-      )}
 
       {/* Product List */}
       <FlatList
@@ -294,26 +533,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ECF4E8',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#ECF4E8',
+  headerWrapper: {
+    backgroundColor: '#67caa9ff',
   },
-  loadingText: {
-    marginTop: 12,
-    color: '#757575',
-    fontSize: 14,
-  },
-  header: {
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#CBF3BB',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ABE7B2',
+    position: 'absolute',
+    left: 0,
+    right: 0,
   },
   headerLeft: {
     flex: 1,
@@ -325,21 +555,21 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#757575',
+    color: '#1e694bff',
     marginTop: 2,
   },
   headerActions: {
     flexDirection: 'row',
   },
-  selectionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#757575',
+    fontSize: 14,
   },
   listContent: {
     padding: 12,
@@ -349,12 +579,12 @@ const styles = StyleSheet.create({
   },
   productCard: {
     marginBottom: 10,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: 'rgba(253, 255, 255, 0.95)',
+    borderRadius: 5,
     elevation: 2,
   },
   selectedCard: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: 'rgba(232, 245, 240, 0.95)',
     borderWidth: 2,
     borderColor: '#93BFC7',
   },
@@ -374,7 +604,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 8,
     marginRight: 12,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#e0e0e0ff',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -440,6 +670,51 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   scanButton: {
-    borderRadius: 8,
+    borderRadius: 10,
+  },
+    emptyIcon: {
+    marginBottom: 16,
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    margin: 20,
+    borderRadius: 16,
+    padding: 24,
+  },
+  modalContent: {
+    alignItems: 'center',
+  },
+  modalIcon: {
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  cancelButton: {
+    flex: 1,
+    borderColor: '#ccc',
+    borderRadius: 25,
+  },
+  deleteButton: {
+    flex: 1,
+    borderRadius: 25,
+  },
+  okButton: {
+    minWidth: 120,
+    borderRadius: 25,
   },
 });

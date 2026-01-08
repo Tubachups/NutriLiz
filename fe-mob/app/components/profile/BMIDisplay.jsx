@@ -19,7 +19,7 @@ const BMIDisplay = ({ bmi, category }) => {
 
 const styles = StyleSheet.create({
   bmiResult: {
-    backgroundColor: '#CBF3BB',
+    backgroundColor: '#bbf3cdff',
     padding: 16,
     borderRadius: 8,
     marginBottom: 16,

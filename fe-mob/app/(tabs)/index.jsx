@@ -1,16 +1,18 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card } from 'react-native-paper';
 import { useAuth } from "@/hooks/auth-context";
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
   const { signOut, user, userProfile } = useAuth();
+  const router = useRouter();
 
-  // Check if profile data is available
   const hasProfileData = userProfile?.weight && userProfile?.height;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>NutriLiz</Text>
@@ -85,35 +87,42 @@ export default function HomeScreen() {
             Track your nutrition and make healthier choices.
           </Text>
           {!hasProfileData && (
-            <Text style={styles.hint}>
-              👉 Go to Profile tab to set up your health metrics
-            </Text>
+            <TouchableOpacity 
+              style={styles.hintContainer} 
+              onPress={() => router.push('/profile')}
+            >
+              <Ionicons name="person-add-outline" size={18} color="#288b98ff" />
+              <Text style={styles.hint}>
+                Go to Profile tab to set up your health metrics
+              </Text>
+            </TouchableOpacity>
           )}
-          <Button mode='text' icon={'logout'} onPress={signOut}>
+          <Button mode='text' icon={'logout'} onPress={signOut} textColor="#67caa9">
             Sign out
           </Button>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ECF4E8',
+    backgroundColor: '#eef7f4ff',
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
+    paddingBottom: 20,
   },
   header: {
-    marginBottom: 30,
+    marginBottom: 20,
     alignItems: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 25,
     fontWeight: 'bold',
-    color: '#93BFC7',
+    color: '#4ab2a6ff',
     marginBottom: 8,
   },
   subtitle: {
@@ -171,7 +180,8 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
     backgroundColor: '#fff',
-    padding: 20,
+    padding: 16,
+    paddingBottom: 12,
     borderRadius: 12,
     elevation: 1,
   },
@@ -187,11 +197,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 12,
   },
+  hintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
   hint: {
     fontSize: 14,
-    color: '#93BFC7',
+    color: '#277c88ff',
     textAlign: 'center',
-    marginBottom: 16,
     fontStyle: 'italic',
   },
 });

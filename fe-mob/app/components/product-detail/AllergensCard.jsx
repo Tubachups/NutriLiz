@@ -25,7 +25,7 @@ const AllergensCard = ({ allergens, traces }) => {
 
   return (
     <Card style={styles.card}>
-      <Card.Title title="⚠️ Allergen Information" />
+      <Card.Title title="⚠️ Allergen Information" titleStyle={styles.cardTitle} />
       <Card.Content>
         {allergens && allergens !== '' && (
           <View style={styles.allergenSection}>
@@ -51,16 +51,21 @@ const styles = StyleSheet.create({
     margin: 10,
     backgroundColor: 'white',
   },
+  cardTitle: {
+    color: '#1e7d5dff',
+    fontWeight: 'bold',
+  },
   allergenSection: {
     marginBottom: 12,
   },
   allergenLabel: {
     fontWeight: '600',
     marginBottom: 4,
-    color: '#d32f2f',
+    color: '#173a31ff',
   },
   allergenText: {
-    color: '#666',
+    color: '#d32f2f',
     lineHeight: 20,
+    fontSize: 18,
   },
 });

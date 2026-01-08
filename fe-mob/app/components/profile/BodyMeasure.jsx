@@ -16,9 +16,10 @@ const BodyMeasure = ({ weight, setWeight, height, setHeight, bmi, bmiCategory })
         onChangeText={setWeight}
         keyboardType="decimal-pad"
         mode="outlined"
+        textColor="#082e21ff"
         style={styles.input}
-        outlineColor="#ABE7B2"
-        activeOutlineColor="#93BFC7"
+        outlineColor="#abe7d1ff"
+        activeOutlineColor="#86bcb4ff"
         placeholder="e.g., 70"
         right={<TextInput.Affix text="kg" />}
       />
@@ -32,6 +33,7 @@ const BodyMeasure = ({ weight, setWeight, height, setHeight, bmi, bmiCategory })
         style={styles.input}
         outlineColor="#ABE7B2"
         activeOutlineColor="#93BFC7"
+        textColor="#082e21ff"
         placeholder="e.g., 170"
         right={<TextInput.Affix text="cm" />}
       />
@@ -44,7 +46,7 @@ const BodyMeasure = ({ weight, setWeight, height, setHeight, bmi, bmiCategory })
 const styles = StyleSheet.create({
   sectionTitle: {
     fontWeight: '600',
-    color: '#93BFC7',
+    color: '#5d8c86ff',
     marginBottom: 12,
     marginTop: 8,
   },

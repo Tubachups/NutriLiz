@@ -18,11 +18,11 @@ const ProfileHeader = () => {
 const styles = StyleSheet.create({
   title: {
     fontWeight: 'bold',
-    color: '#93BFC7',
+    color: '#5d8c86ff',
     marginBottom: 8,
   },
   subtitle: {
-    color: '#757575',
+    color: '#737976ff',
     marginBottom: 24,
   },
 });
