@@ -4,6 +4,7 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { routeTree } from './routeTree.gen'
 import { AuthProvider } from './hooks/auth-context'
 import { ScanProvider } from './hooks/scan-context'
+import { ProductHistoryProvider } from './hooks/useProductHistory'
 import './css/App.css'
 
 const router = createRouter({
@@ -17,9 +18,11 @@ const router = createRouter({
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <ScanProvider>
-        <RouterProvider router={router} />
-      </ScanProvider>
+      <ProductHistoryProvider>
+        <ScanProvider>
+          <RouterProvider router={router} />
+        </ScanProvider>
+      </ProductHistoryProvider>
     </AuthProvider>
   </StrictMode>,
 )
