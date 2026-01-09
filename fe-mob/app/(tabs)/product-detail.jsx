@@ -32,7 +32,7 @@ export default function ProductDetail() {
   if (!productData) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#1e7d5dff" />
       </View>
     );
   }
