@@ -11,6 +11,14 @@ const NutriScoreBadge = ({ grade, score }) => {
     'D': '#FF6600',
     'E': '#FF0000'
   };
+
+  const descriptions = {
+    'A': 'Very healthy',
+    'B': 'Healthy',
+    'C': 'Moderate / okay',
+    'D': 'Less healthy',
+    'E': 'Unhealthy'
+  };
   
   const currentGrade = grade?.toUpperCase();
   
@@ -46,7 +54,11 @@ const NutriScoreBadge = ({ grade, score }) => {
           );
         })}
       </View>
-      {score && score !== 'N/A' && (
+     
+      {currentGrade && descriptions[currentGrade] && (
+        <Text style={styles.descriptionText}>{descriptions[currentGrade]}</Text>
+      )}
+       {score && score !== 'N/A' && (
         <Text style={styles.scoreText}>Score: {score}</Text>
       )}
     </View>
@@ -57,18 +69,18 @@ export default NutriScoreBadge;
 
 const styles = StyleSheet.create({
   nutriScoreBadge: {
-    backgroundColor: 'white',
+    backgroundColor: '#f2fcedff',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 1, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   nutriScoreTitle: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 12,
@@ -94,6 +106,12 @@ const styles = StyleSheet.create({
   scoreText: {
     fontSize: 13,
     color: '#666',
+    marginTop: 4,
+  },
+  descriptionText: {
+    fontSize: 15,
+    color: '#000000ff',
     marginTop: 8,
+    fontStyle: 'italic',
   },
 });

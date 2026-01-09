@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   novaContainer: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f2fcedff',
     borderRadius: 8,
     padding: 12,
     marginTop: 16,
