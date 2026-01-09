@@ -72,6 +72,7 @@ export const saveProductToHistory = async (userId, productData) => {
         nutriscore: productData.nutriscore || '',
         scannedAt: productData.scannedAt,
         productData: JSON.stringify(productData.productData), // Store as JSON string
+        // type field not stored in DB - use barcode prefix to detect type
       }
     });
     return result;
@@ -103,6 +104,7 @@ export const getProductHistory = async (userId) => {
       nutriscore: row.nutriscore,
       scannedAt: row.scannedAt,
       productData: JSON.parse(row.productData),
+      type: row.type || (row.barcode?.startsWith('food_') ? 'food' : 'product'), // Restore type field with fallback
     }));
   } catch (error) {
     console.error('Error fetching product history:', error);
@@ -179,6 +181,7 @@ export const updateProductInHistory = async (rowId, productData) => {
         nutriscore: productData.nutriscore || '',
         scannedAt: productData.scannedAt,
         productData: JSON.stringify(productData.productData),
+        // type field not stored in DB - use barcode prefix to detect type
       }
     });
     return result;

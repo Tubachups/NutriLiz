@@ -7,7 +7,7 @@ import {
   deleteMultipleProductsFromHistory,
   clearAllProductHistory,
   updateProductInHistory
-} from '../lib/appwriteDb';
+} from '../lib/appwriteDB';
 
 // Create the context
 const ProductHistoryContext = createContext(undefined);
@@ -25,9 +25,11 @@ export function ProductHistoryProvider({ children }) {
       loadProductHistory();
     } else {
       // Clear local state when user logs out
+      // Products are persisted in Appwrite and will be loaded when user logs back in
       setProducts([]);
       setSelectedIds(new Set());
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Load product history from Appwrite
@@ -45,7 +47,7 @@ export function ProductHistoryProvider({ children }) {
     }
   }, [user]);
 
-  // Add a product to history
+  // Add a product to history (barcode scan)
   const addProduct = useCallback(async (productData, barcode) => {
     const newProduct = {
       barcode,
@@ -54,7 +56,8 @@ export function ProductHistoryProvider({ children }) {
       image: productData.image_url || productData.imageUrl || null,
       nutriscore: productData.nutriscore_grade || productData.nutriscoreGrade || null,
       scannedAt: new Date().toISOString(),
-      productData, // Store full data for navigation
+      productData,
+      type: 'barcode',
     };
 
     // Check if product with same barcode already exists
@@ -96,7 +99,6 @@ export function ProductHistoryProvider({ children }) {
         return { ...newProduct, id: savedProduct.$id };
       } catch (error) {
         console.error('Failed to save product to Appwrite:', error);
-        // Keep the temp product in local state even if save fails
       }
     }
 
@@ -107,48 +109,39 @@ export function ProductHistoryProvider({ children }) {
   const addFoodItem = useCallback(async (foodData, imageUri = null) => {
     const foodName = foodData.name || foodData.food_name || 'Unknown Food';
     
-    // Find ALL food items with the same name (to handle duplicates)
+    // Find ALL food items with the same name
     const duplicateFoods = products.filter(
       p => (p.type === 'food' || p.barcode?.startsWith('food_')) && 
            (p.name?.toLowerCase() === foodName.toLowerCase())
     );
     
-    // Use the first existing food item as the one to update
     const existingFood = duplicateFoods.length > 0 ? duplicateFoods[0] : null;
-    
-    // Get IDs of other duplicates to delete (all except the first one)
     const duplicateIdsToDelete = duplicateFoods.slice(1).map(p => p.id);
 
     const newProduct = {
-      barcode: existingFood?.barcode || `food_${Date.now()}`, // Reuse existing barcode/ID or generate new
+      barcode: existingFood?.barcode || `food_${Date.now()}`,
       name: foodName,
-      brand: '', // Food items don't have brands
-      image: imageUri || existingFood?.image || null, // Keep existing image if no new one
-      nutriscore: foodData.health_score || foodData.nutrition_score || null,
+      brand: '',
+      image: imageUri || existingFood?.image || null,
+      nutriscore: foodData.health_score || foodData.nutrition_score || foodData.nutri_score_estimate || null,
       scannedAt: new Date().toISOString(),
-      productData: foodData, // Store full food data for navigation
-      type: 'food', // Mark as food item to distinguish from barcode products
+      productData: foodData,
+      type: 'food',
     };
 
     if (existingFood) {
-      // Update existing food item - move it to the top with updated timestamp
-      // Also remove any duplicate food items with the same name
       const updatedProduct = { ...newProduct, id: existingFood.id };
       setProducts(prev => [
         updatedProduct,
         ...prev.filter(p => p.id !== existingFood.id && !duplicateIdsToDelete.includes(p.id))
       ]);
 
-      // Update in Appwrite if user is logged in
       if (user) {
         try {
-          // Update the main entry
           await updateProductInHistory(existingFood.id, newProduct);
           
-          // Delete any duplicate entries from Appwrite
           if (duplicateIdsToDelete.length > 0) {
             await deleteMultipleProductsFromHistory(duplicateIdsToDelete);
-            console.log(`Deleted ${duplicateIdsToDelete.length} duplicate food entries`);
           }
         } catch (error) {
           console.error('Failed to update food item in Appwrite:', error);
@@ -158,23 +151,19 @@ export function ProductHistoryProvider({ children }) {
       return updatedProduct;
     }
 
-    // If food item doesn't exist, add new entry
     const tempId = `temp_${Date.now()}`;
     const tempProduct = { ...newProduct, id: tempId };
     setProducts(prev => [tempProduct, ...prev]);
 
-    // Save to Appwrite if user is logged in
     if (user) {
       try {
         const savedProduct = await saveProductToHistory(user.$id, newProduct);
-        // Update the temp product with the real ID from Appwrite
         setProducts(prev => 
           prev.map(p => p.id === tempId ? { ...newProduct, id: savedProduct.$id } : p)
         );
         return { ...newProduct, id: savedProduct.$id };
       } catch (error) {
         console.error('Failed to save food item to Appwrite:', error);
-        // Keep the temp product in local state even if save fails
       }
     }
 
@@ -185,17 +174,14 @@ export function ProductHistoryProvider({ children }) {
   const deleteSelected = useCallback(async () => {
     const idsToDelete = Array.from(selectedIds);
     
-    // Optimistically remove from local state
     setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
     setSelectedIds(new Set());
 
-    // Delete from Appwrite if user is logged in
     if (user) {
       try {
         await deleteMultipleProductsFromHistory(idsToDelete);
       } catch (error) {
         console.error('Failed to delete products from Appwrite:', error);
-        // Reload to sync state
         loadProductHistory();
       }
     }
@@ -203,7 +189,6 @@ export function ProductHistoryProvider({ children }) {
 
   // Delete a single product
   const deleteProduct = useCallback(async (productId) => {
-    // Optimistically remove from local state
     setProducts(prev => prev.filter(p => p.id !== productId));
     setSelectedIds(prev => {
       const newSet = new Set(prev);
@@ -211,13 +196,11 @@ export function ProductHistoryProvider({ children }) {
       return newSet;
     });
 
-    // Delete from Appwrite if user is logged in
     if (user) {
       try {
         await deleteProductFromHistory(productId);
       } catch (error) {
         console.error('Failed to delete product from Appwrite:', error);
-        // Reload to sync state
         loadProductHistory();
       }
     }
@@ -225,17 +208,14 @@ export function ProductHistoryProvider({ children }) {
 
   // Clear all products
   const clearAll = useCallback(async () => {
-    // Optimistically clear local state
     setProducts([]);
     setSelectedIds(new Set());
 
-    // Clear from Appwrite if user is logged in
     if (user) {
       try {
         await clearAllProductHistory(user.$id);
       } catch (error) {
         console.error('Failed to clear product history from Appwrite:', error);
-        // Reload to sync state
         loadProductHistory();
       }
     }
@@ -273,8 +253,6 @@ export function ProductHistoryProvider({ children }) {
   const refreshHistory = useCallback(() => {
     loadProductHistory();
   }, [loadProductHistory]);
-
-  
 
   const value = {
     products,

@@ -69,6 +69,12 @@ const RootLayout = () => {
                 >
                   Image Search
                 </Link>
+                <Link 
+                  to="/history" 
+                  className="text-gray-700 hover:text-[#93BFC7] [&.active]:font-bold [&.active]:text-[#93BFC7]"
+                >
+                  History
+                </Link>
               </>
             ) : (
               <Link 
