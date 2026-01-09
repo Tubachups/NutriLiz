@@ -30,6 +30,14 @@ const EcoScoreBadge = ({ grade, score }) => {
   const grades = ['A', 'B', 'C', 'D', 'E'];
   const normalizedGrade = grade?.toUpperCase();
 
+  const descriptions = {
+    'A': 'Very low environmental impact',
+    'B': 'Low environmental impact',
+    'C': 'Moderate environmental impact',
+    'D': 'High environmental impact',
+    'E': 'Very high environmental impact'
+  };
+
   const getEcoscoreColor = (gradeValue) => {
     const colors = {
       'A': '#008000',
@@ -56,10 +64,14 @@ const EcoScoreBadge = ({ grade, score }) => {
             />
           );
         })}
-      </View>
+      </View>  
+      {normalizedGrade && descriptions[normalizedGrade] && (
+        <Text style={styles.descriptionText}>{descriptions[normalizedGrade]}</Text>
+      )}
       {score && score !== 'N/A' && (
         <Text style={styles.scoreText}>Score: {score}/100</Text>
       )}
+    
     </View>
   );
 };
@@ -68,7 +80,7 @@ export default EcoScoreBadge;
 
 const styles = StyleSheet.create({
   ecoScoreContainer: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f2fcedff',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -76,20 +88,20 @@ const styles = StyleSheet.create({
   ecoScoreTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#666',
-    marginBottom: 12,
+    color: '#333',
+    marginBottom: 3,
     letterSpacing: 1,
   },
   badgeContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: 0.2,
+    marginBottom: 3,
   },
   leafContainer: {
     width: 55,
-    height: 55,
+    height: 60,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -108,5 +120,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
     marginTop: 4,
+  },
+  descriptionText: {
+    fontSize: 15,
+    color: '#000000ff',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });
