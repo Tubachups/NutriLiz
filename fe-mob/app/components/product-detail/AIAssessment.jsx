@@ -20,7 +20,7 @@ const AIAssessment = ({ loading, assessment }) => {
 
   return (
     <Card style={styles.card}>
-      <Card.Title title="🤖 Health Assessment" />
+      <Card.Title title="🤖 Health Assessment" titleStyle={styles.cardTitle} />
       <Card.Content>
         <Text style={styles.analysisText}>
           {assessment.ai_analysis.replace(/\*\*/g, '')}
@@ -34,6 +34,10 @@ const AIAssessment = ({ loading, assessment }) => {
 export default AIAssessment;
 
 const styles = StyleSheet.create({
+    cardTitle: {
+    color: '#1e7d5dff',
+    fontWeight: 'bold',
+  },
   card: {
     margin: 10,
     backgroundColor: 'white',
@@ -44,6 +48,6 @@ const styles = StyleSheet.create({
   },
   analysisText: {
     lineHeight: 22,
-    color: '#333',
+    color: '#080808ff',
   },
 });

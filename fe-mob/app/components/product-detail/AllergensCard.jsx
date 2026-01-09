@@ -3,11 +3,27 @@ import { View, StyleSheet } from 'react-native';
 import { Text, Card } from 'react-native-paper';
 
 const AllergensCard = ({ allergens, traces }) => {
-  const formatAllergenText = (allergenString) => {
-    if (!allergenString) return '';
+  const formatAllergenText = (allergenData) => {
+    if (!allergenData) return '';
+    
+    // Handle arrays
+    if (Array.isArray(allergenData)) {
+      return allergenData
+        .map(allergen => 
+          String(allergen)
+            .replace(/^en:/gi, '')
+            .replace(/[-_]/g, ' ')
+            .trim()
+            .replace(/\b\w/g, char => char.toUpperCase())
+        )
+        .join(', ');
+    }
+    
+    // Ensure it's a string before splitting
+    if (typeof allergenData !== 'string') return '';
     
     // Remove 'en:' prefix and replace dashes/underscores with spaces
-    return allergenString
+    return allergenData
       .split(',')
       .map(allergen => 
         allergen

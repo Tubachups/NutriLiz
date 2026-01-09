@@ -15,22 +15,32 @@ const ScoresCard = ({ productData }) => {
     return labels[novaGroup] || 'Unknown';
   };
 
+  // Check if we have any scores to display
+  const hasNutriScore = productData.nutri_grade && productData.nutri_grade !== 'N/A';
+  const hasNovaGroup = productData.nova_group && productData.nova_group !== 'N/A';
+  const hasEcoScore = productData.ecoscore_grade && productData.ecoscore_grade !== 'N/A';
+
+  // Don't render if no scores available
+  if (!hasNutriScore && !hasNovaGroup && !hasEcoScore) {
+    return null;
+  }
+
   return (
     <Card style={styles.card}>
       <Card.Title title="📊 Scores" titleStyle={styles.cardTitle} />
       <Card.Content>
-        {productData.nutri_grade !== 'N/A' && (
+        {hasNutriScore && (
           <View style={styles.nutriScoreContainer}>
             <NutriScoreBadge grade={productData.nutri_grade} score={productData.nutri_score}/>
           </View>
         )}
-        {productData.nova_group !== 'N/A' && (
+        {hasNovaGroup && (
           <View style={styles.novaContainer}>
             <Text style={styles.novaTitle}>NOVA Group: {productData.nova_group}</Text>
             <Text style={styles.novaDescription}>{getNovaLabel(productData.nova_group)}</Text>
           </View>
         )}
-        {productData.ecoscore_grade && productData.ecoscore_grade !== 'N/A' && (
+        {hasEcoScore && (
           <View style={styles.ecoScoreSection}>
             <EcoScoreBadge 
               grade={productData.ecoscore_grade} 

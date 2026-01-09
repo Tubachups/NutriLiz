@@ -5,6 +5,11 @@ import { Text, Card, Chip } from 'react-native-paper';
 const ProductHeader = ({ productData, isAppwriteProduct }) => {
   const [isTypeExpanded, setIsTypeExpanded] = useState(false);
 
+  // Get product name safely
+  const productName = isAppwriteProduct 
+    ? (productData.product?.name || productData.name || 'Unknown Product')
+    : (productData.name || productData.product_name || 'Unknown Product');
+
   return (
     <Card style={styles.card}>
       {productData.image_url && (
@@ -12,7 +17,7 @@ const ProductHeader = ({ productData, isAppwriteProduct }) => {
       )}
       <Card.Content>
         <Text variant="headlineMedium" style={styles.productName}>
-          {isAppwriteProduct ? productData.product?.name : productData.name}
+          {productName}
         </Text>
         {!isAppwriteProduct && productData.type && (
           <TouchableOpacity onPress={() => setIsTypeExpanded(!isTypeExpanded)}>

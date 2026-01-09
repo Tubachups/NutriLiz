@@ -191,13 +191,27 @@ export default function ProductList() {
 
 
   const handleProductPress = (product) => {
-    router.push({
-      pathname: '/product-detail',
-      params: {
-        barcode: product.barcode,
-        productData: JSON.stringify(product.productData),
-      },
-    });
+    // Check if it's a food photo scan (type is 'food' or barcode starts with 'food_')
+    const isFoodScan = product.type === 'food' || product.barcode?.startsWith('food_');
+    
+    if (isFoodScan) {
+      // Navigate to food detail page for photo scans
+      router.push({
+        pathname: '/food-detail',
+        params: {
+          foodData: JSON.stringify(product.productData),
+        },
+      });
+    } else {
+      // Navigate to product detail page for barcode scans
+      router.push({
+        pathname: '/product-detail',
+        params: {
+          barcode: product.barcode,
+          productData: JSON.stringify(product.productData),
+        },
+      });
+    }
   };
 
   const handleDeleteSingle = (productId, productName) => {

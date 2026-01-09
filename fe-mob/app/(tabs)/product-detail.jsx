@@ -51,7 +51,7 @@ export default function ProductDetail() {
         <IngredientsCard ingredientsText={productData.ingredients_text} />
       )}
       
-      {!isAppwriteProduct && (
+      {!isAppwriteProduct && productData.allergens && (
         <AllergensCard 
           allergens={productData.allergens} 
           traces={productData.traces} 

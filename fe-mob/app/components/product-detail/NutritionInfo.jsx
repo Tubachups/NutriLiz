@@ -4,6 +4,12 @@ import { Text, Card } from 'react-native-paper';
 
 
 const NutritionInfo = ({ productData, isAppwriteProduct }) => {
+  // Helper to safely display nutrition values
+  const formatValue = (value, unit = 'g') => {
+    if (value === undefined || value === null || value === '') return 'N/A';
+    return `${value}${unit} / 100g`;
+  };
+
   return (
     <Card style={styles.card}>
       <Card.Title 
@@ -13,7 +19,7 @@ const NutritionInfo = ({ productData, isAppwriteProduct }) => {
       <Card.Content>
         {isAppwriteProduct ? (
           <View>
-            {Object.entries(productData.nutrition).map(([key, value]) => (
+            {productData.nutrition && Object.entries(productData.nutrition).map(([key, value]) => (
               <View key={key} style={styles.nutritionRow}>
                 <Text style={styles.nutritionLabel}>
                   {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:
@@ -27,37 +33,37 @@ const NutritionInfo = ({ productData, isAppwriteProduct }) => {
             <View style={styles.nutritionRow}>
               <Text style={styles.nutritionLabel}>Energy:</Text>
               <Text style={styles.nutritionValue}>
-                {productData.energy_kcal_100g} kcal / 100g
+                {formatValue(productData.energy_kcal_100g, ' kcal')}
               </Text>
             </View>
             <View style={styles.nutritionRow}>
               <Text style={styles.nutritionLabel}>Carbohydrates:</Text>
               <Text style={styles.nutritionValue}>
-                {productData.carbohydrates_100g}g / 100g
+                {formatValue(productData.carbohydrates_100g)}
               </Text>
             </View>
             <View style={styles.nutritionRow}>
               <Text style={styles.nutritionLabel}>Sugars:</Text>
               <Text style={styles.nutritionValue}>
-                {productData.sugars_100g}g / 100g
+                {formatValue(productData.sugars_100g)}
               </Text>
             </View>
             <View style={styles.nutritionRow}>
               <Text style={styles.nutritionLabel}>Fat:</Text>
               <Text style={styles.nutritionValue}>
-                {productData.fat_100g}g / 100g
+                {formatValue(productData.fat_100g)}
               </Text>
             </View>
             <View style={styles.nutritionRow}>
               <Text style={styles.nutritionLabel}>Proteins:</Text>
               <Text style={styles.nutritionValue}>
-                {productData.proteins_100g}g / 100g
+                {formatValue(productData.proteins_100g)}
               </Text>
             </View>
             <View style={styles.nutritionRow}>
               <Text style={styles.nutritionLabel}>Fiber:</Text>
               <Text style={styles.nutritionValue}>
-                {productData.fiber_100g}g / 100g
+                {formatValue(productData.fiber_100g)}
               </Text>
             </View>
           </View>
