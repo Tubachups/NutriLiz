@@ -161,19 +161,39 @@ export default function FoodScan() {
         </View>
       )}
 
+      {/* Camera Frame Borders */}
+      <View style={styles.frameBorderContainer}>
+        {/* Top Left Corner */}
+        <View style={[styles.corner, styles.cornerTopLeft]}>
+          <View style={[styles.cornerBorder, styles.cornerBorderTop]} />
+          <View style={[styles.cornerBorder, styles.cornerBorderLeft]} />
+        </View>
+        
+        {/* Top Right Corner */}
+        <View style={[styles.corner, styles.cornerTopRight]}>
+          <View style={[styles.cornerBorder, styles.cornerBorderTop]} />
+          <View style={[styles.cornerBorder, styles.cornerBorderRight]} />
+        </View>
+        
+        {/* Bottom Left Corner */}
+        <View style={[styles.corner, styles.cornerBottomLeft]}>
+          <View style={[styles.cornerBorder, styles.cornerBorderBottom]} />
+          <View style={[styles.cornerBorder, styles.cornerBorderLeft]} />
+        </View>
+        
+        {/* Bottom Right Corner */}
+        <View style={[styles.corner, styles.cornerBottomRight]}>
+          <View style={[styles.cornerBorder, styles.cornerBorderBottom]} />
+          <View style={[styles.cornerBorder, styles.cornerBorderRight]} />
+        </View>
+      </View>
+
       {loading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#ffffff" />
           <Text style={styles.loadingText}>Analyzing food...</Text>
         </View>
       )}
-
-      {/* Instructions */}
-      <View style={styles.instructionBanner}>
-        <Text style={styles.instructionText}>
-          📸 Take a photo of your food to identify it
-        </Text>
-      </View>
 
       {/* Top bar with torch and gallery */}
       <View style={styles.topBar}>
@@ -203,6 +223,13 @@ export default function FoodScan() {
           style={styles.captureButton}
         />
       </View>
+
+      {/* Instructions */}
+      <View style={styles.instructionBanner}>
+        <Text style={styles.instructionText}>
+          📸 Take a photo of your food to identify it
+        </Text>
+      </View>
     </View>
   );
 }
@@ -214,6 +241,66 @@ const styles = StyleSheet.create({
   preview: { flex: 1, resizeMode: 'contain' },
   message: { textAlign: 'center', color: 'white', marginBottom: 16 },
 
+  // Camera Frame Borders
+  frameBorderContainer: {
+    position: 'absolute',
+    top: 100,
+    left: 30,
+    right: 30,
+    bottom: 200,
+    borderRadius: 5,        // <-- Add this line (adjust value as needed)
+    overflow: 'hidden', 
+  },
+  corner: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+  },
+  cornerTopLeft: {
+    top: 0,
+    left: 0,
+  },
+  cornerTopRight: {
+    top: 0,
+    right: 0,
+  },
+  cornerBottomLeft: {
+    bottom: 0,
+    left: 0,
+  },
+  cornerBottomRight: {
+    bottom: 0,
+    right: 0,
+  },
+  cornerBorder: {
+    position: 'absolute',
+    backgroundColor: 'rgba(180, 180, 180, 0.8)',
+  },
+  cornerBorderTop: {
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+  },
+  cornerBorderBottom: {
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+  },
+  cornerBorderLeft: {
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 4,
+  },
+  cornerBorderRight: {
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: 4,
+  },
+
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -224,7 +311,7 @@ const styles = StyleSheet.create({
 
   instructionBanner: {
     position: 'absolute',
-    top: 100,
+    bottom: 140,
     left: 20,
     right: 20,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
