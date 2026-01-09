@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   captureButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#4caf7cff',
     width: 80,
     height: 80,
     borderRadius: 40,
