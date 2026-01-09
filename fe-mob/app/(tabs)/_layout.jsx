@@ -2,14 +2,17 @@ import { Tabs, useRouter } from "expo-router";
 import { PaperProvider, Portal, Modal, Button, Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { TouchableOpacity, View, StyleSheet, Dimensions } from 'react-native';
+import { TouchableOpacity, View, StyleSheet, Dimensions, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/auth-context';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Svg, { Path } from "react-native-svg";
 
 const { width } = Dimensions.get("window");
 
+// Calculate tab width (5 visible tabs)
+const TAB_COUNT = 5;
+const TAB_WIDTH = width / TAB_COUNT;
 
 const TopographicHeader = ({ insetTop }) => (
   <Svg
@@ -76,11 +79,31 @@ const TopographicHeader = ({ insetTop }) => (
   </Svg>
 );
 
+const TAB_INDICES = {
+  'profile': 0,
+  'scan': 1,
+  'food-scan': 2,
+  'index': 3,
+  'list': 4,
+};
+
 export default function TabsLayout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('index');
+  const indicatorPosition = useRef(new Animated.Value(TAB_INDICES['index'] * TAB_WIDTH)).current;
+
+  useEffect(() => {
+    const tabIndex = TAB_INDICES[activeTab] ?? 3;
+    Animated.spring(indicatorPosition, {
+      toValue: tabIndex * TAB_WIDTH,
+      useNativeDriver: true,
+      tension: 68,
+      friction: 12,
+    }).start();
+  }, [activeTab]);
 
   const handleSignOut = async () => {
     setShowSignOutModal(false);
@@ -116,6 +139,82 @@ export default function TabsLayout() {
       </View>
     </View>
   );
+
+  const CustomTabBar = ({ state, descriptors, navigation }) => {
+    return (
+      <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom }]}>
+        {/* Animated indicator line */}
+        <Animated.View
+          style={[
+            styles.tabIndicator,
+            {
+              width: TAB_WIDTH - 20,
+              transform: [{ translateX: Animated.add(indicatorPosition, 10) }],
+            },
+          ]}
+        />
+        
+        <View style={styles.tabBar}>
+          {state.routes.map((route, index) => {
+            // Skip hidden tabs
+            if (TAB_INDICES[route.name] === undefined) return null;
+
+            const { options } = descriptors[route.key];
+            const isFocused = state.index === index;
+
+            const onPress = () => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
+
+              if (!isFocused && !event.defaultPrevented) {
+                setActiveTab(route.name);
+                navigation.navigate(route.name);
+              }
+            };
+
+            const getIcon = () => {
+              const color = isFocused ? '#69aeadff' : 'rgba(94, 98, 97, 1)';
+              const size = 24;
+              
+              switch (route.name) {
+                case 'profile':
+                  return <Ionicons name="person-circle" size={size} color={color} />;
+                case 'scan':
+                  return <Ionicons name="scan" size={size} color={color} />;
+                case 'food-scan':
+                  return <MaterialCommunityIcons name="food" size={size} color={color} />;
+                case 'index':
+                  return <Ionicons name="home" size={size} color={color} />;
+                case 'list':
+                  return <Ionicons name="list" size={size} color={color} />;
+                default:
+                  return null;
+              }
+            };
+
+            return (
+              <TouchableOpacity
+                key={route.key}
+                onPress={onPress}
+                style={styles.tabItem}
+              >
+                {getIcon()}
+                <Text style={[
+                  styles.tabLabel,
+                  { color: isFocused ? '#7fc1c0ff' : '#717674ff' }
+                ]}>
+                  {options.title}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <PaperProvider>
@@ -163,24 +262,14 @@ export default function TabsLayout() {
           headerTitleAlign: 'center',
           tabBarActiveTintColor: '#7fc1c0ff',
           tabBarInactiveTintColor: '#717674ff',
-
-          tabBarStyle: {
-            backgroundColor: '#d7eee6ff',
-            borderTopColor: '#ABE7B2',  //top and bottom border legend!
-            height: 60 + insets.bottom,
-            paddingBottom: 8 + insets.bottom,
-            paddingTop: 8,
-          },
         }}
+        tabBar={(props) => <CustomTabBar {...props} />}
       >
         <Tabs.Screen
           name="profile"
           options={{
             title: 'Profile',
             headerShown: true,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person-circle" size={size} color={color} />
-            ),
           }}
         />
 
@@ -189,9 +278,6 @@ export default function TabsLayout() {
           options={{
             title: 'Scan Product',
             headerShown: true,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="scan" size={size} color={color} />
-            ),
           }}
         />
 
@@ -200,9 +286,6 @@ export default function TabsLayout() {
           options={{
             title: 'Food Photo',
             headerShown: true,
-            tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons name="food" size={24} color={color} />
-            ),
           }}
         />
 
@@ -212,9 +295,6 @@ export default function TabsLayout() {
             title: 'Home',
             headerShown: true,
             headerTitle: 'Home',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="home" size={size} color={color} />
-            ),
           }}
         />
 
@@ -223,9 +303,6 @@ export default function TabsLayout() {
           options={{
             title: 'History',
             headerShown: false,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="list" size={size} color={color} />
-            ),
           }}
         />
 
@@ -312,5 +389,32 @@ const styles = StyleSheet.create({
   signOutButton: {
     flex: 1,
     borderRadius: 25,
+  },
+  // Custom Tab Bar Styles
+  tabBarContainer: {
+    backgroundColor: '#c9e9deff',
+    borderTopColor: '#ABE7B2',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    top: 0,
+    height: 3,
+    backgroundColor: '#69aeadff',
+    borderRadius: 5,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    height: 60,
+    paddingTop: 7,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabLabel: {
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: '500',
   },
 });

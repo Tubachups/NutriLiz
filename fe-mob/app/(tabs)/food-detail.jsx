@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text, Chip, Divider } from 'react-native-paper';
 import { useLocalSearchParams } from 'expo-router';
 import { theme } from '../../theme';
@@ -7,6 +7,7 @@ import { theme } from '../../theme';
 export default function FoodDetail() {
   const { foodData: foodDataString } = useLocalSearchParams();
   const foodData = JSON.parse(foodDataString);
+  const [isAllergensExpanded, setIsAllergensExpanded] = useState(false);
 
   const nutrition = foodData.nutrition_per_100g || foodData.nutrition_per_serving || {};
 
@@ -87,13 +88,34 @@ export default function FoodDetail() {
             <Text variant="titleMedium" style={styles.sectionTitle}>
               ⚠️ Allergens
             </Text>
-            <View style={styles.chipContainer}>
-              {foodData.allergens.map((allergen, index) => (
-                <Chip key={index} style={styles.allergenChip} textStyle={styles.allergenChipText}>
-                  {allergen}
-                </Chip>
-              ))}
-            </View>
+            <TouchableOpacity onPress={() => setIsAllergensExpanded(!isAllergensExpanded)}>
+              <View style={styles.chipContainer}>
+                {foodData.allergens.map((allergen, index) => (
+                  <Chip 
+                    key={index} 
+                    style={styles.allergenChip} 
+                    textStyle={[
+                      styles.allergenChipText,
+                      !isAllergensExpanded && styles.allergenChipTextCollapsed
+                    ]}
+                  >
+                    {isAllergensExpanded ? allergen : (allergen.length > 45 ? allergen.substring(0, 45) + '...' : allergen)}
+                  </Chip>
+                ))}
+              </View>
+              {!isAllergensExpanded && foodData.allergens.some(a => a.length > 45) && (
+                <Text style={styles.tapHint}>Tap to expand</Text>
+              )}
+            </TouchableOpacity>
+            {isAllergensExpanded && (
+              <View style={styles.expandedAllergens}>
+                {foodData.allergens.map((allergen, index) => (
+                  <Text key={index} style={styles.expandedAllergenItem}>
+                    {allergen}
+                  </Text>
+                ))}
+              </View>
+            )}
           </Card.Content>
         </Card>
       )}
@@ -235,7 +257,7 @@ const styles = StyleSheet.create({
     color: '#c5e8d8ff' 
   },
   dietaryChipIconColor: { 
-    color: '#181818ff' //pang kulay ng icon kaso diko mabago
+    color: '#181818ff'
   },
 
   // Chips - Allergens
@@ -244,6 +266,28 @@ const styles = StyleSheet.create({
   },
   allergenChipText: { 
     color: '#ffffff' 
+  },
+  allergenChipTextCollapsed: {
+    fontSize: 12,
+  },
+  tapHint: {
+    fontSize: 11,
+    paddingLeft: 3,
+    color: '#888',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  expandedAllergens: {
+    marginTop: 12,
+    padding: 10,
+    backgroundColor: '#fff5f5',
+    borderRadius: 8,
+  },
+  expandedAllergenItem: {
+    color: '#d32f2f',
+    marginBottom: 4,
+    lineHeight: 20,
+    fontWeight: '500',
   },
 
   // Nutrition Grid
@@ -263,7 +307,7 @@ const styles = StyleSheet.create({
     fontWeight: '600' 
   },
   nutritionValue: { 
-    color: '#6f7472ff', 
+    color: '#4b514eff', 
     fontSize: 16, 
     fontWeight: '500' 
   },

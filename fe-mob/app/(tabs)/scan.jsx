@@ -100,6 +100,30 @@ export default function Index() {
         </View>
       )}
 
+      {/* Camera Frame Borders */}
+      <View style={styles.frameBorderContainer}>
+        {/* Top Left Corner */}
+        <View style={[styles.corner, styles.cornerTopLeft]}>
+          <View style={[styles.cornerBorder, styles.cornerBorderTop]} />
+          <View style={[styles.cornerBorder, styles.cornerBorderLeft]} />
+        </View>
+        {/* Top Right Corner */}
+        <View style={[styles.corner, styles.cornerTopRight]}>
+          <View style={[styles.cornerBorder, styles.cornerBorderTop]} />
+          <View style={[styles.cornerBorder, styles.cornerBorderRight]} />
+        </View>
+        {/* Bottom Left Corner */}
+        <View style={[styles.corner, styles.cornerBottomLeft]}>
+          <View style={[styles.cornerBorder, styles.cornerBorderBottom]} />
+          <View style={[styles.cornerBorder, styles.cornerBorderLeft]} />
+        </View>
+        {/* Bottom Right Corner */}
+        <View style={[styles.corner, styles.cornerBottomRight]}>
+          <View style={[styles.cornerBorder, styles.cornerBorderBottom]} />
+          <View style={[styles.cornerBorder, styles.cornerBorderRight]} />
+        </View>
+      </View>
+
       {/* Loading overlay */}
       {loading && (
         <View style={styles.loadingOverlay}>
@@ -125,6 +149,13 @@ export default function Index() {
           style={styles.torchButton}
         />
       </View>
+
+      {/* Instruction Banner */}
+      <View style={styles.instructionBanner}>
+        <Text style={styles.instructionText}>
+         📸 Aim your camera at any fresh food and wait for analysis
+        </Text>
+      </View>
     </View>
   );
 }
@@ -134,6 +165,66 @@ const styles = StyleSheet.create({
   camera: { flex: 1 },
   cameraPlaceholder: { justifyContent: 'center', alignItems: 'center' },
   message: { textAlign: 'center', color: 'white', marginBottom: 16 },
+
+ // Camera Frame Borders
+  frameBorderContainer: {
+    position: 'absolute',
+    top: 100,
+    left: 30,
+    right: 30,
+    bottom: 200,
+    borderRadius: 5,        // Adjust as needed for roundness
+    overflow: 'hidden',
+  },
+  corner: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+  },
+  cornerTopLeft: {
+    top: 0,
+    left: 0,
+  },
+  cornerTopRight: {
+    top: 0,
+    right: 0,
+  },
+  cornerBottomLeft: {
+    bottom: 0,
+    left: 0,
+  },
+  cornerBottomRight: {
+    bottom: 0,
+    right: 0,
+  },
+  cornerBorder: {
+    position: 'absolute',
+    backgroundColor: 'rgba(180, 180, 180, 0.8)',
+  },
+  cornerBorderTop: {
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+  },
+  cornerBorderBottom: {
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+  },
+  cornerBorderLeft: {
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 4,
+  },
+  cornerBorderRight: {
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: 4,
+  },
 
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -167,4 +258,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   torchButton: { backgroundColor: 'rgba(0, 0, 0, 0.5)' },
+    instructionBanner: {
+    position: 'absolute',
+    bottom: 70,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  instructionText: {
+    color: 'white',
+    fontSize: 14,
+    textAlign: 'center',
+  },
 });
