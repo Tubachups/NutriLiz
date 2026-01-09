@@ -47,6 +47,8 @@ export default function ProductDetail() {
       
       {!isAppwriteProduct && <ScoresCard productData={productData} />}
       
+      <AIAssessment loading={loading} assessment={assessment} />
+      
       {!isAppwriteProduct && (
         <IngredientsCard ingredientsText={productData.ingredients_text} />
       )}
@@ -57,8 +59,6 @@ export default function ProductDetail() {
           traces={productData.traces} 
         />
       )}
-      
-      <AIAssessment loading={loading} assessment={assessment} />
       
       {!isAppwriteProduct && (
         <RecommendationsCard 
