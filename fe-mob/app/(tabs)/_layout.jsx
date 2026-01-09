@@ -92,19 +92,13 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
   const [showSignOutModal, setShowSignOutModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('index');
   const indicatorPosition = useRef(new Animated.Value(TAB_INDICES['index'] * TAB_WIDTH)).current;
 
-  useEffect(() => {
-    const tabIndex = TAB_INDICES[activeTab] ?? 3;
-    Animated.spring(indicatorPosition, {
-      toValue: tabIndex * TAB_WIDTH,
-      useNativeDriver: true,
-      tension: 68,
-      friction: 12,
-    }).start();
-  }, [activeTab]);
+  // This state is only for animation, not for tracking the actual tab
+  // The actual tab index comes from the navigation state
+  // So we don't need activeTab state anymore
 
+  // CustomTabBar will receive the navigation state and update the indicator accordingly
   const handleSignOut = async () => {
     setShowSignOutModal(false);
     await signOut();
@@ -141,6 +135,17 @@ export default function TabsLayout() {
   );
 
   const CustomTabBar = ({ state, descriptors, navigation }) => {
+    // Animate indicator when navigation state changes (including back button)
+    useEffect(() => {
+      const tabIndex = state.index;
+      Animated.spring(indicatorPosition, {
+        toValue: tabIndex * TAB_WIDTH,
+        useNativeDriver: true,
+        tension: 68,
+        friction: 12,
+      }).start();
+    }, [state.index]);
+
     return (
       <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom }]}>
         {/* Animated indicator line */}
@@ -170,7 +175,6 @@ export default function TabsLayout() {
               });
 
               if (!isFocused && !event.defaultPrevented) {
-                setActiveTab(route.name);
                 navigation.navigate(route.name);
               }
             };

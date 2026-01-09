@@ -153,7 +153,7 @@ export default function Index() {
       {/* Instruction Banner */}
       <View style={styles.instructionBanner}>
         <Text style={styles.instructionText}>
-         📸 Aim your camera at any fresh food and wait for analysis
+         📸 Aim your camera at a food barcode and wait for analysis
         </Text>
       </View>
     </View>
