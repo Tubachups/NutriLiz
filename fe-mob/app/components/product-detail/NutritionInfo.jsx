@@ -4,10 +4,12 @@ import { Text, Card } from 'react-native-paper';
 
 
 const NutritionInfo = ({ productData, isAppwriteProduct }) => {
-  // Helper to safely display nutrition values
+  // Helper to safely display nutrition values with 2 decimal places
   const formatValue = (value, unit = 'g') => {
     if (value === undefined || value === null || value === '') return 'N/A';
-    return `${value}${unit} / 100g`;
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return 'N/A';
+    return `${numValue.toFixed(2)}${unit} / 100g`;
   };
 
   return (

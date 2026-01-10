@@ -54,12 +54,11 @@ const NutriScoreBadge = ({ grade, score }) => {
           );
         })}
       </View>
-     
       {currentGrade && descriptions[currentGrade] && (
         <Text style={styles.descriptionText}>{descriptions[currentGrade]}</Text>
       )}
-       {score && score !== 'N/A' && (
-        <Text style={styles.scoreText}>Score: {score}</Text>
+      {score && score !== 'N/A' && typeof score !== 'object' && (
+        <Text style={styles.scoreText}>Score: {String(score)}</Text>
       )}
     </View>
   );
