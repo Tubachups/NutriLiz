@@ -84,7 +84,9 @@ export default function HomeScreen() {
         <View style={styles.content}>
           <Text style={styles.welcomeText}>Welcome to NutriLiz!</Text>
           <Text style={styles.description}>
-            Track your nutrition and make healthier choices.
+            {hasProfileData
+              ? "Track your nutrition and make healthier choices."
+              : "It looks like you haven't entered your health metrics yet."}
           </Text>
           {!hasProfileData && (
             <TouchableOpacity 

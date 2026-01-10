@@ -45,7 +45,7 @@ export default function FoodDetail() {
                   {
                     'A': 'Very healthy',
                     'B': 'Healthy',
-                    'C': 'Moderate / okay',
+                    'C': 'Moderate',
                     'D': 'Less healthy',
                     'E': 'Unhealthy'
                   }[foodData.nutri_score_estimate]
