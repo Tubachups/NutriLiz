@@ -1,9 +1,15 @@
 import { AuthProvider, useAuth } from "@/hooks/auth-context";
 import { ProductHistoryProvider } from "@/hooks/useProductHistory";
 import { useRouter, Stack, useSegments } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { useFonts } from 'expo-font';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as SplashScreen from 'expo-splash-screen';
+
+// Keep the splash screen visible while loading fonts
+SplashScreen.preventAutoHideAsync();
 
 function RouteGuard({ children }) {
   const router = useRouter();
@@ -40,13 +46,30 @@ function RouteGuard({ children }) {
 }
 
 export default function RootLayout() {
+  // Preload icon fonts
+  const [fontsLoaded] = useFonts({
+    ...Ionicons.font,
+    ...MaterialCommunityIcons.font,
+  });
+
+  const onLayoutRootView = useCallback(async () => {
+    if (fontsLoaded) {
+      await SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
-    <AuthProvider>
-      <ProductHistoryProvider>
-        <SafeAreaProvider>
-          <RouteGuard>
-            <Stack
-              screenOptions={{
+    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+      <AuthProvider>
+        <ProductHistoryProvider>
+          <SafeAreaProvider>
+            <RouteGuard>
+              <Stack
+                screenOptions={{
                 headerShown: false,
               }}
             >
@@ -86,8 +109,8 @@ export default function RootLayout() {
           </RouteGuard>
         </SafeAreaProvider>
       </ProductHistoryProvider>
-
     </AuthProvider>
+    </View>
   );
 }
 
