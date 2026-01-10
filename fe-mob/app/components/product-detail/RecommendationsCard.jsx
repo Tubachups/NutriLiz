@@ -36,7 +36,7 @@ export default RecommendationsCard;
 const styles = StyleSheet.create({
   card: {
     margin: 10,
-    backgroundColor: 'white',
+    backgroundColor: 'rgb(227, 247, 241)',
   },
   cardTitle: {
     color: '#1e7d5dff',
@@ -61,7 +61,6 @@ const styles = StyleSheet.create({
   },
   matchChip: {
     marginTop: 5,
-
     alignSelf: 'flex-start',
     backgroundColor: '#367452ff',
   },

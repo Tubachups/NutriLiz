@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scannedText: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#4caf82',
     color: 'white',
     padding: 10,
     borderRadius: 5,
