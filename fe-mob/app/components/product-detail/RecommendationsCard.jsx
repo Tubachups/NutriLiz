@@ -15,7 +15,7 @@ const RecommendationsCard = ({ recommendations, recommendationsCount }) => {
         {recommendations.slice(0, 9).map((rec, index) => (
           <Card key={rec.barcode || index} style={styles.recCard}>
             {rec.image_url && (
-              <Card.Cover source={{ uri: rec.image_url }} style={styles.recImage} />
+              <Card.Cover source={{ uri: rec.image_url }} style={styles.recImage} resizeMode="contain" />
             )}
            <Card.Content>
               <Text variant="titleSmall" style={styles.recName}>{rec.name || 'Unknown Product'}</Text>
@@ -48,6 +48,7 @@ const styles = StyleSheet.create({
   },
   recImage: {
     height: 150,
+    backgroundColor: 'white',
   },
   recName: {
     color: '#fff',

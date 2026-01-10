@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Button, Text, Card, Divider, Portal, Modal } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import ProfileHeader from '../components/profile/ProfileHeader';
 import BodyMeasure from '../components/profile/BodyMeasure';
@@ -24,18 +25,29 @@ const ProfileScreen = () => {
   const router = useRouter();
   const { userProfile, updateUserProfile } = useAuth();
 
-  // Load existing profile data on mount
-  useEffect(() => {
-    if (userProfile) {
-      setWeight(userProfile.weight || '');
-      setHeight(userProfile.height || '');
-      setSugarLevel(userProfile.sugarLevel || '');
-      setCholesterolLevel(userProfile.cholesterolLevel || '');
-      setTriglycerides(userProfile.triglycerides || '');
-      setCreatinine(userProfile.creatinine || '');
-      setUricAcid(userProfile.uricAcid || '');
-    }
-  }, [userProfile]);
+  // Reset form to saved data whenever the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (userProfile) {
+        setWeight(userProfile.weight || '');
+        setHeight(userProfile.height || '');
+        setSugarLevel(userProfile.sugarLevel || '');
+        setCholesterolLevel(userProfile.cholesterolLevel || '');
+        setTriglycerides(userProfile.triglycerides || '');
+        setCreatinine(userProfile.creatinine || '');
+        setUricAcid(userProfile.uricAcid || '');
+      } else {
+        // Reset to empty if no profile
+        setWeight('');
+        setHeight('');
+        setSugarLevel('');
+        setCholesterolLevel('');
+        setTriglycerides('');
+        setCreatinine('');
+        setUricAcid('');
+      }
+    }, [userProfile])
+  );
 
   // Calculate BMI whenever weight or height changes
   useEffect(() => {

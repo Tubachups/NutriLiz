@@ -9,11 +9,16 @@ const ProductHeader = ({ productData, isAppwriteProduct }) => {
   const productName = isAppwriteProduct 
     ? (productData.product?.name || productData.name || 'Unknown Product')
     : (productData.name || productData.product_name || 'Unknown Product');
+const formattedType = productData.type
+  ?.split(',')
+  .map(item => item.trim())
+  .join(', ');
+
 
   return (
     <Card style={styles.card}>
       {productData.image_url && (
-        <Card.Cover source={{ uri: productData.image_url }} style={styles.image} />
+        <Card.Cover source={{ uri: productData.image_url }} style={styles.image} resizeMode="contain" />
       )}
       <Card.Content>
         <Text variant="headlineMedium" style={styles.productName}>
@@ -21,19 +26,18 @@ const ProductHeader = ({ productData, isAppwriteProduct }) => {
         </Text>
         {!isAppwriteProduct && productData.type && (
           <TouchableOpacity onPress={() => setIsTypeExpanded(!isTypeExpanded)}>
-            <Chip 
+           <Chip 
               style={styles.chip} 
-              textStyle={isTypeExpanded ? styles.chipTextExpanded : styles.chipText}
-            >
-              {isTypeExpanded ? productData.type : productData.type}
+              textStyle={isTypeExpanded ? styles.chipTextExpanded : styles.chipText}>
+              {formattedType}
             </Chip>
             {!isTypeExpanded && productData.type.length > 30 && (
               <Text style={styles.tapHint}>Tap to expand</Text>
             )}
           </TouchableOpacity>
         )}
-        {isTypeExpanded && (
-          <Text style={styles.expandedType}>{productData.type}</Text>
+              {isTypeExpanded && (
+          <Text style={styles.expandedType}>{formattedType}</Text>
         )}
       </Card.Content>
     </Card>
@@ -49,6 +53,7 @@ const styles = StyleSheet.create({
   },
   image: {
     height: 200,
+    backgroundColor: 'white',
   },
   productName: {
     marginTop: 10,

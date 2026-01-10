@@ -40,6 +40,17 @@ export default function FoodDetail() {
               <Text style={[styles.nutriScore, styles[`nutriScore${foodData.nutri_score_estimate}`]]}>
                 {foodData.nutri_score_estimate}
               </Text>
+              <Text style={styles.nutriScoreDescription}>
+                {
+                  {
+                    'A': 'Very healthy',
+                    'B': 'Healthy',
+                    'C': 'Moderate / okay',
+                    'D': 'Less healthy',
+                    'E': 'Unhealthy'
+                  }[foodData.nutri_score_estimate]
+                }
+              </Text>
             </View>
           </Card.Content>
         </Card>
@@ -208,11 +219,11 @@ const styles = StyleSheet.create({
   },
   warningCard: { 
     borderLeftWidth: 4, 
-    borderLeftColor: '#FFA726' 
+    borderLeftColor: '#ffffff' //old yellow in left side
   },
   personalizedCard: { 
     borderLeftWidth: 4, 
-    borderLeftColor: '#1e7d5dff' 
+   borderLeftColor: '#ffffff' //old green in left side
   },
 
   // Header Section
@@ -338,6 +349,12 @@ const styles = StyleSheet.create({
     height: 60, 
     textAlign: 'center', 
     borderRadius: 8 
+  },
+  nutriScoreDescription: {
+    marginTop: 8,
+    fontSize: 14,
+    color: 'rgb(19, 20, 20)',
+    fontWeight: '500',
   },
   nutriScoreA: { 
     backgroundColor: '#038141', 

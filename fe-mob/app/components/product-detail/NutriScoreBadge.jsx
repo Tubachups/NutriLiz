@@ -20,7 +20,7 @@ const NutriScoreBadge = ({ grade, score }) => {
     'E': 'Unhealthy'
   };
   
-  const currentGrade = grade?.toUpperCase();
+  const currentGrade = grade?.trim()?.toUpperCase();
   
   return (
     <View style={styles.nutriScoreBadge}>
