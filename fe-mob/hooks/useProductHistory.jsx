@@ -8,6 +8,7 @@ import {
   clearAllProductHistory,
   updateProductInHistory
 } from '../lib/appwriteDb';
+import { uploadFoodImage } from '../lib/appwrite';
 
 // Create the context
 const ProductHistoryContext = createContext(undefined);
@@ -119,11 +120,28 @@ export function ProductHistoryProvider({ children }) {
     // Get IDs of other duplicates to delete (all except the first one)
     const duplicateIdsToDelete = duplicateFoods.slice(1).map(p => p.id);
 
+    // Upload image to cloud storage if it's a local file
+    // This ensures the image URL works on both mobile and web
+    let cloudImageUrl = existingFood?.image || null;
+    if (imageUri && imageUri.startsWith('file://')) {
+      try {
+        const uploadedUrl = await uploadFoodImage(imageUri);
+        if (uploadedUrl) {
+          cloudImageUrl = uploadedUrl;
+        }
+      } catch (error) {
+        console.log('Image upload failed, will use local URI for mobile only');
+        cloudImageUrl = imageUri; // Fallback to local URI for mobile
+      }
+    } else if (imageUri) {
+      cloudImageUrl = imageUri;
+    }
+
     const newProduct = {
       barcode: existingFood?.barcode || `food_${Date.now()}`, // Reuse existing barcode/ID or generate new
       name: foodName,
       brand: '', // Food items don't have brands
-      image: imageUri || existingFood?.image || null, // Keep existing image if no new one
+      image: cloudImageUrl, // Use cloud URL for cross-platform compatibility
       nutriscore: foodData.health_score || foodData.nutrition_score || null,
       scannedAt: new Date().toISOString(),
       productData: foodData, // Store full food data for navigation
