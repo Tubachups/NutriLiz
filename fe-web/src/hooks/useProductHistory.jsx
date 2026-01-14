@@ -8,6 +8,7 @@ import {
   clearAllProductHistory,
   updateProductInHistory
 } from '../lib/appwriteDB';
+import { uploadFoodImage } from '../lib/appwrite'
 
 // Create the context
 const ProductHistoryContext = createContext(undefined);
@@ -54,7 +55,7 @@ export function ProductHistoryProvider({ children }) {
       name: productData.product_name || productData.name || 'Unknown Product',
       brand: productData.brands || productData.brand || '',
       image: productData.image_url || productData.imageUrl || null,
-      nutriscore: productData.nutriscore_grade || productData.nutriscoreGrade || null,
+      nutriscore: productData.nutriscore_grade || productData.nutriscoreGrade || productData.nutri_grade || null,
       scannedAt: new Date().toISOString(),
       productData,
       type: 'barcode',
@@ -118,11 +119,28 @@ export function ProductHistoryProvider({ children }) {
     const existingFood = duplicateFoods.length > 0 ? duplicateFoods[0] : null;
     const duplicateIdsToDelete = duplicateFoods.slice(1).map(p => p.id);
 
+    // Upload image to cloud storage if it's a base64 data URL
+    // This ensures the image URL works and persists properly
+    let cloudImageUrl = existingFood?.image || null;
+    if (imageUri && imageUri.startsWith('data:')) {
+      try {
+        const uploadedUrl = await uploadFoodImage(imageUri);
+        if (uploadedUrl) {
+          cloudImageUrl = uploadedUrl;
+        }
+      } catch (error) {
+        console.log('Image upload failed, will use data URL as fallback');
+        cloudImageUrl = imageUri; // Fallback to data URL
+      }
+    } else if (imageUri) {
+      cloudImageUrl = imageUri;
+    }
+
     const newProduct = {
       barcode: existingFood?.barcode || `food_${Date.now()}`,
       name: foodName,
       brand: '',
-      image: imageUri || existingFood?.image || null,
+      image: cloudImageUrl,
       nutriscore: foodData.health_score || foodData.nutrition_score || foodData.nutri_score_estimate || null,
       scannedAt: new Date().toISOString(),
       productData: foodData,

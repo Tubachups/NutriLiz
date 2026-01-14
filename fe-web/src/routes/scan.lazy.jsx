@@ -1,5 +1,5 @@
-import { createLazyFileRoute } from '@tanstack/react-router'
-import { useEffect, useRef } from 'react'
+import { createLazyFileRoute, useSearch } from '@tanstack/react-router'
+import { useEffect, useRef, useState } from 'react'
 import { useProductScanner } from '../hooks/useProductScanner'
 import { useProductAssessment } from '../hooks/useProductAssessment'
 import { useProductHistory } from '../hooks/useProductHistory'
@@ -11,10 +11,16 @@ import Recommend from '../components/ProductCard/Recommend'
 
 export const Route = createLazyFileRoute('/scan')({
   component: RouteComponent,
+  validateSearch: (search) => {
+    return {
+      barcode: search.barcode || null,
+    }
+  },
 })
 
 function RouteComponent() {
-  const { productData, loading, error } = useProductScanner()
+  const { barcode: urlBarcode } = useSearch({ from: '/scan' })
+  const { productData, loading, error } = useProductScanner(urlBarcode)
   const { assessment, loading: assessmentLoading, error: assessmentError } = useProductAssessment(productData?.barcode)
   const { addProduct } = useProductHistory()
   const lastSavedBarcodeRef = useRef(null)

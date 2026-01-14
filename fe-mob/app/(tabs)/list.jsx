@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, StyleSheet, FlatList, Image, Dimensions } from 'react-native';
+import { View, StyleSheet, FlatList, Image, Dimensions, RefreshControl, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import {
@@ -31,7 +31,7 @@ const TopographicBackground = () => (
   >
     {/* Base color */}
     <Path d={`M0,0 L${width},0 L${width},${height} L0,${height} Z`} fill="#e6fdf6ff" />
-    
+
     {/* Topographic contour lines */}
     {[...Array(20)].map((_, i) => (
       <Path
@@ -44,7 +44,7 @@ const TopographicBackground = () => (
         fill="none"
       />
     ))}
-    
+
     {[...Array(15)].map((_, i) => (
       <Path
         key={`c2-${i}`}
@@ -67,7 +67,7 @@ const TopographicHeader = ({ insetTop }) => (
   >
     {/* Base green background */}
     <Path d={`M0,0 L${width},0 L${width},${70 + insetTop} L0,${70 + insetTop} Z`} fill="#77dfbcff" />
-    
+
     {/* Topographic contour lines */}
     {[...Array(10)].map((_, i) => (
       <Path
@@ -80,7 +80,7 @@ const TopographicHeader = ({ insetTop }) => (
         fill="none"
       />
     ))}
-    
+
     {[...Array(8)].map((_, i) => (
       <Path
         key={`c2-${i}`}
@@ -127,14 +127,15 @@ const TopographicHeader = ({ insetTop }) => (
 export default function ProductList() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  
+
   const [showDeleteSingleModal, setShowDeleteSingleModal] = useState(false);
   const [showDeleteSelectedModal, setShowDeleteSelectedModal] = useState(false);
   const [showClearAllModal, setShowClearAllModal] = useState(false);
   const [showNoSelectionModal, setShowNoSelectionModal] = useState(false);
   const [showEmptyListModal, setShowEmptyListModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
-  
+  const [refreshing, setRefreshing] = useState(false);
+
   const {
     products,
     loading,
@@ -148,6 +149,7 @@ export default function ProductList() {
     selectAll,
     deselectAll,
     isSelected,
+    refreshHistory
   } = useProductHistory();
 
   useFocusEffect(
@@ -162,6 +164,15 @@ export default function ProductList() {
       selectAll();
     }
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshHistory();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshHistory]);
 
   const handleDeleteSelected = () => {
     if (selectedCount === 0) {
@@ -193,7 +204,7 @@ export default function ProductList() {
   const handleProductPress = (product) => {
     // Check if it's a food photo scan (type is 'food' or barcode starts with 'food_')
     const isFoodScan = product.type === 'food' || product.barcode?.startsWith('food_');
-    
+
     if (isFoodScan) {
       // Navigate to food detail page for photo scans
       router.push({
@@ -263,7 +274,7 @@ export default function ProductList() {
           onPress={() => toggleSelection(item.id)}
           color="#93BFC7"
         />
-        
+
         {item.image ? (
           <Image source={{ uri: item.image }} style={styles.productImage} />
         ) : (
@@ -331,6 +342,18 @@ export default function ProductList() {
     return (
       <View style={styles.container}>
         <TopographicBackground />
+
+        {/* Header with Topographic Background */}
+        <View style={styles.headerWrapper}>
+          <TopographicHeader insetTop={insets.top} />
+          <View style={[styles.headerContent, { top: insets.top + 15 }]}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.headerTitle}>Product History</Text>
+              <Text style={styles.headerSubtitle}>Loading...</Text>
+            </View>
+          </View>
+        </View>
+
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#67caa9" />
           <Text style={styles.loadingText}>Loading history...</Text>
@@ -342,7 +365,7 @@ export default function ProductList() {
   return (
     <View style={styles.container}>
       <TopographicBackground />
-      
+
       <Portal>
         {/* Delete Single Product Modal */}
         <Modal
@@ -354,7 +377,7 @@ export default function ProductList() {
             <Ionicons name="trash-outline" size={48} color="#E63E11" style={styles.modalIcon} />
             <Text style={styles.modalTitle}>Delete Product</Text>
             <Text style={styles.modalMessage}>
-              Remove "{productToDelete?.name}" from history?
+              Remove &quot{productToDelete?.name}&quot from history?
             </Text>
             <View style={styles.modalButtons}>
               <Button
@@ -494,8 +517,8 @@ export default function ProductList() {
           </View>
         </Modal>
       </Portal>
-      
-      
+
+
       {/* Header with Topographic Background */}
       <View style={styles.headerWrapper}>
         <TopographicHeader insetTop={insets.top} />
@@ -529,15 +552,26 @@ export default function ProductList() {
         </View>
       </View>
 
-      {/* Product List */}
-      <FlatList
-        data={products}
-        keyExtractor={(item) => item.id}
-        renderItem={renderProduct}
-        ListEmptyComponent={renderEmptyList}
-        contentContainerStyle={products.length === 0 ? styles.emptyList : styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {/* Product List - wrapped in a flex container */}
+      <View style={styles.listWrapper}>
+        <FlatList
+          data={products}
+          keyExtractor={(item) => item.id}
+          renderItem={renderProduct}
+          ListEmptyComponent={renderEmptyList}
+          contentContainerStyle={products.length === 0 ? styles.emptyList : styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#67caa9']}
+              tintColor="#67caa9"
+              progressBackgroundColor="#ffffff"
+            />
+          }
+        />
+      </View>
     </View>
   );
 }
@@ -686,8 +720,8 @@ const styles = StyleSheet.create({
   scanButton: {
     borderRadius: 10,
   },
-    emptyIcon: {
-    marginBottom: 16,
+  listWrapper: {
+    flex: 1,
   },
   modalContainer: {
     backgroundColor: 'white',
