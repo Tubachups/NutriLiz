@@ -93,7 +93,7 @@ function RouteComponent() {
       if (response.ok && data.success) {
         setResult(data.data);
         // Add to history with the captured image
-        addFoodItem(data.data, imageData);
+        await addFoodItem(data.data, imageData);
       } else {
         setError(data.error || 'Analysis failed');
       }
@@ -105,7 +105,7 @@ function RouteComponent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200 py-8">
+    <div className="min-h-screen bg-primary from-base-200 via-base-100 to-base-200 py-8">
       <div className="container mx-auto px-4 max-w-6xl ">
         <h1 className="text-4xl font-bold text-center ">
           🍽️ Food Image Recognition
@@ -168,7 +168,7 @@ function RouteComponent() {
           {/* Right Column - Results */}
           <div className="lg:col-span-2">
             {!result && !analyzing && (
-              <div className="card bg-base-100 shadow-xl h-full min-h-[400px] rounded-sm">
+              <div className="card bg-white shadow-xl h-full min-h-[400px] rounded-sm">
                 <div className="card-body items-center justify-center text-center">
                   <div className="text-8xl mb-4 opacity-20">🍎</div>
                   <h3 className="text-xl font-semibold text-base-content/60">No Food Analyzed Yet</h3>
@@ -180,7 +180,7 @@ function RouteComponent() {
             {result && !analyzing && (
               <div className="space-y-6">
                 {/* Hero Card - Food Name with Nutri-Score */}
-                <div className="card bg-gradient-to-br from-primary/10 via-base-100 to-secondary/10 shadow-xl border border-base-300">
+                <div className="card bg-white shadow-xl rounded-md">
                   <div className="card-body">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       {/* Captured Image */}
@@ -238,29 +238,29 @@ function RouteComponent() {
                 {/* Quick Stats Row */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {result.nutrition_per_serving?.calories !== undefined && (
-                    <div className="stat bg-base-100 rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
+                    <div className="stat bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
                       <div className="stat-figure text-primary text-2xl">🔥</div>
                       <div className="stat-title text-xs">Calories</div>
-                      <div className="stat-value text-xl text-primary">{result.nutrition_per_serving.calories}</div>
+                      <div className="stat-value text-xl text-black">{result.nutrition_per_serving.calories}</div>
                       <div className="stat-desc">kcal</div>
                     </div>
                   )}
                   {result.nutrition_per_serving?.protein_g !== undefined && (
-                    <div className="stat bg-base-100 rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
+                    <div className="stat bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
                       <div className="stat-figure text-secondary text-2xl">💪</div>
                       <div className="stat-title text-xs">Protein</div>
-                      <div className="stat-value text-xl text-secondary">{result.nutrition_per_serving.protein_g}g</div>
+                      <div className="stat-value text-xl text-black">{result.nutrition_per_serving.protein_g}g</div>
                     </div>
                   )}
                   {result.nutrition_per_serving?.carbohydrates_g !== undefined && (
-                    <div className="stat bg-base-100 rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
+                    <div className="stat bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
                       <div className="stat-figure text-accent text-2xl">🌾</div>
                       <div className="stat-title text-xs">Carbs</div>
-                      <div className="stat-value text-xl text-accent">{result.nutrition_per_serving.carbohydrates_g}g</div>
+                      <div className="stat-value text-xl text-black">{result.nutrition_per_serving.carbohydrates_g}g</div>
                     </div>
                   )}
                   {result.nutrition_per_serving?.fat_g !== undefined && (
-                    <div className="stat bg-base-100 rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
+                    <div className="stat bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
                       <div className="stat-figure text-warning text-2xl">🧈</div>
                       <div className="stat-title text-xs">Fat</div>
                       <div className="stat-value text-xl text-warning">{result.nutrition_per_serving.fat_g}g</div>
@@ -273,7 +273,7 @@ function RouteComponent() {
                   
                   {/* Detailed Nutrition */}
                   {result.nutrition_per_serving && (
-                    <div className="card bg-base-100 shadow-md hover:shadow-lg transition-shadow">
+                    <div className="card bg-white shadow-md hover:shadow-lg transition-shadow">
                       <div className="card-body">
                         <h3 className="card-title text-lg">📊 Detailed Nutrition</h3>
                         {result.serving_size && (
@@ -311,7 +311,7 @@ function RouteComponent() {
 
                   {/* Dietary Info */}
                   {result.dietary_info && (
-                    <div className="card bg-base-100 shadow-md hover:shadow-lg transition-shadow">
+                    <div className="card bg-white shadow-md hover:shadow-lg transition-shadow">
                       <div className="card-body">
                         <h3 className="card-title text-lg">🥬 Dietary Information</h3>
                         <div className="flex flex-wrap gap-2 mt-2">
@@ -346,7 +346,7 @@ function RouteComponent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Health Benefits */}
                   {result.health_benefits && result.health_benefits.length > 0 && (
-                    <div className="card bg-gradient-to-br from-success/10 to-base-100 shadow-md border border-success/20">
+                    <div className="card bg-white shadow-md rounded-md">
                       <div className="card-body">
                         <h3 className="card-title text-lg text-success">💚 Health Benefits</h3>
                         <ul className="space-y-2 mt-2">
@@ -363,7 +363,7 @@ function RouteComponent() {
 
                   {/* Potential Concerns */}
                   {result.potential_concerns && result.potential_concerns.length > 0 && (
-                    <div className="card bg-gradient-to-br from-warning/10 to-base-100 shadow-md border border-warning/20">
+                    <div className="card bg-white shadow-md rounded-md">
                       <div className="card-body">
                         <h3 className="card-title text-lg text-warning">⚠️ Potential Concerns</h3>
                         <ul className="space-y-2 mt-2">
@@ -398,7 +398,7 @@ function RouteComponent() {
 
                 {/* Ingredients (for dishes) */}
                 {result.ingredients_if_dish && result.ingredients_if_dish.length > 0 && (
-                  <div className="card bg-base-100 shadow-md">
+                  <div className="card bg-white shadow-md">
                     <div className="card-body">
                       <h3 className="card-title text-lg">🥗 Ingredients</h3>
                       <div className="flex flex-wrap gap-2 mt-2">
@@ -412,7 +412,7 @@ function RouteComponent() {
 
                 {/* Preparation Notes */}
                 {result.preparation_notes && (
-                  <div className="card bg-base-100 shadow-md">
+                  <div className="card bg-white shadow-md">
                     <div className="card-body">
                       <h3 className="card-title text-lg">👨‍🍳 Preparation</h3>
                       <p className="text-base-content/80">{result.preparation_notes}</p>
@@ -431,7 +431,7 @@ function RouteComponent() {
                 )}
 
                 {/* Raw Data Collapse */}
-                {/* <div className="collapse collapse-arrow bg-base-100 shadow-md rounded-xl">
+                {/* <div className="collapse collapse-arrow bg-white shadow-md rounded-xl">
                   <input type="checkbox" /> 
                   <div className="collapse-title text-sm font-medium text-base-content/60">
                     🔍 View Raw Data

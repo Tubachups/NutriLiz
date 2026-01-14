@@ -53,7 +53,7 @@ export function ProductHistoryProvider({ children }) {
       name: productData.product_name || productData.name || 'Unknown Product',
       brand: productData.brands || productData.brand || '',
       image: productData.image_url || productData.imageUrl || null,
-      nutriscore: productData.nutriscore_grade || productData.nutriscoreGrade || null,
+      nutriscore: productData.nutriscore_grade || productData.nutriscoreGrade || productData.nutri_grade || null,
       scannedAt: new Date().toISOString(),
       productData, // Store full data for navigation
     };
@@ -142,7 +142,7 @@ export function ProductHistoryProvider({ children }) {
       name: foodName,
       brand: '', // Food items don't have brands
       image: cloudImageUrl, // Use cloud URL for cross-platform compatibility
-      nutriscore: foodData.health_score || foodData.nutrition_score || null,
+      nutriscore: foodData.health_score || foodData.nutrition_score || foodData.nutri_score_estimate || null,
       scannedAt: new Date().toISOString(),
       productData: foodData, // Store full food data for navigation
       type: 'food', // Mark as food item to distinguish from barcode products

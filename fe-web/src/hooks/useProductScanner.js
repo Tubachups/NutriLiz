@@ -1,11 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import { useScanContext } from './scan-context'
 
-export const useProductScanner = () => {
+export const useProductScanner = (initialBarcode = null) => {
   const { productData, updateProductData } = useScanContext()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const lastBarcodeRef = useRef(null)
+
+  // Fetch product data when initialBarcode is provided (from URL params)
+  useEffect(() => {
+    if (initialBarcode && initialBarcode !== lastBarcodeRef.current) {
+      lastBarcodeRef.current = initialBarcode
+      fetchProductData(initialBarcode)
+    }
+  }, [initialBarcode])
 
   useEffect(() => {
     const pollForBarcode = async () => {

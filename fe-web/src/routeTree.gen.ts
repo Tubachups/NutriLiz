@@ -14,6 +14,7 @@ import { Route as rootRouteImport } from './routes/__root'
 
 const ScanLazyRouteImport = createFileRoute('/scan')()
 const ProfileLazyRouteImport = createFileRoute('/profile')()
+const ProductDetailLazyRouteImport = createFileRoute('/product-detail')()
 const LoginLazyRouteImport = createFileRoute('/login')()
 const ImageSearchLazyRouteImport = createFileRoute('/image-search')()
 const HistoryLazyRouteImport = createFileRoute('/history')()
@@ -30,6 +31,13 @@ const ProfileLazyRoute = ProfileLazyRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/profile.lazy').then((d) => d.Route))
+const ProductDetailLazyRoute = ProductDetailLazyRouteImport.update({
+  id: '/product-detail',
+  path: '/product-detail',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/product-detail.lazy').then((d) => d.Route),
+)
 const LoginLazyRoute = LoginLazyRouteImport.update({
   id: '/login',
   path: '/login',
@@ -64,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/history': typeof HistoryLazyRoute
   '/image-search': typeof ImageSearchLazyRoute
   '/login': typeof LoginLazyRoute
+  '/product-detail': typeof ProductDetailLazyRoute
   '/profile': typeof ProfileLazyRoute
   '/scan': typeof ScanLazyRoute
 }
@@ -73,6 +82,7 @@ export interface FileRoutesByTo {
   '/history': typeof HistoryLazyRoute
   '/image-search': typeof ImageSearchLazyRoute
   '/login': typeof LoginLazyRoute
+  '/product-detail': typeof ProductDetailLazyRoute
   '/profile': typeof ProfileLazyRoute
   '/scan': typeof ScanLazyRoute
 }
@@ -83,6 +93,7 @@ export interface FileRoutesById {
   '/history': typeof HistoryLazyRoute
   '/image-search': typeof ImageSearchLazyRoute
   '/login': typeof LoginLazyRoute
+  '/product-detail': typeof ProductDetailLazyRoute
   '/profile': typeof ProfileLazyRoute
   '/scan': typeof ScanLazyRoute
 }
@@ -94,6 +105,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/image-search'
     | '/login'
+    | '/product-detail'
     | '/profile'
     | '/scan'
   fileRoutesByTo: FileRoutesByTo
@@ -103,6 +115,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/image-search'
     | '/login'
+    | '/product-detail'
     | '/profile'
     | '/scan'
   id:
@@ -112,6 +125,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/image-search'
     | '/login'
+    | '/product-detail'
     | '/profile'
     | '/scan'
   fileRoutesById: FileRoutesById
@@ -122,6 +136,7 @@ export interface RootRouteChildren {
   HistoryLazyRoute: typeof HistoryLazyRoute
   ImageSearchLazyRoute: typeof ImageSearchLazyRoute
   LoginLazyRoute: typeof LoginLazyRoute
+  ProductDetailLazyRoute: typeof ProductDetailLazyRoute
   ProfileLazyRoute: typeof ProfileLazyRoute
   ScanLazyRoute: typeof ScanLazyRoute
 }
@@ -140,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/product-detail': {
+      id: '/product-detail'
+      path: '/product-detail'
+      fullPath: '/product-detail'
+      preLoaderRoute: typeof ProductDetailLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -186,6 +208,7 @@ const rootRouteChildren: RootRouteChildren = {
   HistoryLazyRoute: HistoryLazyRoute,
   ImageSearchLazyRoute: ImageSearchLazyRoute,
   LoginLazyRoute: LoginLazyRoute,
+  ProductDetailLazyRoute: ProductDetailLazyRoute,
   ProfileLazyRoute: ProfileLazyRoute,
   ScanLazyRoute: ScanLazyRoute,
 }

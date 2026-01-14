@@ -61,13 +61,13 @@ const RootLayout = () => {
                   to="/scan" 
                   className="text-gray-700 hover:text-[#93BFC7] [&.active]:font-bold [&.active]:text-[#93BFC7]"
                 >
-                  Scan Food
+                  Scan Product
                 </Link>
                 <Link 
                   to="/image-search" 
                   className="text-gray-700 hover:text-[#93BFC7] [&.active]:font-bold [&.active]:text-[#93BFC7]"
                 >
-                  Image Search
+                  Food Photo
                 </Link>
                 <Link 
                   to="/history" 

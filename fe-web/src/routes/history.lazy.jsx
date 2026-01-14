@@ -80,13 +80,17 @@ function HistoryPage() {
         }
       })
     } else {
-      // Navigate to scan page with the barcode
+      // Navigate to product-detail page with the stored product data
       navigate({ 
-        to: '/scan',
-        search: { barcode: product.barcode }
+        to: '/product-detail',
+        search: { 
+          barcode: product.barcode,
+          productData: JSON.stringify(product.productData)
+        }
       })
     }
   }
+
 
   const formatDate = (isoString) => {
     const date = new Date(isoString)
@@ -136,7 +140,7 @@ function HistoryPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={handleSelectAll}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
             >
               {allSelected ? <XSquare size={18} /> : <CheckSquare size={18} />}
               {allSelected ? 'Deselect All' : 'Select All'}
@@ -145,7 +149,7 @@ function HistoryPage() {
             <button
               onClick={handleDeleteSelected}
               disabled={!hasSelection}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer "
             >
               <Trash2 size={18} />
               Delete ({selectedCount})
@@ -154,7 +158,7 @@ function HistoryPage() {
             <button
               onClick={handleClearAll}
               disabled={products.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               <Trash2 size={18} />
               Clear All
@@ -191,7 +195,7 @@ function HistoryPage() {
               return (
                 <div
                   key={product.id}
-                  className={`bg-white rounded-lg shadow-md border-2 transition-all cursor-pointer hover:shadow-lg ${
+                  className={`bg-white rounded-lg shadow-md border-2 transition-all hover:shadow-lg ${
                     isSelected(product.id) 
                       ? 'border-dark bg-secondary/20' 
                       : 'border-transparent'
@@ -204,7 +208,7 @@ function HistoryPage() {
                         e.stopPropagation()
                         toggleSelection(product.id)
                       }}
-                      className="flex-shrink-0"
+                      className="flex-shrink-0 cursor-pointer"
                     >
                       {isSelected(product.id) ? (
                         <CheckSquare size={24} className="text-dark" />
@@ -281,7 +285,7 @@ function HistoryPage() {
                           e.stopPropagation()
                           handleDeleteSingle(product.id, product.name)
                         }}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                       >
                         <Trash2 size={20} />
                       </button>
@@ -307,13 +311,13 @@ function HistoryPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmDeleteSelected}
-                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors cursor-pointer"
                 >
                   Delete
                 </button>
@@ -329,20 +333,20 @@ function HistoryPage() {
           <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
             <div className="text-center">
               <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Clear All History</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-2 cursor-pointer">Clear All History</h3>
               <p className="text-gray-600 mb-6">
                 Are you sure you want to delete all {products.length} items from your history? This cannot be undone.
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowClearAllModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmClearAll}
-                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors cursor-pointer"
                 >
                   Clear All
                 </button>
@@ -365,13 +369,13 @@ function HistoryPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setProductToDelete(null)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmDeleteSingle}
-                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors cursor-pointer"
                 >
                   Delete
                 </button>
