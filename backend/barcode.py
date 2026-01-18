@@ -10,6 +10,7 @@ import os
 import serial
 import time
 import threading
+import warnings
 import openfoodfacts
 
 # ─────────────── LOAD ENVIRONMENT ───────────────
@@ -35,45 +36,141 @@ latest_barcode = None
 # Initialize OpenFoodFacts API
 api = openfoodfacts.API(user_agent="NutriLiz/1.0", timeout=15)
 
+# ─────────────── GROUP COLUMN DEFINITIONS ───────────────
+# RS groups (7-digit barcodes)
+RS_GROUP_COLUMNS = [
+    'rs_fhvn', 'rs_rs', 'rs_edlp', 'rs_bmpc', 'rs_slf',
+    'rs_sl', 'rs_phvn', 'rs_gf', 'rs_rte'
+]
+
+# SM groups (8-digit barcodes)
+SM_GROUP_COLUMNS = [
+    'sm_nvu', 'sm_size', 'sm_nvt', 'sm_smb', 'sm_lr',
+    'sm_sae', 'sm_lfu', 'sm_nlfj', 'sm_smbu', 'sm_fc',
+    'sm_ch', 'sm_lgi', 'sm_glbl', 'sm_dzn'
+]
+
+# All group columns combined
+ALL_GROUP_COLUMNS = RS_GROUP_COLUMNS + SM_GROUP_COLUMNS
+
+
+def extract_group_data(doc):
+    """
+    Extract group data from document, filtering out null/empty values.
+    Returns a dict with only the groups that have values.
+    """
+    rs_groups = {}
+    sm_groups = {}
+    
+    for col in RS_GROUP_COLUMNS:
+        value = doc.get(col)
+        if value is not None and value != '' and value != 'N/A':
+            rs_groups[col] = value
+    
+    for col in SM_GROUP_COLUMNS:
+        value = doc.get(col)
+        if value is not None and value != '' and value != 'N/A':
+            sm_groups[col] = value
+    
+    return {
+        'rs_groups': rs_groups if rs_groups else None,
+        'sm_groups': sm_groups if sm_groups else None,
+        'active_groups': list(rs_groups.keys()) + list(sm_groups.keys())
+    }
+
+
 def get_product_data_appwrite(barcode_value):
     try:
-        # ───────────── TRY sm_bar FIRST ─────────────
+        # ───────────── PREPARE BARCODE VARIANTS ─────────────
         barcode_str = str(barcode_value).strip()
         original_length = len(barcode_str)
         
-        if len(barcode_str) > 13:
-            barcode_str = barcode_str[:13]
-
-        sm_bar_trimmed = int(barcode_str)
+        # Extract the relevant digits for each store format
+        # SM uses first 8 digits, RS uses first 7 digits
+        sm_bar_value = int(barcode_str[:8]) if len(barcode_str) >= 8 else int(barcode_str)
+        rs_bar_value = int(barcode_str[:7]) if len(barcode_str) >= 7 else int(barcode_str)
         
-        result = databases.list_documents(
-            DATABASE_ID,
-            COLLECTION_ID,
-            queries=[Query.equal("sm_bar", [sm_bar_trimmed])]
-        )
-
-        # ───────────── IF NOT FOUND, TRY rs_bar ─────────────
-        if not result['documents']:
-            rs_query_value = int(barcode_value) if barcode_value.isdigit() and len(barcode_value) <= 15 else barcode_value
-
+        print(f"[Appwrite] Original barcode: {barcode_str} (length: {original_length})")
+        print(f"[Appwrite] SM lookup (8 digits): {sm_bar_value}")
+        print(f"[Appwrite] RS lookup (7 digits): {rs_bar_value}")
+        
+        result = {'documents': []}
+        matched_column = None
+        
+        # ───────────── TRY sm_bar FIRST (8 digits) ─────────────
+        print(f"[Appwrite] Trying sm_bar: {sm_bar_value}")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
             result = databases.list_documents(
                 DATABASE_ID,
                 COLLECTION_ID,
-                queries=[Query.equal("rs_bar", [rs_query_value])]
+                queries=[Query.equal("sm_bar", [sm_bar_value])]
             )
+        if result['documents']:
+            matched_column = 'sm_bar'
+        
+        # ───────────── TRY rs_bar (7 digits) ─────────────
+        if not result['documents']:
+            print(f"[Appwrite] Trying rs_bar: {rs_bar_value}")
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                result = databases.list_documents(
+                    DATABASE_ID,
+                    COLLECTION_ID,
+                    queries=[Query.equal("rs_bar", [rs_bar_value])]
+                )
+            if result['documents']:
+                matched_column = 'rs_bar'
+        
+        # ───────────── TRY SM GROUP COLUMNS (8 digits) ─────────────
+        if not result['documents']:
+            print(f"[Appwrite] Searching SM group columns for: {sm_bar_value}")
+            for col in SM_GROUP_COLUMNS:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", DeprecationWarning)
+                    result = databases.list_documents(
+                        DATABASE_ID,
+                        COLLECTION_ID,
+                        queries=[Query.equal(col, [sm_bar_value])]
+                    )
+                if result['documents']:
+                    matched_column = col
+                    print(f"[Appwrite] Found in column: {col}")
+                    break
+        
+        # ───────────── TRY RS GROUP COLUMNS (7 digits) ─────────────
+        if not result['documents']:
+            print(f"[Appwrite] Searching RS group columns for: {rs_bar_value}")
+            for col in RS_GROUP_COLUMNS:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", DeprecationWarning)
+                    result = databases.list_documents(
+                        DATABASE_ID,
+                        COLLECTION_ID,
+                        queries=[Query.equal(col, [rs_bar_value])]
+                    )
+                if result['documents']:
+                    matched_column = col
+                    print(f"[Appwrite] Found in column: {col}")
+                    break
 
         # ───────────── HANDLE RESULTS ─────────────
         if not result['documents']:
+            print(f"[Appwrite] Product not found in database")
             return {
                 'success': False,
                 'barcode': barcode_value,
                 'message': 'No product found for this barcode',
                 'searched': {
-                    'sm_bar': sm_bar_trimmed,
-                    'rs_bar': barcode_value,
-                    'trimmed': original_length > 13
+                    'sm_bar': sm_bar_value,
+                    'rs_bar': rs_bar_value,
+                    'sm_groups': SM_GROUP_COLUMNS,
+                    'rs_groups': RS_GROUP_COLUMNS,
+                    'original_barcode': barcode_str
                 }
             }
+        
+        print(f"[Appwrite] Product found in column: {matched_column}")
 
         # Format the document data based on your actual schema
         doc = result['documents'][0]
@@ -87,10 +184,14 @@ def get_product_data_appwrite(barcode_value):
                 f"{BUCKET_ID}/files/{file_id}/preview?project={os.getenv('APPWRITE_PROJECT_ID')}"
             )
         
+        # Extract group data dynamically
+        group_data = extract_group_data(doc)
+        
         # Extract and format product data matching your schema
         product_data = {
             'source': 'appwrite',
             'barcode': barcode_value,
+            'matched_column': matched_column,  # Which column the barcode was found in
             'document_id': doc.get('$id'),
             'sm_bar': doc.get('sm_bar'),
             'rs_bar': doc.get('rs_bar'),
@@ -121,6 +222,8 @@ def get_product_data_appwrite(barcode_value):
                 'vitamin_a': doc.get('vitamin_a', 'N/A'),
                 'vitamin_e': doc.get('vitamin_e', 'N/A'),
             },
+            # ───────────── NEW: GROUP DATA ─────────────
+            'groups': group_data,
         }
         
         return product_data
@@ -139,6 +242,9 @@ def get_product_data_appwrite(barcode_value):
             'error_type': type(e).__name__,
             'barcode': barcode_value
         }
+
+
+# ...existing code for get_product_data_openfoodfacts...
 
 
 def get_product_data_openfoodfacts(barcode):
@@ -217,7 +323,9 @@ def get_product_data_openfoodfacts(barcode):
                 'traces': product_data.get('traces', ''),
                 'traces_tags': product_data.get('traces_tags', []),
                 'traces_hierarchy': product_data.get('traces_hierarchy', []),
-                'ingredients_text': product_data.get('ingredients_text', 'N/A')
+                'ingredients_text': product_data.get('ingredients_text', 'N/A'),
+                # No groups for OpenFoodFacts products
+                'groups': None
             }
         return None
     except Exception as e:
@@ -239,6 +347,9 @@ def get_product_data(barcode):
         return openfoodfacts_data
     
     return None
+
+
+# ...existing code for barcode_scanner_thread, start_barcode_scanner, get_latest_barcode...
 
 
 def barcode_scanner_thread():
@@ -268,6 +379,7 @@ def start_barcode_scanner():
     scanner_thread = threading.Thread(target=barcode_scanner_thread, daemon=True)
     scanner_thread.start()
     print("Barcode scanner thread started")
+
 
 def get_latest_barcode():
     global latest_barcode
