@@ -50,9 +50,12 @@ export function ProductHistoryProvider({ children }) {
 
   // Add a product to history (barcode scan)
   const addProduct = useCallback(async (productData, barcode) => {
+    // Handle both Appwrite (product.name) and OpenFoodFacts (name/product_name) structures
+    const productName = productData.product?.name || productData.product_name || productData.name || 'Unknown Product';
+    
     const newProduct = {
       barcode,
-      name: productData.product_name || productData.name || 'Unknown Product',
+      name: productName,
       brand: productData.brands || productData.brand || '',
       image: productData.image_url || productData.imageUrl || null,
       nutriscore: productData.nutriscore_grade || productData.nutriscoreGrade || productData.nutri_grade || null,

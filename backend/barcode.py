@@ -13,6 +13,9 @@ import threading
 import warnings
 import openfoodfacts
 
+# ─────────────── SUPPRESS DEPRECATION WARNINGS ───────────────
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 # ─────────────── LOAD ENVIRONMENT ───────────────
 load_dotenv()
 
@@ -29,6 +32,7 @@ storage = Storage(client)
 
 DATABASE_ID = os.getenv('APPWRITE_DATABASE_ID')
 COLLECTION_ID = os.getenv('APPWRITE_COLLECTION_ID')
+FRESH_PROD_COLLECTION_ID = os.getenv('APPWRITE_FRESH_PROD_COLLECTION_ID')
 BUCKET_ID = os.getenv('APPWRITE_BUCKET_ID')
 
 latest_barcode = None
@@ -79,80 +83,137 @@ def extract_group_data(doc):
     }
 
 
+def get_product_name_from_fresh_prod(document_id):
+    """
+    Fetch product name from fresh_prod collection using the document_id.
+    Returns the name if found, otherwise returns None.
+    """
+    if not FRESH_PROD_COLLECTION_ID or not document_id:
+        return None
+    
+    try:
+        # Get the document directly using its ID from fresh_prod collection
+        doc = databases.get_document(
+            DATABASE_ID,
+            FRESH_PROD_COLLECTION_ID,
+            document_id
+        )
+        
+        if doc:
+            name = doc.get('name')
+            if name and name != '' and name != 'N/A':
+                print(f"[Appwrite] Found name in fresh_prod: {name}")
+                return name
+        
+        return None
+    except AppwriteException as e:
+        print(f"[Appwrite] Error fetching from fresh_prod: {e}")
+        return None
+    except Exception as e:
+        print(f"[Appwrite] Unexpected error fetching from fresh_prod: {e}")
+        return None
+
+
 def get_product_data_appwrite(barcode_value):
     try:
         # ───────────── PREPARE BARCODE VARIANTS ─────────────
-        barcode_str = str(barcode_value).strip()
+        # Remove spaces and other non-digit characters
+        barcode_str = ''.join(filter(str.isdigit, str(barcode_value).strip()))
         original_length = len(barcode_str)
         
-        # Extract the relevant digits for each store format
-        # SM uses first 8 digits, RS uses first 7 digits
-        sm_bar_value = int(barcode_str[:8]) if len(barcode_str) >= 8 else int(barcode_str)
-        rs_bar_value = int(barcode_str[:7]) if len(barcode_str) >= 7 else int(barcode_str)
+        if not barcode_str:
+            return {
+                'success': False,
+                'barcode': barcode_value,
+                'message': 'Invalid barcode - no digits found'
+            }
         
-        print(f"[Appwrite] Original barcode: {barcode_str} (length: {original_length})")
-        print(f"[Appwrite] SM lookup (8 digits): {sm_bar_value}")
-        print(f"[Appwrite] RS lookup (7 digits): {rs_bar_value}")
+        # Full barcode for sm_bar and rs_bar (stored as-is)
+        full_barcode = int(barcode_str)
+        
+        # Trimmed versions for group columns only
+        # SM groups use first 8 digits, RS groups use first 7 digits
+        sm_group_value = int(barcode_str[:8]) if len(barcode_str) >= 8 else int(barcode_str)
+        rs_group_value = int(barcode_str[:7]) if len(barcode_str) >= 7 else int(barcode_str)
+        
+        print(f"[Appwrite] Original barcode: {barcode_value}")
+        print(f"[Appwrite] Cleaned barcode: {barcode_str} (length: {original_length})")
+        print(f"[Appwrite] Full barcode for sm_bar/rs_bar: {full_barcode}")
+        print(f"[Appwrite] SM group lookup (8 digits): {sm_group_value}")
+        print(f"[Appwrite] RS group lookup (7 digits): {rs_group_value}")
         
         result = {'documents': []}
         matched_column = None
         
-        # ───────────── TRY sm_bar FIRST (8 digits) ─────────────
-        print(f"[Appwrite] Trying sm_bar: {sm_bar_value}")
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
+        # ───────────── TRY sm_bar FIRST (full barcode) ─────────────
+        print(f"[Appwrite] Trying sm_bar: {full_barcode}", flush=True)
+        try:
             result = databases.list_documents(
                 DATABASE_ID,
                 COLLECTION_ID,
-                queries=[Query.equal("sm_bar", [sm_bar_value])]
+                queries=[Query.equal("sm_bar", [full_barcode])]
             )
+            print(f"[Appwrite] sm_bar result: {len(result.get('documents', []))} documents", flush=True)
+        except Exception as e:
+            print(f"[Appwrite] sm_bar query error: {e}", flush=True)
+            result = {'documents': []}
+        
         if result['documents']:
             matched_column = 'sm_bar'
         
-        # ───────────── TRY rs_bar (7 digits) ─────────────
+        # ───────────── TRY rs_bar (full barcode) ─────────────
         if not result['documents']:
-            print(f"[Appwrite] Trying rs_bar: {rs_bar_value}")
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
+            print(f"[Appwrite] Trying rs_bar: {full_barcode}", flush=True)
+            try:
                 result = databases.list_documents(
                     DATABASE_ID,
                     COLLECTION_ID,
-                    queries=[Query.equal("rs_bar", [rs_bar_value])]
+                    queries=[Query.equal("rs_bar", [full_barcode])]
                 )
+                print(f"[Appwrite] rs_bar result: {len(result.get('documents', []))} documents", flush=True)
+            except Exception as e:
+                print(f"[Appwrite] rs_bar query error: {e}", flush=True)
+                result = {'documents': []}
+            
             if result['documents']:
                 matched_column = 'rs_bar'
         
         # ───────────── TRY SM GROUP COLUMNS (8 digits) ─────────────
         if not result['documents']:
-            print(f"[Appwrite] Searching SM group columns for: {sm_bar_value}")
+            print(f"[Appwrite] Searching SM group columns for: {sm_group_value}", flush=True)
             for col in SM_GROUP_COLUMNS:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", DeprecationWarning)
+                try:
+                    print(f"[Appwrite]   -> Trying column: {col} = {sm_group_value}", flush=True)
                     result = databases.list_documents(
                         DATABASE_ID,
                         COLLECTION_ID,
-                        queries=[Query.equal(col, [sm_bar_value])]
+                        queries=[Query.equal(col, [sm_group_value])]
                     )
-                if result['documents']:
-                    matched_column = col
-                    print(f"[Appwrite] Found in column: {col}")
-                    break
+                    print(f"[Appwrite]   -> {col} result: {len(result.get('documents', []))} documents", flush=True)
+                    if result['documents']:
+                        matched_column = col
+                        print(f"[Appwrite] Found in column: {col}", flush=True)
+                        break
+                except Exception as e:
+                    print(f"[Appwrite]   -> ERROR querying {col}: {e}", flush=True)
+                    continue
         
         # ───────────── TRY RS GROUP COLUMNS (7 digits) ─────────────
         if not result['documents']:
-            print(f"[Appwrite] Searching RS group columns for: {rs_bar_value}")
+            print(f"[Appwrite] Searching RS group columns for: {rs_group_value}")
             for col in RS_GROUP_COLUMNS:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", DeprecationWarning)
-                    result = databases.list_documents(
-                        DATABASE_ID,
-                        COLLECTION_ID,
-                        queries=[Query.equal(col, [rs_bar_value])]
-                    )
+                print(f"[Appwrite]   -> Trying column: {col} = {rs_group_value}")
+                result = databases.list_documents(
+                    DATABASE_ID,
+                    COLLECTION_ID,
+                    queries=[Query.equal(col, [rs_group_value])]
+                )
                 if result['documents']:
                     matched_column = col
                     print(f"[Appwrite] Found in column: {col}")
                     break
+                else:
+                    print(f"[Appwrite]   -> Not found in {col}")
 
         # ───────────── HANDLE RESULTS ─────────────
         if not result['documents']:
@@ -162,11 +223,12 @@ def get_product_data_appwrite(barcode_value):
                 'barcode': barcode_value,
                 'message': 'No product found for this barcode',
                 'searched': {
-                    'sm_bar': sm_bar_value,
-                    'rs_bar': rs_bar_value,
-                    'sm_groups': SM_GROUP_COLUMNS,
-                    'rs_groups': RS_GROUP_COLUMNS,
-                    'original_barcode': barcode_str
+                    'original_input': barcode_value,
+                    'cleaned_barcode': barcode_str,
+                    'sm_bar': full_barcode,
+                    'rs_bar': full_barcode,
+                    'sm_groups_value': sm_group_value,
+                    'rs_groups_value': rs_group_value,
                 }
             }
         
@@ -174,6 +236,19 @@ def get_product_data_appwrite(barcode_value):
 
         # Format the document data based on your actual schema
         doc = result['documents'][0]
+        
+        # Get document_id to fetch name from fresh_prod
+        document_id = doc.get('$id')
+        
+        # Try to get the product name from fresh_prod collection using document_id
+        # This resolves the "Unknown Product" issue when name is missing in items collection
+        product_name = doc.get('name')
+        if not product_name or product_name == '' or product_name == 'N/A' or product_name.lower() == 'unknown product':
+            fresh_prod_name = get_product_name_from_fresh_prod(document_id)
+            if fresh_prod_name:
+                product_name = fresh_prod_name
+            else:
+                product_name = 'N/A'
         
         # Build image URL
         file_id = doc.get('image_id') or doc.get('imageId') or doc.get('$id')
@@ -192,11 +267,11 @@ def get_product_data_appwrite(barcode_value):
             'source': 'appwrite',
             'barcode': barcode_value,
             'matched_column': matched_column,  # Which column the barcode was found in
-            'document_id': doc.get('$id'),
+            'document_id': document_id,
             'sm_bar': doc.get('sm_bar'),
             'rs_bar': doc.get('rs_bar'),
             'product': {
-                'name': doc.get('name', 'N/A'),
+                'name': product_name,
                 'category': doc.get('category', 'N/A'),
             },
             'image_url': image_url,
