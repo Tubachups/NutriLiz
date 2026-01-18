@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const API_BASE_URL = 'http://192.168.8.34:5000';
+const API_BASE_URL = 'https://nutriliz-be.onrender.com';
 
 export const useFoodImageAPI = () => {
   const [loading, setLoading] = useState(false);
