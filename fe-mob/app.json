@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.femob"
+      "bundleIdentifier": "com.nutriliz.app"
     },
     "android": {
       "versionCode": 1,
@@ -26,7 +26,7 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.femob"
+      "package": "com.nutriliz.app"
     },
     "web": {
       "output": "static",
