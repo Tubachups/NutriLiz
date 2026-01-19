@@ -5,10 +5,13 @@ const RootLayout = () => (
   <>
     <div className="p-2 flex gap-2">
       <Link to="/" className="[&.active]:font-bold">
-        Home
+        Home    
       </Link>{' '}
-      <Link to="/about" className="[&.active]:font-bold">
-        About
+         <Link to="/privacy" className="[&.active]:font-bold">
+       | Privacy and Policy     
+      </Link>
+      <Link to="/Contact" className="[&.active]:font-bold">
+       | Contact Us 
       </Link>
     </div>
     <hr />
