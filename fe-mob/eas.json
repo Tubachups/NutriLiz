@@ -9,12 +9,32 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_APPWRITE_PROJECT_ID": "690053950000b6b43ae9",
+        "EXPO_PUBLIC_APPWRITE_PROJECT_NAME": "NutriLiz",
+        "EXPO_PUBLIC_APPWRITE_ENDPOINT": "https://fra.cloud.appwrite.io/v1",
+        "EXPO_PUBLIC_APPWRITE_DATABASE_ID": "69006fa7003b0ed07503",
+        "EXPO_PUBLIC_APPWRITE_PROFILES_COLLECTION_ID": "profiles",
+        "EXPO_PUBLIC_APPWRITE_PRODUCT_HISTORY_COLLECTION_ID": "lists_prod",
+        "EXPO_PUBLIC_APPWRITE_FOOD_IMAGES_BUCKET_ID": "69626609003956012d2c",
+        "EXPO_PUBLIC_APPWRITE_PLATFORM": "com.nutriliz.app"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_APPWRITE_PROJECT_ID": "690053950000b6b43ae9",
+        "EXPO_PUBLIC_APPWRITE_PROJECT_NAME": "NutriLiz",
+        "EXPO_PUBLIC_APPWRITE_ENDPOINT": "https://fra.cloud.appwrite.io/v1",
+        "EXPO_PUBLIC_APPWRITE_DATABASE_ID": "69006fa7003b0ed07503",
+        "EXPO_PUBLIC_APPWRITE_PROFILES_COLLECTION_ID": "profiles",
+        "EXPO_PUBLIC_APPWRITE_PRODUCT_HISTORY_COLLECTION_ID": "lists_prod",
+        "EXPO_PUBLIC_APPWRITE_FOOD_IMAGES_BUCKET_ID": "69626609003956012d2c",
+        "EXPO_PUBLIC_APPWRITE_PLATFORM": "com.nutriliz.app"
       }
     },
     "production": {
@@ -22,7 +42,17 @@
       "android": {
         "buildType": "app-bundle"
       },
-      "environment": "production"
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_APPWRITE_PROJECT_ID": "690053950000b6b43ae9",
+        "EXPO_PUBLIC_APPWRITE_PROJECT_NAME": "NutriLiz",
+        "EXPO_PUBLIC_APPWRITE_ENDPOINT": "https://fra.cloud.appwrite.io/v1",
+        "EXPO_PUBLIC_APPWRITE_DATABASE_ID": "69006fa7003b0ed07503",
+        "EXPO_PUBLIC_APPWRITE_PROFILES_COLLECTION_ID": "profiles",
+        "EXPO_PUBLIC_APPWRITE_PRODUCT_HISTORY_COLLECTION_ID": "lists_prod",
+        "EXPO_PUBLIC_APPWRITE_FOOD_IMAGES_BUCKET_ID": "69626609003956012d2c",
+        "EXPO_PUBLIC_APPWRITE_PLATFORM": "com.nutriliz.app"
+      }
     }
   },
   "submit": {
