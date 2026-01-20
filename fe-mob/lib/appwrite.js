@@ -1,23 +1,10 @@
 import { Client, Account, Storage, ID } from 'react-native-appwrite';
 import * as FileSystem from 'expo-file-system/legacy';
 
-// Validate environment variables
-const APPWRITE_ENDPOINT = process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT;
-const APPWRITE_PROJECT_ID = process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID;
-const APPWRITE_PLATFORM = process.env.EXPO_PUBLIC_APPWRITE_PLATFORM;
-
-if (!APPWRITE_ENDPOINT || !APPWRITE_PROJECT_ID || !APPWRITE_PLATFORM) {
-  console.error('Missing Appwrite configuration:', {
-    endpoint: !!APPWRITE_ENDPOINT,
-    projectId: !!APPWRITE_PROJECT_ID,
-    platform: !!APPWRITE_PLATFORM,
-  });
-}
-
 export const client = new Client()
-  .setEndpoint(APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
-  .setProject(APPWRITE_PROJECT_ID || '')
-  .setPlatform(APPWRITE_PLATFORM || 'com.nutriliz.app');
+  .setEndpoint(process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT) // Your Appwrite Endpoint
+  .setProject(process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID)   // Your Project ID
+  .setPlatform(process.env.EXPO_PUBLIC_APPWRITE_PLATFORM);   // Your package name / bundle identifier
 
 export const account = new Account(client);
 export const storage = new Storage(client);

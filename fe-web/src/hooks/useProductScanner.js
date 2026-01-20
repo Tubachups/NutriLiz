@@ -18,7 +18,7 @@ export const useProductScanner = (initialBarcode = null) => {
   useEffect(() => {
     const pollForBarcode = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/latest-barcode')
+        const response = await fetch('https://nutriliz-be.onrender.com/api/latest-barcode')
         const data = await response.json()
 
         // Only fetch if it's a new barcode
@@ -40,7 +40,7 @@ export const useProductScanner = (initialBarcode = null) => {
     setError(null)
 
     try {
-      const response = await fetch(`http://localhost:5000/api/product/${barcode}`)
+      const response = await fetch(`https://nutriliz-be.onrender.com/api/product/${barcode}`)
       const data = await response.json()
 
       if (response.ok) {

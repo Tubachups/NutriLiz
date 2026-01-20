@@ -35,7 +35,7 @@ export const useProductAssessment = (barcode) => {
           : { method: 'GET' };
 
         const response = await fetch(
-          `http://localhost:5000/api/assess/${barcode}`,
+          `https://nutriliz-be.onrender.com/api/assess/${barcode}`,
           options
         );
 
