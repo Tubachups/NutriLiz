@@ -114,7 +114,7 @@ export default function TabsLayout() {
     </TouchableOpacity>
   );
 
-  const CustomHeader = ({ options, showBackButton = false }) => (
+  const CustomHeader = ({ options, showBackButton = false, showSignOut = false }) => (
     <View style={styles.headerContainer}>
       <TopographicHeader insetTop={insets.top} />
       <View style={[styles.headerContent, { top: insets.top }]}>
@@ -129,7 +129,7 @@ export default function TabsLayout() {
           <View style={{ width: 40 }} />
         )}
         <Text style={styles.headerTitleCenter}>{options.headerTitle || options.title}</Text>
-        <SignOutButton />
+        {showSignOut ? <SignOutButton /> : <View style={{ width: 40 }} />}
       </View>
     </View>
   );
@@ -269,13 +269,17 @@ export default function TabsLayout() {
         }}
         tabBar={(props) => <CustomTabBar {...props} />}
       >
+
         <Tabs.Screen
-          name="profile"
+          name="index"
           options={{
-            title: 'Profile',
+            title: 'Home',
             headerShown: true,
+            headerTitle: 'Home',
           }}
         />
+
+        
 
         <Tabs.Screen
           name="scan"
@@ -293,20 +297,22 @@ export default function TabsLayout() {
           }}
         />
 
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Home',
-            headerShown: true,
-            headerTitle: 'Home',
-          }}
-        />
+        
 
         <Tabs.Screen
           name="list"
           options={{
             title: 'History',
             headerShown: false,
+          }}
+        />
+
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Profile',
+            headerShown: true,
+            header: ({ options }) => <CustomHeader options={options} showSignOut={true} />,
           }}
         />
 

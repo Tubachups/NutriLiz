@@ -99,9 +99,9 @@ export default function HomeScreen() {
               </Text>
             </TouchableOpacity>
           )}
-          <Button mode='text' icon={'logout'} onPress={signOut} textColor="#67caa9">
+          {/* <Button mode='text' icon={'logout'} onPress={signOut} textColor="#67caa9">
             Sign out
-          </Button>
+          </Button> */}
         </View>
       </ScrollView>
     </View>

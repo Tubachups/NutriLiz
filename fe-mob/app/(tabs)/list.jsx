@@ -377,7 +377,7 @@ export default function ProductList() {
             <Ionicons name="trash-outline" size={48} color="#E63E11" style={styles.modalIcon} />
             <Text style={styles.modalTitle}>Delete Product</Text>
             <Text style={styles.modalMessage}>
-              Remove &quot{productToDelete?.name}&quot from history?
+              Remove {productToDelete?.name} from history?
             </Text>
             <View style={styles.modalButtons}>
               <Button
@@ -540,6 +540,15 @@ export default function ProductList() {
                   onPress={handleSelectAll}
                   iconColor="#1F2937"
                 />
+
+                {hasSelection && (
+                  <IconButton
+                    icon="delete"
+                    size={24}
+                    onPress={handleDeleteSelected}
+                    iconColor="#E63E11"
+                  />
+                )}
                 <IconButton
                   icon="delete-sweep"
                   size={24}
