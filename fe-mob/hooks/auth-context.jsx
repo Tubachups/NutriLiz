@@ -51,24 +51,29 @@ export function AuthProvider({ children }) {
   }
 
   const signUp = async (email, password, name) => {
-    try {
-      const randomID = ID.unique();
+  try {
+    const randomID = ID.unique();
 
-      // Create the account first
-      await account.create({
-        userId: randomID,
-        email,
-        password,
-        name  
-      });
-    }
-    catch (error) {
-      if (error instanceof Error) {
-        console.log("Error message: ", error.message);
-        return error.message;
+    // Create the account first
+    await account.create({
+      userId: randomID,
+      email,
+      password,
+      name  
+    });
+  }
+  catch (error) {
+    if (error instanceof Error) {
+      console.log("Error message: ", error.message);
+      // Clean up the error message by removing technical prefix
+      let cleanError = error.message;
+      if (cleanError.includes('Invalid `password` param:')) {
+        cleanError = cleanError.replace('Invalid `password` param:', '').trim();
       }
+      return cleanError;
     }
-  };
+  }
+};
 
   const signIn = async (email, password) => {
     try {
