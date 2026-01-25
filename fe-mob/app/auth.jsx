@@ -110,7 +110,7 @@ export default function AuthScreen() {
   };
 
   const handleAuth = async () => {
-    if (!email || !password) {
+    if (!email || !password || !userName) {
       setError("Please fill in all fields.");
       return;
     }
@@ -162,6 +162,7 @@ export default function AuthScreen() {
                 setError(null);
               }}
               autoCapitalize="none"
+              keyboardType="default"
               placeholder="john_lloyd"
               placeholderTextColor="#999"
               mode="flat"
@@ -228,7 +229,11 @@ export default function AuthScreen() {
 
           <Button 
             mode="text" 
-            onPress={() => toggleAuthMode(!isSignUp)}
+            onPress={() => {
+              toggleAuthMode(!isSignUp)
+              setError(null);
+
+            }}
             textColor="#666"
           >
             {isSignUp ? "Already have an account? " : "Don't have an Account? "}

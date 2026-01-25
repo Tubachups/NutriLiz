@@ -14,7 +14,7 @@ export const Route = createLazyFileRoute('/image-search')({
 
 function RouteComponent() {
   const { foodData, foodImage } = useSearch({ from: '/image-search' })
-  const videoSrc = "https://nutriliz-be.onrender.com/video";
+  const videoSrc = "http://192.168.100.69:5000/video";
   const imgRef = useRef(null);
   const canvasRef = useRef(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -77,7 +77,7 @@ function RouteComponent() {
       const imageData = canvas.toDataURL('image/jpeg', 0.8);
       setCapturedImage(imageData);
       
-      const response = await fetch('https://nutriliz-be.onrender.com/api/analyze-food-image', {
+      const response = await fetch('http://192.168.100.69:5000/api/analyze-food-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
