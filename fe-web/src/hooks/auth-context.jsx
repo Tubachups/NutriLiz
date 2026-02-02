@@ -5,10 +5,14 @@ import { saveUserProfile, getUserProfile } from '../lib/appwriteDB.js';
 
 const AuthContext = createContext(undefined);
 
+// Admin emails - add admin emails here
+const ADMIN_EMAILS = ['nutrilizowgay@gmail.com'];
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     getUser();
@@ -18,18 +22,21 @@ export function AuthProvider({ children }) {
     try {
       const userData = await account.get();
       setUser(userData);
+      // check if admin by email or labels
+      setIsAdmin(ADMIN_EMAILS.includes(userData.email) || userData.labels?.includes('admin'));
       // Fetch user profile data
       await fetchUserProfile(userData.$id);
     } catch (error) {
       setUser(null);
       setUserProfile(null);
+      setIsAdmin(false);
     } finally {
       setIsLoadingUser(false);
     }
   };
 
-  const fetchUserProfile = async (userId) => {
-    try {
+  const fetchUserProfile = async (userId)   => {
+    try { 
       const profile = await getUserProfile(userId);
       setUserProfile(profile);
     } catch (error) {
@@ -82,13 +89,17 @@ export function AuthProvider({ children }) {
 
       const session = await account.get();
       setUser(session);
+      // Set admin status on login
+      const adminStatus = ADMIN_EMAILS.includes(session.email) || session.labels?.includes('admin');
+      setIsAdmin(adminStatus);
       await fetchUserProfile(session.$id);
-      return null;
+      // Return admin status so login page can redirect appropriately
+      return { success: true, isAdmin: adminStatus };
     }
     catch (error) {
       if (error instanceof Error) {
         console.log("Error message: ", error.message);
-        return error.message;
+        return { success: false, error: error.message };
       }
     }
   };
@@ -121,7 +132,17 @@ export function AuthProvider({ children }) {
   
 
   return (
-    <AuthContext.Provider value={{ user, isLoadingUser, userProfile, signUp, signIn, signOut, updateUserProfile, forgotPassword}}>
+    <AuthContext.Provider value={{ 
+      user,
+      isAdmin, 
+      isLoadingUser, 
+      userProfile, 
+      signUp, 
+      signIn, 
+      signOut, 
+      updateUserProfile, 
+      forgotPassword
+      }}>
       {children}
     </AuthContext.Provider>
   );

@@ -15,12 +15,12 @@ function LoginComponent() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, isAdmin } = useAuth();
   const router = useRouter();
 
-  // If user is already logged in, redirect to home
+  // If user is already logged in, redirect appropriately
   if (user) {
-    router.navigate({ to: '/' });
+    router.navigate({ to: isAdmin ? '/dashboard' : '/' });
     return null;
   }
 
@@ -31,12 +31,12 @@ function LoginComponent() {
     setSuccessMessage('');
     
     try {
-      const errorMsg = await signIn(email, password);
-      if (errorMsg) {
-        setError(errorMsg);
-      } else {
-        // Successful login - navigate to home
-        router.navigate({ to: '/' });
+      const result = await signIn(email, password);
+      if (result?.success) {
+        // Successful login - navigate based on admin status
+        router.navigate({ to: result.isAdmin ? '/dashboard' : '/' });
+      } else if (result?.error) {
+        setError(result.error);
       }
     } catch (err) {
       console.error(err);

@@ -1,8 +1,8 @@
 @import 'tailwindcss';
 @import url('https://fonts.googleapis.com/css2?family=Delius&display=swap');
-@plugin "daisyui" {
-  themes: false;
-}
+ @plugin "daisyui" {
+   themes: light --default, light --prefersdark;
+ }
 
 @theme {
   --color-primary: #ECF4E8;
