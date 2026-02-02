@@ -190,3 +190,22 @@ export const updateProductInHistory = async (documentId, productData) => {
     throw error;
   }
 };
+
+export const getProductHistoryByUserId = async (userId, limit = 100) => {
+  try {
+    const response = await databases.listDocuments(
+      DATABASE_ID,
+      PRODUCT_HISTORY_COLLECTION_ID,
+      [
+        Query.equal('userId', userId),
+        Query.orderDesc('$createdAt'),
+        Query.limit(limit)
+      ]
+    );
+    
+    return response.documents;
+  } catch (error) {
+    console.error('Error fetching user product history:', error);
+    throw error;
+  }
+};

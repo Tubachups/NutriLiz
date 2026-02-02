@@ -18,7 +18,7 @@ export const useProductScanner = (initialBarcode = null) => {
   useEffect(() => {
     const pollForBarcode = async () => {
       try {
-        const response = await fetch('http://192.168.100.69:5000/api/latest-barcode')
+        const response = await fetch('http://192.168.8.99:5000/api/latest-barcode')
         const data = await response.json()
 
         // Only fetch if it's a new barcode
@@ -40,7 +40,7 @@ export const useProductScanner = (initialBarcode = null) => {
     setError(null)
 
     try {
-      const response = await fetch(`http://192.168.100.69:5000/api/product/${barcode}`)
+      const response = await fetch(`http://192.168.8.99:5000/api/product/${barcode}`)
       const data = await response.json()
 
       if (response.ok) {

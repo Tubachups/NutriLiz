@@ -1,6 +1,7 @@
 import { createLazyFileRoute, useSearch } from '@tanstack/react-router'
 import { useRef, useState, useEffect } from 'react'
 import { useProductHistory } from '../hooks/useProductHistory'
+import { Utensils, Camera, Flame, Beef, Wheat, BarChart3, Leaf, AlertTriangle, UtensilsCrossed, ChefHat, Target, Soup } from 'lucide-react'
 
 export const Route = createLazyFileRoute('/image-search')({
   component: RouteComponent,
@@ -14,7 +15,7 @@ export const Route = createLazyFileRoute('/image-search')({
 
 function RouteComponent() {
   const { foodData, foodImage } = useSearch({ from: '/image-search' })
-  const videoSrc = "http://192.168.100.69:5000/video";
+  const videoSrc = "http://192.168.8.99:5000/video";
   const imgRef = useRef(null);
   const canvasRef = useRef(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -77,7 +78,7 @@ function RouteComponent() {
       const imageData = canvas.toDataURL('image/jpeg', 0.8);
       setCapturedImage(imageData);
       
-      const response = await fetch('http://192.168.100.69:5000/api/analyze-food-image', {
+      const response = await fetch('http://192.168.8.99:5000/api/analyze-food-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,8 +108,9 @@ function RouteComponent() {
   return (
     <div className="min-h-screen bg-primary from-base-200 via-base-100 to-base-200 py-8">
       <div className="container mx-auto px-4 max-w-6xl ">
-        <h1 className="text-4xl font-bold text-center ">
-          🍽️ Food Image Recognition
+        <h1 className="text-4xl font-bold text-center flex items-center justify-center gap-3">
+          <Utensils className="w-10 h-10" />
+          Food Image Recognition
         </h1>
         
         {/* Main Grid Layout */}
@@ -133,7 +135,8 @@ function RouteComponent() {
                     onClick={captureAndAnalyze}
                     disabled={analyzing}
                   >
-                    {analyzing ? 'Analyzing...' : '📸 Capture & Analyze Food'}
+                    <Camera className="w-5 h-5" />
+                    {analyzing ? 'Analyzing...' : 'Capture & Analyze Food'}
                   </button>
                 </div>
               </figure>
@@ -170,7 +173,7 @@ function RouteComponent() {
             {!result && !analyzing && (
               <div className="card bg-white shadow-xl h-full min-h-[400px] rounded-sm">
                 <div className="card-body items-center justify-center text-center">
-                  <div className="text-8xl mb-4 opacity-20">🍎</div>
+                  <Utensils className="w-32 h-32 text-base-content/20 mb-4" />
                   <h3 className="text-xl font-semibold text-base-content/60">No Food Analyzed Yet</h3>
                   <p className="text-base-content/40">Point your food at camera and click capture to analyze</p>
                 </div>
@@ -239,7 +242,9 @@ function RouteComponent() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {result.nutrition_per_serving?.calories !== undefined && (
                     <div className="stat bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
-                      <div className="stat-figure text-primary text-2xl">🔥</div>
+                      <div className="stat-figure text-primary">
+                        <Flame className="w-8 h-8" />
+                      </div>
                       <div className="stat-title text-xs">Calories</div>
                       <div className="stat-value text-xl text-black">{result.nutrition_per_serving.calories}</div>
                       <div className="stat-desc">kcal</div>
@@ -247,21 +252,27 @@ function RouteComponent() {
                   )}
                   {result.nutrition_per_serving?.protein_g !== undefined && (
                     <div className="stat bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
-                      <div className="stat-figure text-secondary text-2xl">💪</div>
+                      <div className="stat-figure text-secondary">
+                        <Beef className="w-8 h-8" />
+                      </div>
                       <div className="stat-title text-xs">Protein</div>
                       <div className="stat-value text-xl text-black">{result.nutrition_per_serving.protein_g}g</div>
                     </div>
                   )}
                   {result.nutrition_per_serving?.carbohydrates_g !== undefined && (
                     <div className="stat bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
-                      <div className="stat-figure text-accent text-2xl">🌾</div>
+                      <div className="stat-figure text-accent">
+                        <Wheat className="w-8 h-8" />
+                      </div>
                       <div className="stat-title text-xs">Carbs</div>
                       <div className="stat-value text-xl text-black">{result.nutrition_per_serving.carbohydrates_g}g</div>
                     </div>
                   )}
                   {result.nutrition_per_serving?.fat_g !== undefined && (
                     <div className="stat bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow">
-                      <div className="stat-figure text-warning text-2xl">🧈</div>
+                      <div className="stat-figure text-warning">
+                        <Soup className="w-8 h-8" />
+                      </div>
                       <div className="stat-title text-xs">Fat</div>
                       <div className="stat-value text-xl text-warning">{result.nutrition_per_serving.fat_g}g</div>
                     </div>
@@ -275,7 +286,10 @@ function RouteComponent() {
                   {result.nutrition_per_serving && (
                     <div className="card bg-white shadow-md hover:shadow-lg transition-shadow">
                       <div className="card-body">
-                        <h3 className="card-title text-lg">📊 Detailed Nutrition</h3>
+                        <h3 className="card-title text-lg flex items-center gap-2">
+                          <BarChart3 className="w-5 h-5" />
+                          Detailed Nutrition
+                        </h3>
                         {result.serving_size && (
                           <p className="text-sm text-base-content/60 -mt-1">Per serving: {result.serving_size}</p>
                         )}
@@ -313,28 +327,31 @@ function RouteComponent() {
                   {result.dietary_info && (
                     <div className="card bg-white shadow-md hover:shadow-lg transition-shadow">
                       <div className="card-body">
-                        <h3 className="card-title text-lg">🥬 Dietary Information</h3>
+                        <h3 className="card-title text-lg flex items-center gap-2">
+                          <Leaf className="w-5 h-5" />
+                          Dietary Information
+                        </h3>
                         <div className="flex flex-wrap gap-2 mt-2">
                           {result.dietary_info.is_vegetarian && (
-                            <span className="badge badge-success gap-1">🥕 Vegetarian</span>
+                            <span className="badge badge-success gap-1">Vegetarian</span>
                           )}
                           {result.dietary_info.is_vegan && (
-                            <span className="badge badge-success gap-1">🌱 Vegan</span>
+                            <span className="badge badge-success gap-1">Vegan</span>
                           )}
                           {result.dietary_info.is_gluten_free && (
-                            <span className="badge badge-info gap-1">🌾 Gluten-Free</span>
+                            <span className="badge badge-info gap-1">Gluten-Free</span>
                           )}
                           {result.dietary_info.is_dairy_free && (
-                            <span className="badge badge-info gap-1">🥛 Dairy-Free</span>
+                            <span className="badge badge-info gap-1">Dairy-Free</span>
                           )}
                           {!result.dietary_info.is_vegetarian && (
-                            <span className="badge badge-ghost gap-1">🍖 Contains Meat</span>
+                            <span className="badge badge-ghost gap-1">Contains Meat</span>
                           )}
                           {!result.dietary_info.is_gluten_free && (
-                            <span className="badge badge-ghost gap-1">🍞 Contains Gluten</span>
+                            <span className="badge badge-ghost gap-1">Contains Gluten</span>
                           )}
                           {!result.dietary_info.is_dairy_free && (
-                            <span className="badge badge-ghost gap-1">🧀 Contains Dairy</span>
+                            <span className="badge badge-ghost gap-1">Contains Dairy</span>
                           )}
                         </div>
                       </div>
@@ -348,7 +365,12 @@ function RouteComponent() {
                   {result.health_benefits && result.health_benefits.length > 0 && (
                     <div className="card bg-white shadow-md rounded-md">
                       <div className="card-body">
-                        <h3 className="card-title text-lg text-success">💚 Health Benefits</h3>
+                        <h3 className="card-title text-lg text-success flex items-center gap-2">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                          </svg>
+                          Health Benefits
+                        </h3>
                         <ul className="space-y-2 mt-2">
                           {result.health_benefits.map((benefit, index) => (
                             <li key={index} className="flex items-start gap-2 text-sm">
@@ -365,7 +387,10 @@ function RouteComponent() {
                   {result.potential_concerns && result.potential_concerns.length > 0 && (
                     <div className="card bg-white shadow-md rounded-md">
                       <div className="card-body">
-                        <h3 className="card-title text-lg text-warning">⚠️ Potential Concerns</h3>
+                        <h3 className="card-title text-lg text-warning flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5" />
+                          Potential Concerns
+                        </h3>
                         <ul className="space-y-2 mt-2">
                           {result.potential_concerns.map((concern, index) => (
                             <li key={index} className="flex items-start gap-2 text-sm">
@@ -400,7 +425,10 @@ function RouteComponent() {
                 {result.ingredients_if_dish && result.ingredients_if_dish.length > 0 && (
                   <div className="card bg-white shadow-md">
                     <div className="card-body">
-                      <h3 className="card-title text-lg">🥗 Ingredients</h3>
+                      <h3 className="card-title text-lg flex items-center gap-2">
+                        <UtensilsCrossed className="w-5 h-5" />
+                        Ingredients
+                      </h3>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {result.ingredients_if_dish.map((ingredient, index) => (
                           <span key={index} className="badge badge-outline">{ingredient}</span>
@@ -414,7 +442,10 @@ function RouteComponent() {
                 {result.preparation_notes && (
                   <div className="card bg-white shadow-md">
                     <div className="card-body">
-                      <h3 className="card-title text-lg">👨‍🍳 Preparation</h3>
+                      <h3 className="card-title text-lg flex items-center gap-2">
+                        <ChefHat className="w-5 h-5" />
+                        Preparation
+                      </h3>
                       <p className="text-base-content/80">{result.preparation_notes}</p>
                     </div>
                   </div>
@@ -424,7 +455,10 @@ function RouteComponent() {
                 {result.personalized_advice && (
                   <div className="card bg-gradient-to-r from-primary to-secondary text-primary-content shadow-xl">
                     <div className="card-body">
-                      <h3 className="card-title text-lg">🎯 Personalized Advice</h3>
+                      <h3 className="card-title text-lg flex items-center gap-2">
+                        <Target className="w-5 h-5" />
+                        Personalized Advice
+                      </h3>
                       <p>{result.personalized_advice}</p>
                     </div>
                   </div>

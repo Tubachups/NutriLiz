@@ -19,6 +19,7 @@ const LoginLazyRouteImport = createFileRoute('/login')()
 const ImageSearchLazyRouteImport = createFileRoute('/image-search')()
 const HistoryLazyRouteImport = createFileRoute('/history')()
 const ForgotPasswordLazyRouteImport = createFileRoute('/forgot-password')()
+const DashboardLazyRouteImport = createFileRoute('/dashboard')()
 const IndexLazyRouteImport = createFileRoute('/')()
 
 const ScanLazyRoute = ScanLazyRouteImport.update({
@@ -60,6 +61,11 @@ const ForgotPasswordLazyRoute = ForgotPasswordLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/forgot-password.lazy').then((d) => d.Route),
 )
+const DashboardLazyRoute = DashboardLazyRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/dashboard.lazy').then((d) => d.Route))
 const IndexLazyRoute = IndexLazyRouteImport.update({
   id: '/',
   path: '/',
@@ -68,6 +74,7 @@ const IndexLazyRoute = IndexLazyRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexLazyRoute
+  '/dashboard': typeof DashboardLazyRoute
   '/forgot-password': typeof ForgotPasswordLazyRoute
   '/history': typeof HistoryLazyRoute
   '/image-search': typeof ImageSearchLazyRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexLazyRoute
+  '/dashboard': typeof DashboardLazyRoute
   '/forgot-password': typeof ForgotPasswordLazyRoute
   '/history': typeof HistoryLazyRoute
   '/image-search': typeof ImageSearchLazyRoute
@@ -89,6 +97,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexLazyRoute
+  '/dashboard': typeof DashboardLazyRoute
   '/forgot-password': typeof ForgotPasswordLazyRoute
   '/history': typeof HistoryLazyRoute
   '/image-search': typeof ImageSearchLazyRoute
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/dashboard'
     | '/forgot-password'
     | '/history'
     | '/image-search'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/dashboard'
     | '/forgot-password'
     | '/history'
     | '/image-search'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/dashboard'
     | '/forgot-password'
     | '/history'
     | '/image-search'
@@ -132,6 +144,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexLazyRoute: typeof IndexLazyRoute
+  DashboardLazyRoute: typeof DashboardLazyRoute
   ForgotPasswordLazyRoute: typeof ForgotPasswordLazyRoute
   HistoryLazyRoute: typeof HistoryLazyRoute
   ImageSearchLazyRoute: typeof ImageSearchLazyRoute
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -204,6 +224,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexLazyRoute: IndexLazyRoute,
+  DashboardLazyRoute: DashboardLazyRoute,
   ForgotPasswordLazyRoute: ForgotPasswordLazyRoute,
   HistoryLazyRoute: HistoryLazyRoute,
   ImageSearchLazyRoute: ImageSearchLazyRoute,

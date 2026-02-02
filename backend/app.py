@@ -4,6 +4,9 @@ from barcode import get_latest_barcode, start_barcode_scanner, get_product_data
 from recommend import get_recommendations
 from risk_assessment import analyze_product
 from food_recognition import analyze_food_image, get_food_recommendations
+from appwrite.client import Client
+from appwrite.services.users import Users
+from appwrite.query import Query
 import os
 import cv2
 
@@ -192,7 +195,68 @@ def food_alternatives():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Initialize Appwrite client for admin operations
+def get_appwrite_admin_client():
+    client = Client()
+    client.set_endpoint(os.getenv('APPWRITE_ENDPOINT'))
+    client.set_project(os.getenv('APPWRITE_PROJECT_ID'))
+    client.set_key(os.getenv('APPWRITE_API_KEY'))
+    return client
 
+# Admin user IDs - add your admin user ID here
+ADMIN_USER_IDS = ['6980441d000875ac5c3e'] 
+
+@app.route('/api/admin/users')
+def list_users():
+    """List all users with pagination - Admin only"""
+    # Get the user ID from header (sent from frontend)
+    requesting_user_id = request.headers.get('X-User-ID')
+    
+    # Check if user is admin
+    if requesting_user_id not in ADMIN_USER_IDS:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    try:
+        # Get pagination params
+        limit = request.args.get('limit', 12, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Initialize Appwrite Users service
+        client = get_appwrite_admin_client()
+        users = Users(client)
+        
+        # List users - use Query for pagination
+        queries = [
+            Query.limit(limit),
+            Query.offset(offset)
+        ]
+        result = users.list(queries=queries)
+        
+        return jsonify({
+            'users': result['users'],
+            'total': result['total'],
+            'limit': limit,
+            'offset': offset
+        })
+    except Exception as e:
+        print(f"Error listing users: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/<user_id>')
+def get_user(user_id):
+    """Get a specific user - Admin only"""
+    requesting_user_id = request.headers.get('X-User-ID')
+    
+    if requesting_user_id not in ADMIN_USER_IDS:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    try:
+        client = get_appwrite_admin_client()
+        users = Users(client)
+        user = users.get(user_id)
+        return jsonify(user)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
     
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
