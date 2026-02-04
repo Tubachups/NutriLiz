@@ -13,25 +13,37 @@ SplashScreen.preventAutoHideAsync();
 
 function RouteGuard({ children }) {
   const router = useRouter();
-  const { user, isLoadingUser } = useAuth();
+  const { user, isAdmin, isLoadingUser } = useAuth();
   const segments = useSegments();
   const [isNavigationReady, setIsNavigationReady] = useState(false);
 
   useEffect(() => {
-    if (isLoadingUser) return; // Don't do anything while loading
+    if (isLoadingUser) return;
 
     const inAuthGroup = segments.includes("auth") || segments.includes("forgotPass");
+    const inAdminGroup = segments.includes("(admin-tabs)");
+    const inUserGroup = segments.includes("(tabs)");
 
     if (!user && !inAuthGroup) {
       // User is not signed in and not on auth screen
       router.replace("/auth");
     } else if (user && inAuthGroup) {
-      // User is signed in but on auth screen
+      // User is signed in but on auth screen - redirect based on role
+      if (isAdmin) {
+        router.replace("/(admin-tabs)/dashboard");
+      } else {
+        router.replace("/(tabs)");
+      }
+    } else if (user && isAdmin && inUserGroup) {
+      // Admin trying to access user tabs - redirect to admin
+      router.replace("/(admin-tabs)/dashboard");
+    } else if (user && !isAdmin && inAdminGroup) {
+      // Non-admin trying to access admin tabs - redirect to user tabs
       router.replace("/(tabs)");
     }
 
     setIsNavigationReady(true);
-  }, [user, segments, isLoadingUser]);
+  }, [user, isAdmin, segments, isLoadingUser]);
 
   // Show loading screen while checking authentication
   if (isLoadingUser || !isNavigationReady) {
@@ -79,6 +91,13 @@ export default function RootLayout() {
                   headerShown: false
                 }}
               />
+
+              <Stack.Screen 
+                name="(admin-tabs)" 
+                options={{ 
+                  headerShown: false 
+                }} />
+               
               <Stack.Screen
                 name="auth"
                 options={{

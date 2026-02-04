@@ -5,11 +5,13 @@ import {Alert } from 'react-native';
 import { saveUserProfile, getUserProfile } from '../lib/appwriteDb.js';
 
 const AuthContext = createContext(undefined);
+const ADMIN_EMAILS = ['nutrilizowgay@gmail.com']
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     getUser();
@@ -19,6 +21,7 @@ export function AuthProvider({ children }) {
     try {
       const userData = await account.get();
       setUser(userData);
+      setIsAdmin(ADMIN_EMAILS.includes(userData.email) || userData.labels?.includes('admin'));
       // Fetch user profile data
       await fetchUserProfile(userData.$id);
     } catch (error) {
@@ -83,8 +86,11 @@ export function AuthProvider({ children }) {
       })
       const session = await account.get();
       setUser(session);
+      const adminStatus = ADMIN_EMAILS.includes(session.email) || session.labels?.includes('admin');
+      setIsAdmin(adminStatus);
+      // Fetch user profile data
       await fetchUserProfile(session.$id);
-      return null;
+      return { success: true, isAdmin: adminStatus };
     }
     catch (error) {
       if (error instanceof Error) {
@@ -115,7 +121,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoadingUser, userProfile, signUp, signIn, signOut, updateUserProfile, forgotPassword}}>
+    <AuthContext.Provider value={{ user, isAdmin, isLoadingUser, userProfile, signUp, signIn, signOut, updateUserProfile, forgotPassword}}>
       {children}
     </AuthContext.Provider>
   );
