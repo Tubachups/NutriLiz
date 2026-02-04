@@ -6,6 +6,7 @@ from risk_assessment import analyze_product
 from food_recognition import analyze_food_image, get_food_recommendations
 from appwrite.client import Client
 from appwrite.services.users import Users
+from appwrite.services.databases import Databases
 from appwrite.query import Query
 import os
 import cv2
@@ -256,6 +257,54 @@ def get_user(user_id):
         user = users.get(user_id)
         return jsonify(user)
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/<user_id>/scan-history')
+def get_user_scan_history(user_id):
+    """Get a user's product scan history - Admin only"""
+    requesting_user_id = request.headers.get('X-User-ID')
+    
+    if requesting_user_id not in ADMIN_USER_IDS:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    try:
+        client = get_appwrite_admin_client()
+        databases = Databases(client)
+        
+        # Database and collection IDs
+        database_id = os.getenv('APPWRITE_DATABASE_ID')
+        collection_id = 'lists_prod'  # Product history collection
+        
+        # Query the product history collection for this user
+        result = databases.list_documents(
+            database_id=database_id,
+            collection_id=collection_id,
+            queries=[
+                Query.equal('userId', user_id),
+                Query.order_desc('scannedAt'),
+                Query.limit(100)
+            ]
+        )
+        
+        # Format the response
+        history = []
+        for doc in result['documents']:
+            history.append({
+                '$id': doc['$id'],
+                'barcode': doc.get('barcode', ''),
+                'productName': doc.get('name', 'Unknown Product'),
+                'brand': doc.get('brand', ''),
+                'image': doc.get('image', ''),
+                'nutriscore': doc.get('nutriscore', ''),
+                'scannedAt': doc.get('scannedAt', ''),
+            })
+        
+        return jsonify({
+            'history': history,
+            'total': result['total']
+        })
+    except Exception as e:
+        print(f"Error fetching scan history: {e}")
         return jsonify({'error': str(e)}), 500
     
 if __name__ == '__main__':
