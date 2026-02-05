@@ -12,7 +12,7 @@ import { useLocalSearchParams, Stack } from 'expo-router';
 import { useAuth } from '@/hooks/auth-context';
 import * as Print from 'expo-print';
 
-const API_URL = 'http://192.168.8.37:5000';
+const API_URL = 'http://192.168.100.69:5000';
 
 export default function UserDetail() {
   const { userId, userName } = useLocalSearchParams();

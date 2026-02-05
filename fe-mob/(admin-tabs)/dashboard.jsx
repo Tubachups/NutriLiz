@@ -13,7 +13,7 @@ import {
 import { useAuth } from '@/hooks/auth-context';
 import { useRouter } from 'expo-router';
 
-const API_URL = 'http://192.168.8.37:5000';
+const API_URL = 'http://192.168.100.69:5000';
 const USERS_PER_PAGE = 10;
 
 export default function AdminDashboard() {
