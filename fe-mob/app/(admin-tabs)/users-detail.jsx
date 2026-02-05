@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl } f
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { useAuth } from '@/hooks/auth-context';
 
-const API_URL = 'http://192.168.100.69:5000';
+const API_URL = 'https://nutriliz-be.onrender.com';
 
 export default function UserDetail() {
   const { userId, userName } = useLocalSearchParams();

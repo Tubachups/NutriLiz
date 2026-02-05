@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/auth-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-const API_URL = 'http://192.168.100.69:5000';
+const API_URL = 'https://nutriliz-be.onrender.com';
 const USERS_PER_PAGE = 10;
 
 export default function AdminDashboard() {
