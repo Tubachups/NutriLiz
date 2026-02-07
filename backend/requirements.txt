@@ -15,4 +15,4 @@ requests
 google-genai
 pyserial
 gunicorn
-opencv-python
+opencv-python-headless
