@@ -8,6 +8,7 @@ import ProductCard from '../components/ProductCard/ProductCard'
 import AppwriteProductCard from '../components/AppwriteProductCard/AppwriteProductCard'
 import Assessment from '../components/Assessment/Assessment'
 import Recommend from '../components/ProductCard/Recommend'
+import { Barcode } from 'lucide-react'
 
 export const Route = createLazyFileRoute('/scan')({
   component: RouteComponent,
@@ -70,7 +71,7 @@ function RouteComponent() {
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center text-gray-500 border border-accent">
-            <div className="text-6xl mb-4">📱</div>
+            <Barcode className='w-25 h-25 mx-auto'/>
             <p className="text-xl">Waiting for barcode scan...</p>
           </div>
         )}

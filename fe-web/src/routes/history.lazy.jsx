@@ -195,7 +195,7 @@ function HistoryPage() {
               return (
                 <div
                   key={product.id}
-                  className={`bg-white rounded-lg shadow-md border-2 transition-all hover:shadow-lg ${
+                  className={`bg-white rounded-lg shadow-md border-2 transition-all hover:shadow-lg cursor-pointer ${
                     isSelected(product.id) 
                       ? 'border-dark bg-secondary/20' 
                       : 'border-transparent'

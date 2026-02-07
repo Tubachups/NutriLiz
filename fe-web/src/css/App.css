@@ -1,8 +1,10 @@
 @import 'tailwindcss';
 @import url('https://fonts.googleapis.com/css2?family=Delius&display=swap');
- @plugin "daisyui" {
-   themes: light --default, light --prefersdark;
- }
+@plugin "daisyui" {
+  themes: false;
+}
+
+
 
 @theme {
   --color-primary: #ECF4E8;
@@ -11,5 +13,4 @@
   --color-dark: #93BFC7;
 
   --font-display: 'Delius', cursive;
-
 }
