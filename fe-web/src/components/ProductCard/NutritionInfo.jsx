@@ -1,6 +1,6 @@
 const NutritionInfo = ({ nutritionData }) => {
   return (
-    <section className="bg-secondary/30 rounded-lg p-4">
+    <section className="bg-[#cbf3bb]/50 rounded-lg p-4">
       <h3 className="text-xl font-semibold mb-3 text-gray-800">🥗 Nutrition (per 100g / per serving)</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-gray-700">
         <div className="flex justify-between items-center bg-white/60 rounded px-3 py-2">

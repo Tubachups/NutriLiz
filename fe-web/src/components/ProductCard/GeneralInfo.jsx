@@ -1,6 +1,6 @@
 const GeneralInfo = ({ type, manufacturingPlaces, quantity, ingredientsText }) => {
   return (
-    <section className="bg-primary/50 rounded-lg p-4">
+    <section className="bg-[#cbf3bb]/50 rounded-lg p-4">
       <h3 className="text-xl font-semibold mb-3 text-gray-800">ℹ️ General Information</h3>
       <div className="space-y-2 text-gray-700">
         <p>

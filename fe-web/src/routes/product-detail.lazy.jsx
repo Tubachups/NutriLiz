@@ -40,7 +40,7 @@ function ProductDetailPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-primary py-8 px-4 font-display">
+      <div className="min-h-screen bg-[#ecf4e8] py-8 px-4 font-display">
         <div className="max-w-4xl mx-auto">
           <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
             <div className="text-4xl mb-4">❌</div>
@@ -53,7 +53,7 @@ function ProductDetailPage() {
 
   if (!productData) {
     return (
-      <div className="min-h-screen bg-primary py-8 px-4 font-display">
+      <div className="min-h-screen bg-[#ecf4e8] py-8 px-4 font-display">
         <div className="max-w-4xl mx-auto flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-dark mx-auto"></div>
@@ -65,7 +65,7 @@ function ProductDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-primary py-8 px-4 font-display">
+    <div className="min-h-screen bg-[#ecf4e8] py-8 px-4 font-display">
       <div className="max-w-8/10 mx-auto">
         <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">
           🥗 Product Details

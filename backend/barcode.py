@@ -12,6 +12,8 @@ import time
 import threading
 import warnings
 import openfoodfacts
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 # ─────────────── SUPPRESS DEPRECATION WARNINGS ───────────────
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -117,9 +119,7 @@ def get_product_name_from_fresh_prod(document_id):
 def get_product_data_appwrite(barcode_value):
     try:
         # ───────────── PREPARE BARCODE VARIANTS ─────────────
-        # Remove spaces and other non-digit characters
         barcode_str = ''.join(filter(str.isdigit, str(barcode_value).strip()))
-        original_length = len(barcode_str)
         
         if not barcode_str:
             return {
@@ -128,92 +128,63 @@ def get_product_data_appwrite(barcode_value):
                 'message': 'Invalid barcode - no digits found'
             }
         
-        # Full barcode for sm_bar and rs_bar (stored as-is)
-        full_barcode = int(barcode_str)
-        
-        # Trimmed versions for group columns only
-        # SM groups use first 8 digits, RS groups use first 7 digits
+        # Keep barcode as string for sm_bar/rs_bar queries (they're string attributes)
+        full_barcode_str = barcode_str
+        # Use integers for group columns (they're integer attributes)
         sm_group_value = int(barcode_str[:8]) if len(barcode_str) >= 8 else int(barcode_str)
         rs_group_value = int(barcode_str[:7]) if len(barcode_str) >= 7 else int(barcode_str)
         
-        print(f"[Appwrite] Original barcode: {barcode_value}")
-        print(f"[Appwrite] Cleaned barcode: {barcode_str} (length: {original_length})")
-        print(f"[Appwrite] Full barcode for sm_bar/rs_bar: {full_barcode}")
-        print(f"[Appwrite] SM group lookup (8 digits): {sm_group_value}")
-        print(f"[Appwrite] RS group lookup (7 digits): {rs_group_value}")
-        
-        result = {'documents': []}
-        matched_column = None
-        
-        # ───────────── TRY sm_bar FIRST (full barcode) ─────────────
-        print(f"[Appwrite] Trying sm_bar: {full_barcode}", flush=True)
-        try:
-            result = databases.list_documents(
-                DATABASE_ID,
-                COLLECTION_ID,
-                queries=[Query.equal("sm_bar", [full_barcode])]
-            )
-            print(f"[Appwrite] sm_bar result: {len(result.get('documents', []))} documents", flush=True)
-        except Exception as e:
-            print(f"[Appwrite] sm_bar query error: {e}", flush=True)
-            result = {'documents': []}
-        
-        if result['documents']:
-            matched_column = 'sm_bar'
-        
-        # ───────────── TRY rs_bar (full barcode) ─────────────
-        if not result['documents']:
-            print(f"[Appwrite] Trying rs_bar: {full_barcode}", flush=True)
+        print(f"[Appwrite] Searching barcode: {barcode_str}")
+
+        # ───────────── PARALLEL QUERY FUNCTION ─────────────
+        def query_column(col, value):
+            """Query a single column, return (col, result) tuple"""
             try:
                 result = databases.list_documents(
                     DATABASE_ID,
                     COLLECTION_ID,
-                    queries=[Query.equal("rs_bar", [full_barcode])]
+                    queries=[Query.equal(col, [value])]
                 )
-                print(f"[Appwrite] rs_bar result: {len(result.get('documents', []))} documents", flush=True)
+                if result.get('documents'):
+                    return (col, result)
             except Exception as e:
-                print(f"[Appwrite] rs_bar query error: {e}", flush=True)
-                result = {'documents': []}
+                print(f"[Appwrite] Error querying {col}: {e}")
+            return (col, None)
+
+        # ───────────── BUILD ALL QUERIES ─────────────
+        # sm_bar and rs_bar are string attributes, group columns are integers
+        queries_to_run = [
+            ('sm_bar', full_barcode_str),
+            ('rs_bar', full_barcode_str),
+        ]
+        # Add SM group columns (8 digits)
+        for col in SM_GROUP_COLUMNS:
+            queries_to_run.append((col, sm_group_value))
+        # Add RS group columns (7 digits)
+        for col in RS_GROUP_COLUMNS:
+            queries_to_run.append((col, rs_group_value))
+
+        # ───────────── EXECUTE IN PARALLEL ─────────────
+        matched_column = None
+        result = {'documents': []}
+        
+        # Use ThreadPoolExecutor to run queries in parallel
+        # max_workers=10 balances speed vs not overwhelming Appwrite
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {
+                executor.submit(query_column, col, val): col 
+                for col, val in queries_to_run
+            }
             
-            if result['documents']:
-                matched_column = 'rs_bar'
-        
-        # ───────────── TRY SM GROUP COLUMNS (8 digits) ─────────────
-        if not result['documents']:
-            print(f"[Appwrite] Searching SM group columns for: {sm_group_value}", flush=True)
-            for col in SM_GROUP_COLUMNS:
-                try:
-                    print(f"[Appwrite]   -> Trying column: {col} = {sm_group_value}", flush=True)
-                    result = databases.list_documents(
-                        DATABASE_ID,
-                        COLLECTION_ID,
-                        queries=[Query.equal(col, [sm_group_value])]
-                    )
-                    print(f"[Appwrite]   -> {col} result: {len(result.get('documents', []))} documents", flush=True)
-                    if result['documents']:
-                        matched_column = col
-                        print(f"[Appwrite] Found in column: {col}", flush=True)
-                        break
-                except Exception as e:
-                    print(f"[Appwrite]   -> ERROR querying {col}: {e}", flush=True)
-                    continue
-        
-        # ───────────── TRY RS GROUP COLUMNS (7 digits) ─────────────
-        if not result['documents']:
-            print(f"[Appwrite] Searching RS group columns for: {rs_group_value}")
-            for col in RS_GROUP_COLUMNS:
-                print(f"[Appwrite]   -> Trying column: {col} = {rs_group_value}")
-                result = databases.list_documents(
-                    DATABASE_ID,
-                    COLLECTION_ID,
-                    queries=[Query.equal(col, [rs_group_value])]
-                )
-                if result['documents']:
+            for future in as_completed(futures):
+                col, query_result = future.result()
+                if query_result and query_result.get('documents'):
                     matched_column = col
-                    print(f"[Appwrite] Found in column: {col}")
+                    result = query_result
+                    # Cancel remaining futures - we found a match
+                    for f in futures:
+                        f.cancel()
                     break
-                else:
-                    print(f"[Appwrite]   -> Not found in {col}")
 
         # ───────────── HANDLE RESULTS ─────────────
         if not result['documents']:
@@ -222,26 +193,14 @@ def get_product_data_appwrite(barcode_value):
                 'success': False,
                 'barcode': barcode_value,
                 'message': 'No product found for this barcode',
-                'searched': {
-                    'original_input': barcode_value,
-                    'cleaned_barcode': barcode_str,
-                    'sm_bar': full_barcode,
-                    'rs_bar': full_barcode,
-                    'sm_groups_value': sm_group_value,
-                    'rs_groups_value': rs_group_value,
-                }
             }
         
         print(f"[Appwrite] Product found in column: {matched_column}")
 
-        # Format the document data based on your actual schema
+        # Rest of your existing code to format the document...
         doc = result['documents'][0]
-        
-        # Get document_id to fetch name from fresh_prod
         document_id = doc.get('$id')
         
-        # Try to get the product name from fresh_prod collection using document_id
-        # This resolves the "Unknown Product" issue when name is missing in items collection
         product_name = doc.get('name')
         if not product_name or product_name == '' or product_name == 'N/A' or product_name.lower() == 'unknown product':
             fresh_prod_name = get_product_name_from_fresh_prod(document_id)
@@ -250,7 +209,6 @@ def get_product_data_appwrite(barcode_value):
             else:
                 product_name = 'N/A'
         
-        # Build image URL
         file_id = doc.get('image_id') or doc.get('imageId') or doc.get('$id')
         image_url = None
         if file_id:
@@ -259,14 +217,12 @@ def get_product_data_appwrite(barcode_value):
                 f"{BUCKET_ID}/files/{file_id}/preview?project={os.getenv('APPWRITE_PROJECT_ID')}"
             )
         
-        # Extract group data dynamically
         group_data = extract_group_data(doc)
         
-        # Extract and format product data matching your schema
         product_data = {
             'source': 'appwrite',
             'barcode': barcode_value,
-            'matched_column': matched_column,  # Which column the barcode was found in
+            'matched_column': matched_column,
             'document_id': document_id,
             'sm_bar': doc.get('sm_bar'),
             'rs_bar': doc.get('rs_bar'),
@@ -276,14 +232,11 @@ def get_product_data_appwrite(barcode_value):
             },
             'image_url': image_url,
             'nutrition': {
-                # Macronutrients
                 'carbohydrates': doc.get('carbohydrates', 'N/A'),
                 'protein': doc.get('protein', 'N/A'),
                 'fat': doc.get('fat', 'N/A'),
                 'fiber': doc.get('fiber', 'N/A'),
                 'sugar': doc.get('sugar', 'N/A'),
-                
-                # Minerals
                 'calcium': doc.get('calcium', 'N/A'),
                 'iron': doc.get('iron', 'N/A'),
                 'water': doc.get('water', 'N/A'),
@@ -291,35 +244,19 @@ def get_product_data_appwrite(barcode_value):
                 'magnesium': doc.get('magnesium', 'N/A'),
                 'sodium': doc.get('sodium', 'N/A'),
                 'phosphorus': doc.get('phosphorus', 'N/A'),
-                
-                # Vitamins
                 'vitamin_c': doc.get('vitamin_c', 'N/A'),
                 'vitamin_a': doc.get('vitamin_a', 'N/A'),
                 'vitamin_e': doc.get('vitamin_e', 'N/A'),
             },
-            # ───────────── NEW: GROUP DATA ─────────────
             'groups': group_data,
         }
         
         return product_data
 
     except AppwriteException as e:
-        return {
-            'success': False,
-            'error': str(e),
-            'error_type': 'AppwriteException',
-            'barcode': barcode_value
-        }
+        return {'success': False, 'error': str(e), 'barcode': barcode_value}
     except Exception as e:
-        return {
-            'success': False,
-            'error': str(e),
-            'error_type': type(e).__name__,
-            'barcode': barcode_value
-        }
-
-
-# ...existing code for get_product_data_openfoodfacts...
+        return {'success': False, 'error': str(e), 'barcode': barcode_value}
 
 
 def get_product_data_openfoodfacts(barcode):

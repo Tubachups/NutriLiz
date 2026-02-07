@@ -141,6 +141,7 @@ function LoginComponent() {
                 required
                 // 2. PADDING RIGHT: pr-10 ensures text doesn't go under the icon
                 className="input w-full border-gray-300 border focus:outline-none focus:border-[#93BFC7] focus:ring-1 focus:ring-[#93BFC7] pr-10"
+
               />
 
               {/* 3. TOGGLE BUTTON */}
