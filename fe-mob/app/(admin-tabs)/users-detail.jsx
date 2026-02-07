@@ -12,7 +12,8 @@ import { useLocalSearchParams, Stack } from 'expo-router';
 import { useAuth } from '@/hooks/auth-context';
 import * as Print from 'expo-print';
 
-const API_URL = 'http://192.168.100.69:5000';
+
+const API_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/';
 
 export default function UserDetail() {
   const { userId, userName } = useLocalSearchParams();
