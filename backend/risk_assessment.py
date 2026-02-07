@@ -89,18 +89,18 @@ def create_health_prompt(product_data, user_profile=None):
     personal_context = ""
     if user_profile:
         personal_context = f"""
-USER HEALTH PROFILE (Personalize your assessment based on this):
-- Weight: {user_profile.get('weight', 'N/A')} kg
-- Height: {user_profile.get('height', 'N/A')} cm
-- BMI: {user_profile.get('bmi', 'N/A')} {user_profile.get('bmiCategory', '')}
-- Blood Sugar Level: {user_profile.get('sugarLevel', 'N/A')} mg/dL
-- Cholesterol Level: {user_profile.get('cholesterolLevel', 'N/A')} mg/dL
-- Triglycerides: {user_profile.get('triglycerides', 'N/A')} mg/dL
-- Creatinine: {user_profile.get('creatinine', 'N/A')} mg/dL
-- Uric Acid: {user_profile.get('uricAcid', 'N/A')} mg/dL
+MY HEALTH PROFILE (Please personalize your assessment based on my health):
+- My Weight: {user_profile.get('weight', 'N/A')} kg
+- My Height: {user_profile.get('height', 'N/A')} cm
+- My BMI: {user_profile.get('bmi', 'N/A')} {user_profile.get('bmiCategory', '')}
+- My Blood Sugar Level: {user_profile.get('sugarLevel', 'N/A')} mg/dL
+- My Cholesterol Level: {user_profile.get('cholesterolLevel', 'N/A')} mg/dL
+- My Triglycerides: {user_profile.get('triglycerides', 'N/A')} mg/dL
+- My Creatinine: {user_profile.get('creatinine', 'N/A')} mg/dL
+- My Uric Acid: {user_profile.get('uricAcid', 'N/A')} mg/dL
 
-⚠️ IMPORTANT: Provide PERSONALIZED recommendations based on this user's specific health metrics. 
-If any blood markers are abnormal, highlight specific concerns for THIS user.
+⚠️ IMPORTANT: Please provide PERSONALIZED recommendations based on MY specific health metrics. 
+If any of my blood markers are abnormal, please highlight specific concerns for ME.
 """
 
     if source == 'openfoodfacts':
@@ -127,11 +127,11 @@ If any blood markers are abnormal, highlight specific concerns for THIS user.
         personalized_section = ""
         if user_profile:
             personalized_section = """
-7. **Personalized Assessment for This User**:
-   Synthesize specific risks, red flags, and tailored serving size recommendations for this user based on their BMI and blood metrics.
+7. **Personalized Assessment for Me**:
+   Please synthesize specific risks, red flags, and tailored serving size recommendations for me based on my BMI and blood metrics.
 """
 
-        return f"""Analyze this food product's nutritional content and assess its suitability for people with common health conditions:
+        return f"""I would like you to analyze this food product's nutritional content and assess its suitability for me given my health conditions:
 {personal_context}
 Product: {name} (Barcode: {barcode})
 Category: {product_data.get('type', 'N/A')}
@@ -188,11 +188,11 @@ Keep it factual, educational, and evidence-based. Do not provide medical advice 
         personalized_section = ""
         if user_profile:
             personalized_section = """
-6. **Personalized Assessment for This User**:
-   Synthesize specific risks, red flags, and tailored serving size recommendations for this user based on their BMI and blood metrics.
+6. **Personalized Assessment for Me**:
+   Please synthesize specific risks, red flags, and tailored serving size recommendations for me based on my BMI and blood metrics.
 """
 
-        return f"""Analyze this fresh food product's nutritional content and assess its suitability for people with common health conditions:
+        return f"""I would like you to analyze this fresh food product's nutritional content and assess its suitability for me given my health conditions:
 {personal_context}
 Product: {name} (Barcode: {barcode})
 Category: {category}
