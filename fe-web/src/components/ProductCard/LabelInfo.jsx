@@ -4,7 +4,7 @@ const LabelsInfo = ({ labels, labelsTags, awards }) => {
   }
 
   return (
-    <section className="bg-primary/50 rounded-lg p-4">
+    <section className="bg-[#cbf3bb]/50 rounded-lg p-4">
       <h3 className="text-xl font-semibold mb-3 text-gray-800">🏷️ Labels & Certifications</h3>
       {labels !== 'N/A' && (
         <div className="flex flex-wrap gap-2 mb-3">

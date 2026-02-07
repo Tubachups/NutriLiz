@@ -106,7 +106,7 @@ function RouteComponent() {
   };
 
   return (
-    <div className="min-h-screen bg-primary from-base-200 via-base-100 to-base-200 py-8">
+    <div className="min-h-screen bg-[#ecf4e8] from-base-200 via-base-100 to-base-200 py-8">
       <div className="container mx-auto px-4 max-w-6xl ">
         <h1 className="text-4xl font-bold text-center flex items-center justify-center gap-3">
           <Utensils className="w-10 h-10" />
@@ -157,7 +157,7 @@ function RouteComponent() {
             {/* Error Alert */}
             {error && (
               <div className="alert alert-error shadow-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-5 w-5" fill="nonpie" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span className="text-sm">{error}</span>

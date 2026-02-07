@@ -115,7 +115,7 @@ function HistoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-primary flex items-center justify-center">
+      <div className="min-h-screen bg-[#ecf4e8] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-dark mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading history...</p>
@@ -125,7 +125,7 @@ function HistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-primary py-8 px-4 font-display">
+    <div className="min-h-screen bg-[#ecf4e8] py-8 px-4 font-display">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">

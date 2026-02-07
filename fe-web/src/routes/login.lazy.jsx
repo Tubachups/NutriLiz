@@ -146,7 +146,7 @@ function LoginComponent() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#93BFC7] focus:border-transparent outline-none transition"
+                className="w-full px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-[#93BFC7] focus:border-transparent outline-none transition"
               />
               {!isRegisterMode && (
                 <div className="mt-2 text-right">

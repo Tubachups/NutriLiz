@@ -36,7 +36,7 @@ function RouteComponent() {
   }, [productData, addProduct])
 
   return (
-    <div className="min-h-screen bg-primary py-8 px-4 font-display">
+    <div className="min-h-screen bg-[#ECF4e8] py-8 px-4 font-display">
       <div className="max-w-8/10 mx-auto">
         <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">
           🥗 NutriLiz - Barcode Scanner

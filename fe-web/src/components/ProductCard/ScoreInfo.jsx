@@ -62,7 +62,7 @@ const NutriScoreBadge = ({ grade }) => {
 
 const ScoresInfo = ({ nutriScore, nutriGrade, novaGroup, ecoscoreGrade, ecoscoreScore }) => {
   return (
-    <section className="bg-accent/30 rounded-lg p-4">
+    <section className="bg-[#cbf3bb]/50 rounded-lg p-4">
       <h3 className="text-xl font-semibold mb-3 text-gray-800">📊 Scores & Environmental Impact</h3>
       <div className="space-y-4 text-gray-700">
         <div className="bg-white/60 rounded px-3 py-3 flex items-center gap-4">
