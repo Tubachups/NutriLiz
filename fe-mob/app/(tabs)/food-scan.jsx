@@ -134,13 +134,6 @@ export default function FoodScan() {
             <Text style={styles.loadingText}>Analyzing food...</Text>
           </View>
         )}
-        {!loading && (
-          <View style={styles.buttonContainer}>
-            <Button mode="outlined" onPress={retake} style={styles.button}>
-              Retake Photo
-            </Button>
-          </View>
-        )}
       </View>
     );
   }
