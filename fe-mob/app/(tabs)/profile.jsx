@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { Button, Text, Card, Divider, Portal, Modal } from 'react-native-paper';
+import { Button, Text, Card, Divider, Portal, Modal, ActivityIndicator } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +21,7 @@ const ProfileScreen = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showRequiredModal, setShowRequiredModal] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const router = useRouter();
   const { userProfile, updateUserProfile } = useAuth();
@@ -82,6 +83,8 @@ const ProfileScreen = () => {
       return;
     }
 
+    setSaving(true);
+
     const profileData = {
       weight,
       height,
@@ -99,6 +102,8 @@ const ProfileScreen = () => {
       setShowSuccessModal(true);
     } catch (error) {
       setShowErrorModal(true);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -208,8 +213,11 @@ const ProfileScreen = () => {
                 style={styles.button}
                 buttonColor="#62a58aff"
                 textColor="#fff"
+                disabled={saving}
+                loading={saving}
+                labelStyle={saving ? { color: '#62a58aff' } : null}
               >
-                Save Profile
+                {saving ? 'Saving...' : 'Save Profile'}
               </Button>
             </Card.Content>
           </Card>

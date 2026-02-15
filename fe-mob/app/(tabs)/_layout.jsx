@@ -80,10 +80,10 @@ const TopographicHeader = ({ insetTop }) => (
 );
 
 const TAB_INDICES = {
-  'profile': 0,
+  'index': 0,
   'scan': 1,
-  'index': 2,
-  'list': 3,
+  'list': 2,
+  'profile': 3,
 };
 
 export default function TabsLayout() {
@@ -136,13 +136,19 @@ export default function TabsLayout() {
   const CustomTabBar = ({ state, descriptors, navigation }) => {
     // Animate indicator when navigation state changes (including back button)
     useEffect(() => {
-      const tabIndex = state.index;
-      Animated.spring(indicatorPosition, {
-        toValue: tabIndex * TAB_WIDTH,
-        useNativeDriver: true,
-        tension: 68,
-        friction: 12,
-      }).start();
+      // Get the current route name and map it to the visual tab index
+      const currentRouteName = state.routes[state.index]?.name;
+      const visualTabIndex = TAB_INDICES[currentRouteName];
+      
+      // Only animate if it's a visible tab
+      if (visualTabIndex !== undefined) {
+        Animated.spring(indicatorPosition, {
+          toValue: visualTabIndex * TAB_WIDTH,
+          useNativeDriver: true,
+          tension: 68,
+          friction: 12,
+        }).start();
+      }
     }, [state.index]);
 
     return (
@@ -276,8 +282,6 @@ export default function TabsLayout() {
           }}
         />
 
-        
-
         <Tabs.Screen
           name="scan"
           options={{
@@ -285,17 +289,6 @@ export default function TabsLayout() {
             headerShown: true,
           }}
         />
-
-        <Tabs.Screen
-          name="food-scan"
-          options={{
-            title: 'Food Photo',
-            headerShown: true,
-            href: null,
-          }}
-        />
-
-        
 
         <Tabs.Screen
           name="list"
@@ -311,6 +304,15 @@ export default function TabsLayout() {
             title: 'Profile',
             headerShown: true,
             header: ({ options }) => <CustomHeader options={options} showSignOut={true} />,
+          }}
+        />
+
+        <Tabs.Screen
+          name="food-scan"
+          options={{
+            title: 'Food Photo',
+            headerShown: true,
+            href: null,
           }}
         />
 
