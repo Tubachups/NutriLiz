@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#93BFC7',
+    color: '#4ab2a6ff',
     marginBottom: 16,
   },
   profileSection: {

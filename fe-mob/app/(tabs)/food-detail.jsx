@@ -185,6 +185,9 @@ export default function FoodDetail() {
             <Text style={styles.ingredients}>
               {foodData.ingredients_if_dish.join(', ')}
             </Text>
+            <Text style={styles.ingredientDisclaimer}>
+              ⚠️ Note: This list is based on image recognition and may not include all ingredients. Some ingredients may not be visible or identifiable from the captured image.
+            </Text>
           </Card.Content>
         </Card>
       )}
@@ -335,6 +338,16 @@ const styles = StyleSheet.create({
   },
   ingredients: { 
     color: '#173a31ff' 
+  },
+  ingredientDisclaimer: {
+    color: '#6f7472',
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    lineHeight: 18,
   },
 
   // Nutri-Score Badge
