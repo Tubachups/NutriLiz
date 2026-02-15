@@ -10,8 +10,8 @@ import Svg, { Path } from "react-native-svg";
 
 const { width } = Dimensions.get("window");
 
-// Calculate tab width (5 visible tabs)
-const TAB_COUNT = 5;
+// Calculate tab width (4 visible tabs)
+const TAB_COUNT = 4;
 const TAB_WIDTH = width / TAB_COUNT;
 
 const TopographicHeader = ({ insetTop }) => (
@@ -82,9 +82,8 @@ const TopographicHeader = ({ insetTop }) => (
 const TAB_INDICES = {
   'profile': 0,
   'scan': 1,
-  'food-scan': 2,
-  'index': 3,
-  'list': 4,
+  'index': 2,
+  'list': 3,
 };
 
 export default function TabsLayout() {
@@ -188,8 +187,6 @@ export default function TabsLayout() {
                   return <Ionicons name="person-circle" size={size} color={color} />;
                 case 'scan':
                   return <Ionicons name="scan" size={size} color={color} />;
-                case 'food-scan':
-                  return <MaterialCommunityIcons name="food" size={size} color={color} />;
                 case 'index':
                   return <Ionicons name="home" size={size} color={color} />;
                 case 'list':
@@ -284,7 +281,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="scan"
           options={{
-            title: 'Scan Product',
+            title: 'Scan',
             headerShown: true,
           }}
         />
@@ -294,6 +291,7 @@ export default function TabsLayout() {
           options={{
             title: 'Food Photo',
             headerShown: true,
+            href: null,
           }}
         />
 
