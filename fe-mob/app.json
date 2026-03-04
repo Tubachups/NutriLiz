@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "NutriLiz",
-    "slug": "nutriliz",
+    "name": "NutriTrace",
+    "slug": "nutritrace",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "nutriliz",
+    "scheme": "nutritrace",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -62,7 +62,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "92e80c4f-ad20-4ea0-8c6c-efbba4b66514"
+        "projectId": "205c9efc-5d9a-4b8b-9a6a-2b29473bf8e4"
       }
     },
     "owner": "abootsieko"
