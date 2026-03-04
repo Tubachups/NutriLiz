@@ -20,6 +20,10 @@ const BloodTests = ({
         Blood Tests
       </Text>
 
+      <Text style={styles.disclaimer}>
+        Please consult a health professional to obtain accurate blood test results before completing these details.
+      </Text>
+
       <TextInput
         label="Blood Sugar"
         value={sugarLevel}
@@ -97,8 +101,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontWeight: '600',
     color: '#5d8c86ff',
-    marginBottom: 12,
+    marginBottom: 8,
     marginTop: 8,
+  },
+  disclaimer: {
+    fontSize: 12,
+    color: '#e67e22',
+    fontStyle: 'italic',
+    marginBottom: 12,
+    lineHeight: 18,
   },
   input: {
     marginBottom: 16,
