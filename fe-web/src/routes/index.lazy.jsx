@@ -94,6 +94,14 @@ function Home() {
             </p>
           )}
         </div>
+
+        {/* Disclaimer Banner */}
+        <div className="flex items-start gap-2 bg-[#fff8e1] rounded-lg p-3 mt-2">
+          <span className="text-amber-500 mt-0.5">ℹ️</span>
+          <p className="text-xs text-[#e67e22] italic leading-relaxed">
+            This app is a tool only. Always consult your health professional for advice and to ensure your safety.
+          </p>
+        </div>
       </div>
     </div>
   );
