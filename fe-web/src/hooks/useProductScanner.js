@@ -6,6 +6,7 @@ export const useProductScanner = (initialBarcode = null) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const lastBarcodeRef = useRef(null)
+  const API_URL = 'http://192.168.100.69:5000/api' // Update with your backend URL
 
   // Fetch product data when initialBarcode is provided (from URL params)
   useEffect(() => {
@@ -15,10 +16,11 @@ export const useProductScanner = (initialBarcode = null) => {
     }
   }, [initialBarcode])
 
+
   useEffect(() => {
     const pollForBarcode = async () => {
       try {
-        const response = await fetch('http://192.168.8.99:5000/api/latest-barcode')
+        const response = await fetch(`${API_URL}/latest-barcode`)
         const data = await response.json()
 
         // Only fetch if it's a new barcode
@@ -40,7 +42,7 @@ export const useProductScanner = (initialBarcode = null) => {
     setError(null)
 
     try {
-      const response = await fetch(`http://192.168.8.99:5000/api/product/${barcode}`)
+      const response = await fetch(`${API_URL}/product/${barcode}`)
       const data = await response.json()
 
       if (response.ok) {

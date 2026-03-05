@@ -35,7 +35,7 @@ export const useProductAssessment = (barcode) => {
           : { method: 'GET' };
 
         const response = await fetch(
-          `http://192.168.8.99:5000/api/assess/${barcode}`,
+          `http://192.168.100.69:5000/api/assess/${barcode}`,
           options
         );
 
