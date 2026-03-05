@@ -92,7 +92,7 @@ Return ONLY valid JSON, no additional text."""
         
         # Create content with image for Gemini
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.1-flash-image-preview",
             contents=[
                 {
                     "role": "user",
