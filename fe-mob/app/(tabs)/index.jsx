@@ -103,6 +103,13 @@ export default function HomeScreen() {
             Sign out
           </Button> */}
         </View>
+
+        <View style={styles.disclaimerContainer}>
+          <Ionicons name="information-circle-outline" size={16} color="#e67e22" />
+          <Text style={styles.disclaimerText}>
+            This app is a tool only. Always consult your health professional for advice and to ensure your safety.
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -210,5 +217,21 @@ const styles = StyleSheet.create({
     color: '#277c88ff',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  disclaimerContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fff8e1',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    gap: 8,
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#e67e22',
+    fontStyle: 'italic',
+    lineHeight: 18,
   },
 });

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, Alert, Image, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Alert, Image, TouchableOpacity, Modal } from 'react-native';
 import { Button, Text, ActivityIndicator, IconButton } from 'react-native-paper';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -20,6 +20,8 @@ export default function Index() {
   const [scanMode, setScanMode] = useState('barcode'); // 'barcode' or 'food'
   const [capturedImage, setCapturedImage] = useState(null);
   const [finalizing, setFinalizing] = useState(false);
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
   const cameraRef = useRef(null);
   
   const { fetchProduct, loading: productLoading } = useProductAPI();
@@ -39,6 +41,8 @@ export default function Index() {
       setCameraReady(false);
       setCapturedImage(null);
       setFinalizing(false);
+      setShowDisclaimerModal(false);
+      setPendingNavigation(null);
 
       // Add a small delay before activating camera to let the other camera release
       const timer = setTimeout(() => {
@@ -150,10 +154,12 @@ export default function Index() {
       // Save to history
       await addFoodItem(foodData, imageUri);
       
-      router.push({
+      // Store pending navigation and show disclaimer modal
+      setPendingNavigation({
         pathname: '/food-detail',
         params: { foodData: JSON.stringify(foodData) },
       });
+      setShowDisclaimerModal(true);
     } else if (foodData && !foodData.identified) {
       Alert.alert('Not Recognized', foodData.description || 'Could not identify the food in this image');
       setCapturedImage(null);
@@ -161,10 +167,6 @@ export default function Index() {
       Alert.alert('Error', 'Failed to analyze the image');
       setCapturedImage(null);
     }
-  };
-
-  const retake = () => {
-    setCapturedImage(null);
   };
 
   // Toggle between modes
@@ -185,20 +187,41 @@ export default function Index() {
             <Text style={styles.loadingText}>Analyzing food...</Text>
           </View>
         )}
-        {finalizing && (
+        {finalizing && !showDisclaimerModal && (
           <View style={styles.loadingOverlay}>
             <Ionicons name="checkmark-circle" size={50} color="#4caf7c" />
             <Text style={styles.loadingText}>Finalizing...</Text>
             <Text style={styles.finalizingSubtext}>Preparing your results</Text>
           </View>
         )}
-        {!loading && (
-          <View style={styles.buttonContainer}>
-            <Button mode="outlined" onPress={retake} style={styles.button} textColor="white">
-              Retake Photo
-            </Button>
+
+        <Modal
+          visible={showDisclaimerModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => {}}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Ionicons name="warning-outline" size={40} color="#e67e22" style={styles.modalIcon} />
+              <Text style={styles.modalTitle}>Disclaimer</Text>
+              <Text style={styles.modalText}>
+                Results may not be fully accurate as it mainly relies on labeled products and colors, which may resemble other items than expected. Always verify with proper information.
+              </Text>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => {
+                  setShowDisclaimerModal(false);
+                  if (pendingNavigation) {
+                    router.push(pendingNavigation);
+                  }
+                }}
+              >
+                <Text style={styles.modalButtonText}>OK, I Understand</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
+        </Modal>
       </View>
     );
   }
@@ -409,6 +432,48 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)', 
     marginTop: 5, 
     fontSize: 13 
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    maxWidth: 320,
+    width: '100%',
+  },
+  modalIcon: {
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  modalText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalButton: {
+    backgroundColor: '#4caf7c',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 
   scannedOverlay: {
