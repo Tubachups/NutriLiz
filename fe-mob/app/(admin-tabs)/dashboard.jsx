@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, Alert } from 'react-native';
 import { useAuth } from '@/hooks/auth-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Print from 'expo-print';
 
 const API_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/';
 const USERS_PER_PAGE = 10;
@@ -17,6 +18,35 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [pageInput, setPageInput] = useState('');
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const totalPages = Math.ceil(total / USERS_PER_PAGE);
+
+  // Get page numbers to display (up to 5 at a time)
+  const getPageNumbers = () => {
+    const pages = [];
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + 4);
+    
+    // Adjust start if we're near the end
+    if (end - start < 4) {
+      start = Math.max(1, end - 4);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
+
+  const handlePageInputSubmit = () => {
+    const page = parseInt(pageInput, 10);
+    if (!isNaN(page) && page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+    setPageInput('');
+  };
 
   useEffect(() => {
     if (!isLoadingUser && (!user || !isAdmin)) {
@@ -71,6 +101,235 @@ export default function AdminDashboard() {
     });
   };
 
+  // Fetch all users for PDF generation
+  const fetchAllUsersForPdf = async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/admin/users?limit=1000&offset=0`,
+        {
+          headers: {
+            'X-User-ID': user.$id,
+          }
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch users');
+      }
+      
+      return data.users;
+    } catch (err) {
+      console.error('Error fetching all users:', err);
+      throw err;
+    }
+  };
+
+  // Generate PDF HTML
+  const generatePdfHtml = (allUsers) => {
+    const currentDate = new Date().toLocaleString();
+    
+    const userRows = allUsers.map((u, index) => `
+      <tr>
+        <td style="text-align: center;">${index + 1}</td>
+        <td>${u.name || 'No name'}</td>
+        <td>${u.email}</td>
+        <td style="text-align: center;">
+          <span style="
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            background-color: ${u.emailVerification ? '#dcfce7' : '#fef3c7'};
+            color: ${u.emailVerification ? '#166534' : '#92400e'};
+          ">${u.emailVerification ? 'Verified' : 'Unverified'}</span>
+        </td>
+      </tr>
+    `).join('');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>NutriLiz User Accounts Report</title>
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              padding: 40px;
+              color: #333;
+              background: #fff;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              padding-bottom: 20px;
+              border-bottom: 2px solid #93BFC7;
+            }
+            .logo {
+              font-size: 28px;
+              font-weight: bold;
+              color: #93BFC7;
+              margin-bottom: 8px;
+            }
+            .report-title {
+              font-size: 18px;
+              color: #666;
+            }
+            .report-info {
+              background: linear-gradient(135deg, #f0f9f4 0%, #e8f4f8 100%);
+              padding: 20px;
+              border-radius: 12px;
+              margin-bottom: 24px;
+            }
+            .report-info h3 {
+              color: #93BFC7;
+              margin-bottom: 12px;
+              font-size: 16px;
+            }
+            .report-info p {
+              margin: 6px 0;
+              font-size: 14px;
+              color: #555;
+            }
+            .summary {
+              display: flex;
+              gap: 16px;
+              margin-bottom: 24px;
+            }
+            .summary-box {
+              flex: 1;
+              background: #93BFC7;
+              color: white;
+              padding: 20px;
+              border-radius: 12px;
+              text-align: center;
+            }
+            .summary-box .value {
+              font-size: 28px;
+              font-weight: bold;
+            }
+            .summary-box .label {
+              font-size: 12px;
+              opacity: 0.9;
+              margin-top: 4px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 20px;
+              font-size: 13px;
+            }
+            th {
+              background-color: #93BFC7;
+              color: white;
+              padding: 12px 10px;
+              text-align: left;
+              font-weight: 600;
+            }
+            td {
+              padding: 10px;
+              border-bottom: 1px solid #e0e0e0;
+            }
+            tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+            tr:hover {
+              background-color: #f0f7f8;
+            }
+            .footer {
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 1px solid #e0e0e0;
+              text-align: center;
+              font-size: 11px;
+              color: #888;
+            }
+            @media print {
+              body {
+                padding: 20px;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">🥗 NutriLiz</div>
+            <div class="report-title">Registered User Accounts Report</div>
+          </div>
+          
+          <div class="report-info">
+            <h3>Report Information</h3>
+            <p><strong>Generated By:</strong> Admin</p>
+            <p><strong>Report Date:</strong> ${currentDate}</p>
+          </div>
+
+          <div class="summary">
+            <div class="summary-box">
+              <div class="value">${allUsers.length}</div>
+              <div class="label">Total Users</div>
+            </div>
+            <div class="summary-box">
+              <div class="value">${allUsers.filter(u => u.emailVerification).length}</div>
+              <div class="label">Verified</div>
+            </div>
+            <div class="summary-box">
+              <div class="value">${allUsers.filter(u => !u.emailVerification).length}</div>
+              <div class="label">Unverified</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 50px; text-align: center;">#</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th style="width: 100px; text-align: center;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${userRows}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <p>Generated by NutriLiz Admin Panel</p>
+          </div>
+        </body>
+      </html>
+    `;
+  };
+
+  const handlePrintPdf = async () => {
+    if (total === 0) {
+      Alert.alert('No Data', 'There are no users to print.');
+      return;
+    }
+
+    setIsPrinting(true);
+    try {
+      const allUsers = await fetchAllUsersForPdf();
+      const html = generatePdfHtml(allUsers);
+      await Print.printAsync({
+        html,
+        orientation: Print.Orientation.portrait,
+      });
+    } catch (err) {
+      console.error('Error printing PDF:', err);
+      Alert.alert('Print Error', 'Failed to generate PDF. Please try again.');
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   const renderUserItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.userCard} 
@@ -119,6 +378,22 @@ export default function AdminDashboard() {
         <Text style={styles.statsValue}>{total}</Text>
       </View>
 
+      {/* Print PDF Button */}
+      <TouchableOpacity 
+        style={styles.printButton} 
+        onPress={handlePrintPdf}
+        disabled={isPrinting || isLoading}
+      >
+        {isPrinting ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <>
+            <Ionicons name="print-outline" size={20} color="#fff" />
+            <Text style={styles.printButtonText}>Export PDF</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
@@ -143,24 +418,59 @@ export default function AdminDashboard() {
             />
           }
           ListFooterComponent={() => (
-            <View style={styles.pagination}>
-              <TouchableOpacity
-                style={[styles.pageButton, currentPage === 1 && styles.pageButtonDisabled]}
-                onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                <Text style={styles.pageButtonText}>Previous</Text>
-              </TouchableOpacity>
+            <View style={styles.paginationContainer}>
+              {/* Page Numbers */}
+              <View style={styles.pageNumbersRow}>
+                <TouchableOpacity
+                  style={[styles.navButton, currentPage === 1 && styles.navButtonDisabled]}
+                  onPress={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  <Ionicons name="chevron-back-outline" size={16} color={currentPage === 1 ? '#999' : '#fff'} />
+                  <Ionicons name="chevron-back-outline" size={16} color={currentPage === 1 ? '#999' : '#fff'} style={{ marginLeft: -10 }} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.navButton, currentPage === 1 && styles.navButtonDisabled]}
+                  onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <Ionicons name="chevron-back-outline" size={18} color={currentPage === 1 ? '#999' : '#fff'} />
+                </TouchableOpacity>
+                
+                {getPageNumbers().map(page => (
+                  <TouchableOpacity
+                    key={page}
+                    style={[styles.pageNumber, currentPage === page && styles.pageNumberActive]}
+                    onPress={() => setCurrentPage(page)}
+                  >
+                    <Text style={[styles.pageNumberText, currentPage === page && styles.pageNumberTextActive]}>
+                      {page}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                
+                <TouchableOpacity
+                  style={[styles.navButton, currentPage >= totalPages && styles.navButtonDisabled]}
+                  onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  <Ionicons name="chevron-forward-outline" size={18} color={currentPage >= totalPages ? '#999' : '#fff'} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.navButton, currentPage >= totalPages && styles.navButtonDisabled]}
+                  onPress={() => setCurrentPage(totalPages)}
+                  disabled={currentPage >= totalPages}
+                >
+                  <Ionicons name="chevron-forward-outline" size={16} color={currentPage >= totalPages ? '#999' : '#fff'} />
+                  <Ionicons name="chevron-forward-outline" size={16} color={currentPage >= totalPages ? '#999' : '#fff'} style={{ marginLeft: -10 }} />
+                </TouchableOpacity>
+              </View>
+              
               <Text style={styles.pageInfo}>
-                Page {currentPage} of {Math.ceil(total / USERS_PER_PAGE)}
+                Page {currentPage} of {totalPages}
               </Text>
-              <TouchableOpacity
-                style={[styles.pageButton, currentPage >= Math.ceil(total / USERS_PER_PAGE) && styles.pageButtonDisabled]}
-                onPress={() => setCurrentPage(p => p + 1)}
-                disabled={currentPage >= Math.ceil(total / USERS_PER_PAGE)}
-              >
-                <Text style={styles.pageButtonText}>Next</Text>
-              </TouchableOpacity>
             </View>
           )}
         />
@@ -258,27 +568,100 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  pagination: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+  paginationContainer: {
     paddingVertical: 16,
+    alignItems: 'center',
     gap: 12,
   },
-  pageButton: {
+  pageNumbersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  navButton: {
+    backgroundColor: '#93BFC7',
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  navButtonDisabled: {
+    backgroundColor: '#e5e5e5',
+  },
+  pageNumber: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#93BFC7',
+  },
+  pageNumberActive: {
+    backgroundColor: '#93BFC7',
+  },
+  pageNumberText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#93BFC7',
+  },
+  pageNumberTextActive: {
+    color: '#fff',
+  },
+  goToPageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  goToPageLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  pageInput: {
+    width: 60,
+    height: 36,
+    borderWidth: 1,
+    borderColor: '#93BFC7',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    textAlign: 'center',
+    fontSize: 14,
+    backgroundColor: '#fff',
+  },
+  goButton: {
     backgroundColor: '#93BFC7',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    height: 36,
     borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  pageButtonDisabled: {
-    opacity: 0.5,
-  },
-  pageButtonText: {
+  goButtonText: {
     color: '#fff',
     fontWeight: '600',
+    fontSize: 14,
   },
   pageInfo: {
-    color: '#4b5563',
+    color: '#6b7280',
+    fontSize: 13,
+  },
+  printButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#93BFC7',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 10,
+    gap: 8,
+  },
+  printButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
