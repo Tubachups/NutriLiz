@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, Alert } from 'react-native';
+import { FAB } from 'react-native-paper';
 import { useAuth } from '@/hooks/auth-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -378,22 +379,6 @@ export default function AdminDashboard() {
         <Text style={styles.statsValue}>{total}</Text>
       </View>
 
-      {/* Print PDF Button */}
-      <TouchableOpacity 
-        style={styles.printButton} 
-        onPress={handlePrintPdf}
-        disabled={isPrinting || isLoading}
-      >
-        {isPrinting ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : (
-          <>
-            <Ionicons name="print-outline" size={20} color="#fff" />
-            <Text style={styles.printButtonText}>Export PDF</Text>
-          </>
-        )}
-      </TouchableOpacity>
-
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
@@ -475,6 +460,16 @@ export default function AdminDashboard() {
           )}
         />
       )}
+
+      {/* FAB for Print PDF */}
+      <FAB
+        icon="file-pdf-box"
+        label="Print PDF"
+        style={styles.fab}
+        onPress={handlePrintPdf}
+        loading={isPrinting}
+        disabled={isPrinting || isLoading}
+      />
     </View>
   );
 }
@@ -517,6 +512,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 100, // Extra padding for FAB
   },
   userCard: {
     backgroundColor: '#fff',
@@ -648,20 +644,11 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 13,
   },
-  printButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 0,
     backgroundColor: '#93BFC7',
-    marginHorizontal: 16,
-    marginBottom: 8,
-    padding: 12,
-    borderRadius: 10,
-    gap: 8,
-  },
-  printButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
   },
 });
