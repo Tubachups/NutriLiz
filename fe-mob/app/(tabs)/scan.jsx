@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, Alert, Image, TouchableOpacity, Modal } from 'react-native';
+import { View, StyleSheet, Image, TouchableOpacity, Modal } from 'react-native';
 import { Button, Text, ActivityIndicator, IconButton } from 'react-native-paper';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,6 +22,8 @@ export default function Index() {
   const [finalizing, setFinalizing] = useState(false);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState(null);
+  const [errorModal, setErrorModal] = useState({ visible: false, title: '', message: '' });
+  const [barcodeFinalizing, setBarcodeFinalizing] = useState(false);
   const cameraRef = useRef(null);
   
   const { fetchProduct, loading: productLoading } = useProductAPI();
@@ -43,6 +45,7 @@ export default function Index() {
       setFinalizing(false);
       setShowDisclaimerModal(false);
       setPendingNavigation(null);
+      setErrorModal({ visible: false, title: '', message: '' });
 
       // Add a small delay before activating camera to let the other camera release
       const timer = setTimeout(() => {
@@ -60,6 +63,16 @@ export default function Index() {
 
   // Only show camera when both focused AND ready
   const isCameraActive = isFocused && cameraReady && !capturedImage;
+
+  const showError = (title, message) => {
+    setErrorModal({ visible: true, title, message });
+  };
+
+  const hideError = () => {
+    setErrorModal({ visible: false, title: '', message: '' });
+    setCapturedImage(null);
+    setScanned(false);
+  };
 
   if (!permission) return <View />;
 
@@ -87,19 +100,25 @@ export default function Index() {
     const productData = await fetchProduct(data);
 
     if (productData) {
+      // Show finalizing message
+      setBarcodeFinalizing(true);
+      
       // Save to history
       await addProduct(productData, data);
       
-      router.push({
-        pathname: '/product-detail',
-        params: { 
-          barcode: data,
-          productData: JSON.stringify(productData)
-        }
-      });
+      // Brief delay for UX
+      setTimeout(() => {
+        setBarcodeFinalizing(false);
+        router.push({
+          pathname: '/product-detail',
+          params: { 
+            barcode: data,
+            productData: JSON.stringify(productData)
+          }
+        });
+      }, 800);
     } else {
-      Alert.alert('Error', 'Product not found');
-      setTimeout(() => setScanned(false), 2000);
+      showError('Product Not Found', 'We couldn\'t find this product in our database. Please try scanning again or check if the barcode is valid.');
     }
   };
 
@@ -114,7 +133,7 @@ export default function Index() {
         setCapturedImage(photo);
         await analyzePhoto(photo.base64, photo.uri);
       } catch (error) {
-        Alert.alert('Error', 'Failed to take picture');
+        showError('Camera Error', 'Failed to capture the image. Please try again.');
       }
     }
   };
@@ -161,11 +180,9 @@ export default function Index() {
       });
       setShowDisclaimerModal(true);
     } else if (foodData && !foodData.identified) {
-      Alert.alert('Not Recognized', foodData.description || 'Could not identify the food in this image');
-      setCapturedImage(null);
+      showError('Food Not Recognized', foodData.description || 'We couldn\'t identify the food in this image. Please try taking a clearer photo.');
     } else {
-      Alert.alert('Error', 'Failed to analyze the image');
-      setCapturedImage(null);
+      showError('Analysis Failed', 'Failed to analyze the image. Please check your connection and try again.');
     }
   };
 
@@ -222,6 +239,25 @@ export default function Index() {
             </View>
           </View>
         </Modal>
+
+        {/* Error Modal */}
+        <Modal
+          visible={errorModal.visible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={hideError}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Ionicons name="alert-circle-outline" size={50} color="#289993" style={styles.modalIcon} />
+              <Text style={styles.modalTitle}>{errorModal.title}</Text>
+              <Text style={styles.modalText}>{errorModal.message}</Text>
+              <TouchableOpacity style={styles.errorModalButton} onPress={hideError}>
+                <Text style={styles.modalButtonText}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </View>
     );
   }
@@ -271,7 +307,7 @@ export default function Index() {
       </View>
 
       {/* Loading overlay */}
-      {loading && (
+      {loading && !barcodeFinalizing && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#ffffff" />
           <Text style={styles.loadingText}>
@@ -280,10 +316,19 @@ export default function Index() {
         </View>
       )}
 
-      {/* Scanned overlay (barcode mode only) */}
-      {scanMode === 'barcode' && scanned && !loading && (
+      {/* Scanned overlay (barcode mode only) - positioned above finalizing */}
+      {scanMode === 'barcode' && scanned && !loading && !barcodeFinalizing && (
         <View style={styles.scannedOverlay}>
           <Text style={styles.scannedText}>✓ Barcode Scanned</Text>
+        </View>
+      )}
+
+      {/* Barcode Finalizing overlay */}
+      {barcodeFinalizing && (
+        <View style={styles.loadingOverlay}>
+          <Ionicons name="checkmark-circle" size={50} color="#4caf7c" />
+          <Text style={styles.loadingText}>Finalizing...</Text>
+          <Text style={styles.finalizingSubtext}>Preparing your results</Text>
         </View>
       )}
 
@@ -350,6 +395,25 @@ export default function Index() {
             : '📸 Take a photo of your food to identify it'}
         </Text>
       </View>
+
+      {/* Error Modal */}
+      <Modal
+        visible={errorModal.visible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={hideError}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Ionicons name="alert-circle-outline" size={50} color="#289993" style={styles.modalIcon} />
+            <Text style={styles.modalTitle}>{errorModal.title}</Text>
+            <Text style={styles.modalText}>{errorModal.message}</Text>
+            <TouchableOpacity style={styles.errorModalButton} onPress={hideError}>
+              <Text style={styles.modalButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -470,6 +534,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 25,
   },
+  errorModalButton: {
+    backgroundColor: '#289993',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+  },
   modalButtonText: {
     color: '#fff',
     fontSize: 16,
@@ -478,7 +548,7 @@ const styles = StyleSheet.create({
 
   scannedOverlay: {
     position: 'absolute',
-    top: 50,
+    bottom: 200,
     left: 0,
     right: 0,
     alignItems: 'center',
