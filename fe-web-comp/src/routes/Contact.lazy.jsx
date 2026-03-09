@@ -69,9 +69,6 @@ function ContactUs() {
 
         {/* Footer */}
         <div className="text-center mt-8 text-gray-500 text-sm">
-          <p className="font-bold text-[#4A7C59]">
-            © 2026 NutriLiz. All rights reserved.
-          </p>
         </div>
       </div>
     </div>

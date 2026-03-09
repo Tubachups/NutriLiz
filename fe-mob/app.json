@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.femob"
+      "bundleIdentifier": "com.abootsieko.nutritrace2",
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +25,7 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.femob"
+      "package": "com.abootsieko.nutritrace2"
     },
     "web": {
       "output": "static",
