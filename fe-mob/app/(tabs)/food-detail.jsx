@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card, Text, Chip, Divider } from 'react-native-paper';
+import { Card, Text, Chip } from 'react-native-paper';
 import { useLocalSearchParams } from 'expo-router';
-import { theme } from '../../theme';
 
 export default function FoodDetail() {
   const { foodData: foodDataString } = useLocalSearchParams();
@@ -25,6 +24,11 @@ export default function FoodDetail() {
             </Text>
           )}
           <Chip style={styles.categoryChip} textStyle={styles.categoryChipText}>{foodData.category}</Chip>
+          {foodData.usda_match?.fdc_id && (
+            <Text variant="bodySmall" style={styles.metaText}>
+              USDA FDC ID: {foodData.usda_match.fdc_id}
+            </Text>
+          )}
           <Text variant="bodyMedium" style={styles.description}>
             {foodData.description}
           </Text>
@@ -237,6 +241,12 @@ const styles = StyleSheet.create({
   subtitle: { 
     color: '#6f7472ff', 
     marginTop: 4 
+  },
+  metaText: {
+    color: '#3c5a50',
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '600'
   },
   description: { 
     color: '#000000ff', 
