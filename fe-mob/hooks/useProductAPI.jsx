@@ -1,7 +1,7 @@
   import { useState } from 'react';
 
 // Update this to your backend IP address
-const API_BASE_URL = 'http://192.168.8.34:5000';
+const API_BASE_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/';
 
 export const useProductAPI = () => {
   const [loading, setLoading] = useState(false);
