@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const API_BASE_URL = 'http://192.168.100.69:5000'; // Update this to your backend IP address
+const API_BASE_URL = 'http://192.168.8.34:5000'; // Update this to your backend IP address
 
 export const useFoodImageAPI = () => {
   const [loading, setLoading] = useState(false);
@@ -40,5 +40,38 @@ export const useFoodImageAPI = () => {
     }
   };
 
-  return { analyzeFoodImage, loading, error };
+  const confirmFoodName = async (foodData, confirmedName) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/confirm-food-name`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          foodData,
+          confirmedName,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        return data.data;
+      }
+
+      setError(data.error || 'Failed to confirm food name');
+      return null;
+    } catch (err) {
+      setError('Failed to connect to server');
+      console.error('Confirm Food Name API Error:', err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { analyzeFoodImage, confirmFoodName, loading, error };
 };

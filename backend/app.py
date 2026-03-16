@@ -4,7 +4,12 @@ from flask_cors import CORS
 from barcode import get_latest_barcode, start_barcode_scanner, get_product_data
 from recommend import get_recommendations
 from risk_assessment import analyze_product
-from food_recognition import analyze_food_image, get_food_recommendations
+from food_recognition import (
+    analyze_food_image,
+    get_food_recommendations,
+    validate_food_input,
+    apply_user_confirmed_food_name,
+)
 from admin import admin_bp
 import cv2
 
@@ -178,6 +183,51 @@ def analyze_food():
             
     except Exception as e:
         print(f"Error analyzing food image: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/validate-food-input', methods=['POST'])
+def validate_food_input_endpoint():
+    """Validate a user-typed food name for the disambiguation modal."""
+    try:
+        data = request.get_json()
+        if not data or 'food_name' not in data:
+            return jsonify({'error': 'food_name required'}), 400
+
+        food_name = str(data.get('food_name', '')).strip()
+        if not food_name:
+            return jsonify({'valid': False, 'reason': 'Empty input.', 'sanitized_name': ''}), 200
+        if len(food_name) > 100:
+            return jsonify({'valid': False, 'reason': 'Input is too long.', 'sanitized_name': ''}), 200
+
+        context = data.get('context', {})
+        result = validate_food_input(food_name, context)
+        return jsonify(result)
+    except Exception as e:
+        print(f"Error in validate_food_input_endpoint: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/confirm-food-name', methods=['POST'])
+def confirm_food_name_endpoint():
+    """Apply user-confirmed food name and fetch USDA nutrition after confirmation."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body required'}), 400
+
+        food_data = data.get('foodData')
+        confirmed_name = str(data.get('confirmedName', '')).strip()
+
+        if not isinstance(food_data, dict):
+            return jsonify({'error': 'foodData object required'}), 400
+        if not confirmed_name:
+            return jsonify({'error': 'confirmedName required'}), 400
+
+        updated_food_data = apply_user_confirmed_food_name(food_data, confirmed_name)
+        return jsonify({'success': True, 'data': updated_food_data})
+    except Exception as e:
+        print(f"Error in confirm_food_name_endpoint: {e}")
         return jsonify({'error': str(e)}), 500
 
 

@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useAuth } from '@/hooks/auth-context';
 import { getUserProfile } from '@/lib/appwriteDb';
+import FoodDisambiguationModal from '@/app/components/FoodDisambiguationModal';
 
 
 export default function FoodScan() {
@@ -16,8 +17,11 @@ export default function FoodScan() {
   const [capturedImage, setCapturedImage] = useState(null);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  // Disambiguation state — shown for unlabeled liquids and sauce-heavy dishes
+  const [disambiguationData, setDisambiguationData] = useState(null); // { foodData, imageUri }
+  const [showDisambiguationModal, setShowDisambiguationModal] = useState(false);
   const cameraRef = useRef(null);
-  const { analyzeFoodImage, loading } = useFoodImageAPI();
+  const { analyzeFoodImage, confirmFoodName, loading } = useFoodImageAPI();
   const { addFoodItem } = useProductHistory();
   const { user } = useAuth();
   const router = useRouter();
@@ -28,6 +32,8 @@ export default function FoodScan() {
       setCapturedImage(null);
       setTorchEnabled(false);
       setCameraReady(false);
+      setDisambiguationData(null);
+      setShowDisambiguationModal(false);
 
       // Add a small delay before activating camera to let the other camera release
       const timer = setTimeout(() => {
@@ -104,9 +110,21 @@ export default function FoodScan() {
     const foodData = await analyzeFoodImage(base64Image, userProfile);
 
     if (foodData && foodData.identified) {
-      // Save to history
+      const confidence = String(foodData.confidence || '').toLowerCase();
+      const requiresConfirmation =
+        foodData.disambiguation_needed ||
+        confidence === 'medium' ||
+        confidence === 'low';
+
+      // Mandatory confirmation for medium/low confidence and ambiguous dishes.
+      if (requiresConfirmation) {
+        setDisambiguationData({ foodData, imageUri });
+        setShowDisambiguationModal(true);
+        return;
+      }
+
+      // Normal flow
       await addFoodItem(foodData, imageUri);
-      
       router.push({
         pathname: '/food-detail',
         params: { foodData: JSON.stringify(foodData) },
@@ -118,6 +136,28 @@ export default function FoodScan() {
       Alert.alert('Error', 'Failed to analyze the image');
       setCapturedImage(null);
     }
+  };
+
+  const handleDisambiguationConfirm = async (resolvedName) => {
+    setShowDisambiguationModal(false);
+    if (!disambiguationData) return;
+    const { foodData, imageUri } = disambiguationData;
+    setDisambiguationData(null);
+
+    // Fetch USDA nutrition only after the user confirms the final dish name.
+    const confirmedData = await confirmFoodName(foodData, resolvedName);
+    const updatedFoodData = confirmedData || { ...foodData, food_name: resolvedName, user_corrected_name: true };
+    await addFoodItem(updatedFoodData, imageUri);
+    router.push({
+      pathname: '/food-detail',
+      params: { foodData: JSON.stringify(updatedFoodData) },
+    });
+  };
+
+  const handleDisambiguationDismiss = () => {
+    setShowDisambiguationModal(false);
+    setDisambiguationData(null);
+    setCapturedImage(null);
   };
 
   const retake = () => {
@@ -134,6 +174,19 @@ export default function FoodScan() {
             <Text style={styles.loadingText}>Analyzing food...</Text>
           </View>
         )}
+
+        {/* Disambiguation modal — shown for unlabeled liquids and sauce-heavy dishes */}
+        <FoodDisambiguationModal
+          visible={showDisambiguationModal}
+          alternatives={disambiguationData?.foodData?.alternatives ?? []}
+          foodContext={{
+            food_name: disambiguationData?.foodData?.food_name ?? '',
+            category: disambiguationData?.foodData?.category ?? '',
+            description: disambiguationData?.foodData?.description ?? '',
+          }}
+          onConfirm={handleDisambiguationConfirm}
+          onDismiss={handleDisambiguationDismiss}
+        />
       </View>
     );
   }
