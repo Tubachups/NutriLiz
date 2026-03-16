@@ -13,7 +13,7 @@ import {
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 
-const API_BASE_URL = 'http://192.168.8.34:5000';
+const API_BASE_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/'; //update this to your backend IP address
 
 /**
  * FoodDisambiguationModal
