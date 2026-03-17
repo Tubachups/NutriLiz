@@ -29,6 +29,8 @@ export default function Index() {
   const [disambiguationData, setDisambiguationData] = useState(null); // { foodData, imageUri }
   const [showDisambiguationModal, setShowDisambiguationModal] = useState(false);
   const cameraRef = useRef(null);
+  const lastBarcodeRef = useRef(null);
+  const isBarcodeFetchInProgressRef = useRef(false);
   
   const { fetchProduct, loading: productLoading } = useProductAPI();
   const { analyzeFoodImage, confirmFoodName, loading: foodLoading } = useFoodImageAPI();
@@ -38,6 +40,7 @@ export default function Index() {
   const isFocused = useIsFocused();
 
   const loading = productLoading || foodLoading;
+  const normalizeBarcode = (value) => String(value || '').replace(/\D/g, '');
 
   // Reset scan state every time screen is focused
   useFocusEffect(
@@ -52,6 +55,8 @@ export default function Index() {
       setErrorModal({ visible: false, title: '', message: '' });
       setDisambiguationData(null);
       setShowDisambiguationModal(false);
+      lastBarcodeRef.current = null;
+      isBarcodeFetchInProgressRef.current = false;
 
       // Add a small delay before activating camera to let the other camera release
       const timer = setTimeout(() => {
@@ -63,6 +68,7 @@ export default function Index() {
         setTorchEnabled(false);
         setCameraReady(false);
         setFinalizing(false);
+        isBarcodeFetchInProgressRef.current = false;
       };
     }, [])
   );
@@ -78,6 +84,7 @@ export default function Index() {
     setErrorModal({ visible: false, title: '', message: '' });
     setCapturedImage(null);
     setScanned(false);
+    setBarcodeFinalizing(false);
   };
 
   if (!permission) return <View />;
@@ -97,34 +104,49 @@ export default function Index() {
 
   // ===== BARCODE MODE FUNCTIONS =====
   const handleBarcodeScanned = async ({ type, data }) => {
-    if (scanMode !== 'barcode' || scanned || loading) return;
-    
+    if (scanMode !== 'barcode' || loading || isBarcodeFetchInProgressRef.current) return;
+
+    const normalizedBarcode = normalizeBarcode(data);
+    if (!normalizedBarcode) return;
+
+    // Same barcode can fire multiple events in quick succession.
+    if (normalizedBarcode === lastBarcodeRef.current) return;
+
+    lastBarcodeRef.current = normalizedBarcode;
+    isBarcodeFetchInProgressRef.current = true;
     setScanned(true);
     setTorchEnabled(false);
-    console.log(`Scanned: ${data}`);
+    console.log(`Scanned (${type}): ${normalizedBarcode}`);
 
-    const productData = await fetchProduct(data);
+    try {
+      const productData = await fetchProduct(normalizedBarcode);
 
-    if (productData) {
-      // Show finalizing message
+      if (!productData) {
+        showError('Product Not Found', 'We could not find this product in Open Food Facts or Appwrite.');
+        setScanned(false);
+        lastBarcodeRef.current = null;
+        return;
+      }
+
       setBarcodeFinalizing(true);
-      
-      // Save to history
-      await addProduct(productData, data);
-      
-      // Brief delay for UX
+      await addProduct(productData, normalizedBarcode);
+
       setTimeout(() => {
         setBarcodeFinalizing(false);
         router.push({
           pathname: '/product-detail',
-          params: { 
-            barcode: data,
+          params: {
+            barcode: normalizedBarcode,
             productData: JSON.stringify(productData)
           }
         });
-      }, 800);
-    } else {
-      showError('Product Not Found', 'We couldn\'t find this product in our database. Please try scanning again or check if the barcode is valid.');
+      }, 600);
+    } catch (error) {
+      showError('Scan Error', 'Something went wrong while fetching this barcode. Please try again.');
+      setScanned(false);
+      lastBarcodeRef.current = null;
+    } finally {
+      isBarcodeFetchInProgressRef.current = false;
     }
   };
 
