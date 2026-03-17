@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const API_BASE_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/'; // Update this to your backend IP address
+const API_BASE_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/';
 
 export const useFoodImageAPI = () => {
   const [loading, setLoading] = useState(false);

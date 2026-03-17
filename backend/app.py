@@ -84,7 +84,8 @@ def get_product(barcode):
         
         if include_recommendations and data_source == 'openfoodfacts':
             try:
-                recommendations = get_recommendations(barcode, limit=9)
+                lookup_barcode = product_data.get('barcode') or product_data.get('requested_barcode') or barcode
+                recommendations = get_recommendations(lookup_barcode, limit=9)
                 product_data['recommendations'] = recommendations
                 product_data['recommendations_count'] = len(recommendations)
             except Exception as e:
@@ -100,7 +101,7 @@ def get_product(barcode):
             product_data['message'] = 'Recommendations only available for OpenFoodFacts products'
         
         return jsonify(product_data)
-    return jsonify({'error': 'Search query limit reached. Please retry after 1 minute.'}), 404
+    return jsonify({'error': 'Product not found in Appwrite or Open Food Facts for this barcode.'}), 404
 
 
 @app.route('/api/recommendations/<barcode>')
