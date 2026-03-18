@@ -3,9 +3,55 @@ import numpy as np
 import openfoodfacts
 from sklearn.metrics.pairwise import cosine_similarity
 from difflib import SequenceMatcher
+import json
+import os
+import time
 
 # Initialize OpenFoodFacts API
 api = openfoodfacts.API(user_agent="NutriLiz/1.0")
+
+RECOMMENDATION_CACHE_TTL_SECONDS = int(os.getenv('RECOMMENDATION_CACHE_TTL_SECONDS', '300'))
+RECOMMENDATION_CACHE_MAX_ITEMS = int(os.getenv('RECOMMENDATION_CACHE_MAX_ITEMS', '500'))
+
+RECOMMENDATION_CACHE = {}
+PRODUCT_CACHE = {}
+CATEGORY_SEARCH_CACHE = {}
+
+
+def log_recommendation(message):
+    print(f"[Recommendations] {message}")
+
+
+def _clone_data(value):
+    return json.loads(json.dumps(value))
+
+
+def _cache_get(cache, key):
+    entry = cache.get(key)
+    if not entry:
+        return False, None
+
+    expires_at, value = entry
+    if expires_at < time.time():
+        cache.pop(key, None)
+        return False, None
+
+    return True, _clone_data(value)
+
+
+def _cache_set(cache, key, value):
+    now = time.time()
+
+    if len(cache) >= RECOMMENDATION_CACHE_MAX_ITEMS:
+        expired_keys = [k for k, (exp, _) in cache.items() if exp < now]
+        for old_key in expired_keys:
+            cache.pop(old_key, None)
+
+    if len(cache) >= RECOMMENDATION_CACHE_MAX_ITEMS and cache:
+        oldest_key = min(cache.items(), key=lambda item: item[1][0])[0]
+        cache.pop(oldest_key, None)
+
+    cache[key] = (now + RECOMMENDATION_CACHE_TTL_SECONDS, _clone_data(value))
 
 
 def _to_float(value, default=0.0):
@@ -72,6 +118,11 @@ def build_vector(product_data):
 
 
 def fetch_product(barcode):
+    barcode_key = str(barcode).strip()
+    cache_hit, cached_product = _cache_get(PRODUCT_CACHE, barcode_key)
+    if cache_hit:
+        return cached_product
+
     try:
         raw_data = api.product.get(barcode)
         if not raw_data:
@@ -80,10 +131,11 @@ def fetch_product(barcode):
         # SDK can return flat payload or nested under `product`.
         product_data = raw_data.get('product', raw_data)
         if isinstance(product_data, dict) and (product_data.get('code') or raw_data.get('code')):
+            _cache_set(PRODUCT_CACHE, barcode_key, product_data)
             return product_data
         return None
     except Exception as e:
-        print(f"Failed to fetch product {barcode}: {e}")
+        log_recommendation(f"Failed to fetch product {barcode}: {e}")
         return None
 
 
@@ -119,54 +171,69 @@ def is_same_product(base_product, candidate_product, base_barcode, candidate_bar
     return False
 
 def get_recommendations(barcode, limit=9):
-    print(f"Getting recommendations for barcode: {barcode}")
+    log_recommendation(f"Start barcode={barcode} limit={limit}")
     
     # Normalize barcode to string for consistent comparison
     base_barcode = str(barcode).strip()
+    cache_key = f"{base_barcode}:{int(limit)}"
+    cache_hit, cached_recommendations = _cache_get(RECOMMENDATION_CACHE, cache_key)
+    if cache_hit:
+        log_recommendation(f"Cache hit for barcode={base_barcode} count={len(cached_recommendations)}")
+        return cached_recommendations
     
     # Fetch the base product
     base = fetch_product(base_barcode)
     if not base:
-        print("Base product not found")
+        log_recommendation("Base product not found")
         return []
-    
-    print(f"Base product: {base.get('product_name', 'Unknown')} - {base.get('brands', 'Unknown')}")
+
+    log_recommendation(
+        f"Base product: {base.get('product_name', 'Unknown')} - {base.get('brands', 'Unknown')}"
+    )
     
     # Build feature vector for base product
     base_vec = build_vector(base)
     
     # Get categories from the base product
     categories = base.get('categories_tags', [])
-    print(f"Categories found: {categories}")
+    log_recommendation(f"Categories found: {categories}")
     
     if not categories:
-        print("No categories available")
+        log_recommendation("No categories available")
         return []
     
     primary_category = categories[0].replace('en:', '')
-    print(f"Searching with category: {primary_category}")
+    log_recommendation(f"Searching with category: {primary_category}")
     
     try:
         # Search for products in the same category
-        search_params = {
-            'categories_tags': primary_category,
-            'countries_tags': 'en:philippines',
-            'page_size': 25,
-            'fields': 'code,product_name,brands,brands_tags,countries,countries_tags,manufacturing_places,nutriments,image_url,image_front_url,image_front_small_url'
-        }
-        
-        search = requests.get(
-            "https://world.openfoodfacts.org/api/v2/search",
-            params=search_params,
-            # timeout=30
-        )
-        search.raise_for_status()
-        search_data = search.json()
-        candidates = search_data.get('products', [])
-        print(f"Found {len(candidates)} PH candidates")
+        category_cache_key = f"{primary_category}:en:philippines:25"
+        category_cache_hit, cached_candidates = _cache_get(CATEGORY_SEARCH_CACHE, category_cache_key)
+        if category_cache_hit:
+            candidates = cached_candidates
+            log_recommendation(f"Using cached category candidates: {len(candidates)}")
+        else:
+            search_params = {
+                'categories_tags': primary_category,
+                'countries_tags': 'en:philippines',
+                'page_size': 25,
+                'fields': 'code,product_name,brands,brands_tags,countries,countries_tags,manufacturing_places,nutriments,image_url,image_front_url,image_front_small_url'
+            }
+
+            search = requests.get(
+                "https://world.openfoodfacts.org/api/v2/search",
+                params=search_params,
+                timeout=15
+            )
+            search.raise_for_status()
+            search_data = search.json()
+            candidates = search_data.get('products', [])
+            _cache_set(CATEGORY_SEARCH_CACHE, category_cache_key, candidates)
+
+        log_recommendation(f"Found {len(candidates)} PH candidates")
         
     except requests.exceptions.RequestException as e:
-        print(f"PH Search API failed: {e}")
+        log_recommendation(f"PH search API failed: {e}")
         return []
     
     # Score each candidate product
@@ -180,7 +247,7 @@ def get_recommendations(barcode, limit=9):
         
         # Skip if it's the same product (by barcode, brand, or name)
         if is_same_product(base, item, base_barcode, item_code):
-            print(f"Skipping same product: {item.get('product_name')} ({item_code})")
+            log_recommendation(f"Skipping same product: {item.get('product_name')} ({item_code})")
             continue
         
         cand_nutrients = item.get('nutriments', {})
@@ -219,6 +286,7 @@ def get_recommendations(barcode, limit=9):
     # Sort by similarity score (highest first)
     scored.sort(reverse=True, key=lambda s: s[0])
     result = [c for _, c in scored[:limit]]
-    
-    print(f"Returning {len(result)} recommendations (excluding base product)")
-    return result 
+    _cache_set(RECOMMENDATION_CACHE, cache_key, result)
+
+    log_recommendation(f"Returning {len(result)} recommendations (excluding base product)")
+    return result

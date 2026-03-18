@@ -1,15 +1,77 @@
 from google import genai
 from dotenv import load_dotenv
+from collections import OrderedDict
+import hashlib
 import time
 import os
+import threading
 
 load_dotenv()
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 client = genai.Client(api_key=GEMINI_API_KEY)
 
+CACHE_TTL_SECONDS = int(os.getenv('RISK_ASSESSMENT_CACHE_TTL_SECONDS', '21600'))
+CACHE_MAX_ENTRIES = int(os.getenv('RISK_ASSESSMENT_CACHE_MAX_ENTRIES', '200'))
+assessment_cache = OrderedDict()
+assessment_cache_lock = threading.Lock()
+
+
+def log_assessment(message):
+    print(f"[Assessment] {message}")
+
+
+def _build_cache_key(prompt):
+    return hashlib.sha256(prompt.encode('utf-8')).hexdigest()
+
+
+def _get_cached_response(cache_key):
+    now = time.time()
+    with assessment_cache_lock:
+        cached_entry = assessment_cache.get(cache_key)
+        if not cached_entry:
+            return None
+
+        if now - cached_entry['created_at'] > CACHE_TTL_SECONDS:
+            assessment_cache.pop(cache_key, None)
+            return None
+
+        assessment_cache.move_to_end(cache_key)
+        return cached_entry['response']
+
+
+def _store_cached_response(cache_key, response_text):
+    with assessment_cache_lock:
+        assessment_cache[cache_key] = {
+            'response': response_text,
+            'created_at': time.time(),
+        }
+        assessment_cache.move_to_end(cache_key)
+
+        while len(assessment_cache) > CACHE_MAX_ENTRIES:
+            assessment_cache.popitem(last=False)
+
+
+def _summarize_analysis(response_text, max_len=140):
+    if not response_text:
+        return "No analysis returned"
+
+    single_line = " ".join(str(response_text).split())
+    if len(single_line) <= max_len:
+        return single_line
+    return single_line[: max_len - 3].rstrip() + "..."
+
 def call_llm(prompt):
     try:
-        print("\n🤖 Generating analysis with Gemini AI...\n")
+        cache_key = _build_cache_key(prompt)
+        cached_response = _get_cached_response(cache_key)
+
+        if cached_response:
+            log_assessment("Gemini cache hit")
+            log_assessment("Summary: " + _summarize_analysis(cached_response))
+            log_assessment("Response time: 0.000s (cache)")
+            return cached_response
+
+        log_assessment("Generating Gemini analysis")
         
         start_time = time.time()
         
@@ -26,17 +88,18 @@ def call_llm(prompt):
         # Calculate performance metrics
         estimated_tokens = len(full_response) // 4
         tokens_per_second = estimated_tokens / response_time if response_time > 0 else 0
-        
-        print(full_response)
-        print("\n" + "="*60)
-        print(f"⏱️  Response Time: {response_time:.3f} seconds")
-        print(f"⚡ Speed: ~{tokens_per_second:.1f} tokens/second")
-        print("="*60 + "\n")
+
+        log_assessment("Summary: " + _summarize_analysis(full_response))
+        log_assessment(f"Response time: {response_time:.3f}s")
+        log_assessment(f"Speed: ~{tokens_per_second:.1f} tokens/s")
+
+        if full_response:
+            _store_cached_response(cache_key, full_response)
         
         return full_response
 
     except Exception as e:
-        print(f"\n❌ Error calling Gemini AI: {e}")
+        log_assessment(f"Gemini error: {e}")
         return None
 
 
@@ -56,19 +119,18 @@ def get_allergen_info(product_data):
 
 
 def analyze_product(product_data, user_profile=None):
-    print("\n" + "="*70)
     source = product_data.get('source', 'openfoodfacts').lower()
     display_name = product_data.get('name') or product_data.get('product', {}).get('name', 'Unknown Product')
-    print(f"📦 {display_name}")
-    print(f"🔢 Barcode: {product_data.get('barcode', 'N/A')}")
-    print(f"📍 Source: {source}")
+    log_assessment(
+        f"Start product='{display_name}' barcode={product_data.get('barcode', 'N/A')} source={source}"
+    )
     if user_profile:
-        print(f"👤 Personalized for user with BMI: {user_profile.get('bmi', 'N/A')}")
-    print("="*70)
+        log_assessment(f"Personalized profile enabled bmi={user_profile.get('bmi', 'N/A')}")
 
     # Generate AI prompt with optional user profile
     prompt = create_health_prompt(product_data, user_profile)
     llm_response = call_llm(prompt)
+    log_assessment("Analysis complete")
 
     allergen_info = get_allergen_info(product_data)
 

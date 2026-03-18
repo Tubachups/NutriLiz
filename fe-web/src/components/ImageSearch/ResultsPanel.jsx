@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import {
   AlertTriangle,
   BarChart3,
@@ -25,10 +26,94 @@ function StatCard({ title, value, unit, icon, textClass = 'text-black', iconClas
   )
 }
 
-export default function ResultsPanel({ result, analyzing, capturedImage }) {
+function getReferenceLabel(foodData) {
+  if (foodData?.nutrition_source === 'open_food_facts') {
+    return 'Open Food Facts'
+  }
+
+  if (foodData?.nutrition_source === 'usda_fooddata_central') {
+    if (foodData?.usda_match?.fdc_id) {
+      return `USDA FoodData Central (${foodData.usda_match.fdc_id})`
+    }
+    return 'USDA FoodData Central'
+  }
+
+  if (foodData?.source === 'gemini_vision') {
+    return 'Gemini Vision'
+  }
+
+  return foodData?.source || 'Unknown'
+}
+
+function ResultsSkeleton({ capturedImage }) {
+  const skeletonClass = 'skeleton animate-pulse bg-base-300/80'
+
+  return (
+    <div className="space-y-6">
+      <div className="card bg-base-100/80 border border-base-200/70 shadow-xl rounded-md backdrop-blur-sm">
+        <div className="card-body">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-4 flex-1">
+              {capturedImage ? (
+                <img
+                  src={capturedImage}
+                  alt="Captured food preview"
+                  className="w-24 h-24 md:w-32 md:h-32 rounded-xl object-cover shadow-md"
+                />
+              ) : (
+                <div className={`${skeletonClass} w-24 h-24 md:w-32 md:h-32 rounded-xl shrink-0`} />
+              )}
+              <div className="flex-1 space-y-3">
+                <div className={`${skeletonClass} h-8 w-3/4`} />
+                <div className={`${skeletonClass} h-4 w-full`} />
+                <div className={`${skeletonClass} h-4 w-5/6`} />
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <div className={`${skeletonClass} h-6 w-20`} />
+                  <div className={`${skeletonClass} h-6 w-28`} />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className={`${skeletonClass} h-3 w-20 mx-auto`} />
+              <div className={`${skeletonClass} w-16 h-16 rounded-2xl`} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[...Array(4)].map((_, index) => (
+          <div key={index} className="stat bg-base-100/80 border border-base-200/70 rounded-xl shadow-md p-4 backdrop-blur-sm">
+            <div className={`${skeletonClass} h-5 w-16 mb-3`} />
+            <div className={`${skeletonClass} h-8 w-20`} />
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[...Array(2)].map((_, index) => (
+          <div key={index} className="card bg-base-100/80 border border-base-200/70 shadow-md backdrop-blur-sm">
+            <div className="card-body space-y-3">
+              <div className={`${skeletonClass} h-6 w-40`} />
+              <div className={`${skeletonClass} h-4 w-32`} />
+              <div className="space-y-2 pt-2">
+                <div className={`${skeletonClass} h-4 w-full`} />
+                <div className={`${skeletonClass} h-4 w-11/12`} />
+                <div className={`${skeletonClass} h-4 w-10/12`} />
+                <div className={`${skeletonClass} h-4 w-9/12`} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ResultsPanel({ result, analyzing, capturedImage }) {
   if (!result && !analyzing) {
     return (
-      <div className="card bg-white shadow-xl h-full min-h-[400px] rounded-sm">
+      <div className="card bg-white shadow-xl h-full min-h-100 rounded-sm">
         <div className="card-body items-center justify-center text-center">
           <Utensils className="w-32 h-32 text-base-content/20 mb-4" />
           <h3 className="text-xl font-semibold text-base-content/60">No Food Analyzed Yet</h3>
@@ -38,9 +123,16 @@ export default function ResultsPanel({ result, analyzing, capturedImage }) {
     )
   }
 
-  if (!result || analyzing) {
+  if (analyzing) {
+    return <ResultsSkeleton capturedImage={capturedImage} />
+  }
+
+  if (!result) {
     return null
   }
+
+  const nutrition = result.nutrition_per_100g || result.nutrition_per_serving || null
+  const nutritionReference = getReferenceLabel(result)
 
   return (
     <div className="space-y-6">
@@ -48,7 +140,7 @@ export default function ResultsPanel({ result, analyzing, capturedImage }) {
         <div className="card-body">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             {capturedImage && (
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <img
                   src={capturedImage}
                   alt={result.food_name || 'Captured food'}
@@ -104,73 +196,89 @@ export default function ResultsPanel({ result, analyzing, capturedImage }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {nutrition ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
           title="Calories"
-          value={result.nutrition_per_serving?.calories}
+          value={nutrition.calories}
           unit=""
           icon={<Flame className="w-8 h-8" />}
           iconClass="text-primary"
         />
         <StatCard
           title="Protein"
-          value={result.nutrition_per_serving?.protein_g}
+          value={nutrition.protein_g}
           unit="g"
           icon={<Beef className="w-8 h-8" />}
           iconClass="text-secondary"
         />
         <StatCard
           title="Carbs"
-          value={result.nutrition_per_serving?.carbohydrates_g}
+          value={nutrition.carbohydrates_g}
           unit="g"
           icon={<Wheat className="w-8 h-8" />}
           iconClass="text-accent"
         />
         <StatCard
           title="Fat"
-          value={result.nutrition_per_serving?.fat_g}
+          value={nutrition.fat_g}
           unit="g"
           icon={<Soup className="w-8 h-8" />}
           textClass="text-warning"
           iconClass="text-warning"
         />
-      </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {result.nutrition_per_serving && (
+        {nutrition && (
           <div className="card bg-white shadow-md hover:shadow-lg transition-shadow">
             <div className="card-body">
               <h3 className="card-title text-lg flex items-center gap-2">
                 <BarChart3 className="w-5 h-5" />
-                Detailed Nutrition
+                Nutrition per 100g
               </h3>
-              {result.serving_size && <p className="text-sm text-base-content/60 -mt-1">Per serving: {result.serving_size}</p>}
+              <p className="text-xs text-base-content/60 -mt-1">
+                Reference: {nutritionReference}
+              </p>
+              {result.serving_size && <p className="text-sm text-base-content/60">Serving: {result.serving_size}</p>}
               <div className="space-y-2 mt-2">
-                {result.nutrition_per_serving.fiber_g !== undefined && (
+                {nutrition.fiber_g !== undefined && (
                   <div className="flex justify-between items-center py-1 border-b border-base-200">
                     <span className="text-sm">Fiber</span>
-                    <span className="font-semibold">{result.nutrition_per_serving.fiber_g}g</span>
+                    <span className="font-semibold">{nutrition.fiber_g}g</span>
                   </div>
                 )}
-                {result.nutrition_per_serving.sugar_g !== undefined && (
+                {nutrition.sugar_g !== undefined && (
                   <div className="flex justify-between items-center py-1 border-b border-base-200">
                     <span className="text-sm">Sugar</span>
-                    <span className="font-semibold">{result.nutrition_per_serving.sugar_g}g</span>
+                    <span className="font-semibold">{nutrition.sugar_g}g</span>
                   </div>
                 )}
-                {result.nutrition_per_serving.sodium_mg !== undefined && (
+                {nutrition.sodium_mg !== undefined && (
                   <div className="flex justify-between items-center py-1 border-b border-base-200">
                     <span className="text-sm">Sodium</span>
-                    <span className="font-semibold">{result.nutrition_per_serving.sodium_mg}mg</span>
+                    <span className="font-semibold">{nutrition.sodium_mg}mg</span>
                   </div>
                 )}
-                {result.nutrition_per_serving.saturated_fat_g !== undefined && (
+                {nutrition.saturated_fat_g !== undefined && (
                   <div className="flex justify-between items-center py-1">
                     <span className="text-sm">Saturated Fat</span>
-                    <span className="font-semibold">{result.nutrition_per_serving.saturated_fat_g}g</span>
+                    <span className="font-semibold">{nutrition.saturated_fat_g}g</span>
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {!nutrition && result.nutrition_pending_confirmation && (
+          <div className="card bg-white shadow-md border border-warning/40">
+            <div className="card-body">
+              <h3 className="card-title text-lg text-warning">Nutrition Pending Confirmation</h3>
+              <p className="text-sm text-base-content/70">
+                Confirm the exact dish name in the verifier modal to fetch USDA nutrition details.
+              </p>
             </div>
           </div>
         )}
@@ -282,7 +390,7 @@ export default function ResultsPanel({ result, analyzing, capturedImage }) {
       {result.ingredients_if_dish && result.ingredients_if_dish.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 -mt-3">
           <p className="text-xs text-amber-700 italic flex items-start gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             Note: This list is based on image recognition and may not include all ingredients. Some ingredients may not be
             visible or identifiable from the captured image.
           </p>
@@ -302,7 +410,7 @@ export default function ResultsPanel({ result, analyzing, capturedImage }) {
       )}
 
       {result.personalized_advice && (
-        <div className="card bg-gradient-to-r from-primary to-secondary text-primary-content shadow-xl">
+        <div className="card bg-linear-to-r from-primary to-secondary text-primary-content shadow-xl">
           <div className="card-body">
             <h3 className="card-title text-lg flex items-center gap-2">
               <Target className="w-5 h-5" />
@@ -314,7 +422,7 @@ export default function ResultsPanel({ result, analyzing, capturedImage }) {
       )}
 
       <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2">
-        <Info className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+        <Info className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
         <p className="text-xs text-amber-700 italic leading-relaxed">
           This app is a tool only. Always consult your health professional for advice and to ensure your safety.
         </p>
@@ -322,3 +430,5 @@ export default function ResultsPanel({ result, analyzing, capturedImage }) {
     </div>
   )
 }
+
+export default memo(ResultsPanel)

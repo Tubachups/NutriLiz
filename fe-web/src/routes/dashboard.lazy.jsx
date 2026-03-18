@@ -9,7 +9,7 @@ export const Route = createLazyFileRoute('/dashboard')({
 })
 
 // Backend API URL - adjust if different
-const API_URL = 'http://192.168.8.99:5000'
+const API_URL = 'http://192.168.100.69:5000'
 
 function AdminDashboard() {
   const { user, isAdmin, isLoadingUser } = useAuth()

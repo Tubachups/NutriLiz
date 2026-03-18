@@ -22,6 +22,10 @@ app.register_blueprint(admin_bp)
 
 camera = None
 
+
+def log_recommendation(message):
+    print(f"[Recommendations] {message}")
+
 def get_camera():
     global camera
     if camera is None:
@@ -85,11 +89,13 @@ def get_product(barcode):
         if include_recommendations and data_source == 'openfoodfacts':
             try:
                 lookup_barcode = product_data.get('barcode') or product_data.get('requested_barcode') or barcode
+                log_recommendation(f"Fetching recommendations for barcode={lookup_barcode} via /api/product")
                 recommendations = get_recommendations(lookup_barcode, limit=9)
                 product_data['recommendations'] = recommendations
                 product_data['recommendations_count'] = len(recommendations)
+                log_recommendation(f"Attached {len(recommendations)} recommendations to barcode={lookup_barcode}")
             except Exception as e:
-                print(f"Error getting recommendations: {e}")
+                log_recommendation(f"Error getting recommendations for barcode={barcode}: {e}")
                 product_data['recommendations'] = []
                 product_data['recommendations_count'] = 0
                 product_data['recommendations_error'] = str(e)
@@ -99,6 +105,7 @@ def get_product(barcode):
             product_data['recommendations_count'] = 0
             product_data['recommendations_available'] = False
             product_data['message'] = 'Recommendations only available for OpenFoodFacts products'
+            log_recommendation(f"Skipped barcode={barcode} because source=appwrite")
         
         return jsonify(product_data)
     return jsonify({'error': 'Product not found in Appwrite or Open Food Facts for this barcode.'}), 404
@@ -110,7 +117,8 @@ def get_product_recommendations(barcode):
         # Get limit from query parameter (default: 9)
         limit = request.args.get('limit', default=9, type=int)
         limit = min(max(1, limit), 10)  # Clamp between 1 and 10
-        
+
+        log_recommendation(f"Direct recommendations request barcode={barcode} limit={limit}")
         recommendations = get_recommendations(barcode, limit=limit)
         
         if recommendations:

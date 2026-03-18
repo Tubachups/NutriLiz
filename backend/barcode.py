@@ -4,6 +4,7 @@ from flask_cors import CORS
 from appwrite.client import Client
 from appwrite.services.databases import Databases
 from appwrite.services.storage import Storage
+from appwrite.services.tables_db import TablesDB
 from appwrite.query import Query
 from appwrite.exception import AppwriteException
 import os
@@ -30,6 +31,7 @@ client.set_project(os.getenv('APPWRITE_PROJECT_ID'))
 client.set_key(os.getenv('APPWRITE_API_KEY'))
 
 databases = Databases(client)
+tabledb = TablesDB(client)
 storage = Storage(client)
 
 DATABASE_ID = os.getenv('APPWRITE_DATABASE_ID')
@@ -41,6 +43,14 @@ latest_barcode = None
 
 # Initialize OpenFoodFacts API
 api = openfoodfacts.API(user_agent="NutriLiz/1.0", timeout=15)
+
+
+def log_barcode(message):
+    print(f"[Barcode] {message}")
+
+
+def log_appwrite(message):
+    print(f"[Appwrite] {message}")
 
 
 def normalize_barcode_input(barcode):
@@ -155,34 +165,37 @@ def get_product_data_appwrite(barcode_value):
                 'message': 'Invalid barcode - no digits found'
             }
         
-        # Keep barcode as string for sm_bar/rs_bar queries (they're string attributes)
-        full_barcode_str = barcode_str
-        # Use integers for group columns (they're integer attributes)
+        # Appwrite table columns accept numeric barcode values for direct lookups.
+        direct_barcode_value = int(barcode_str)
+        # Group columns are integer attributes.
         sm_group_value = int(barcode_str[:8]) if len(barcode_str) >= 8 else int(barcode_str)
         rs_group_value = int(barcode_str[:7]) if len(barcode_str) >= 7 else int(barcode_str)
-        
-        print(f"[Appwrite] Searching barcode: {barcode_str}")
+
+        log_appwrite(f"Searching barcode: {barcode_str}")
 
         # ───────────── PARALLEL QUERY FUNCTION ─────────────
         def query_column(col, value):
             """Query a single column, return (col, result) tuple"""
             try:
-                result = databases.list_documents(
+                result = tabledb.list_rows(
                     DATABASE_ID,
                     COLLECTION_ID,
                     queries=[Query.equal(col, [value])]
                 )
-                if result.get('documents'):
-                    return (col, result)
+                if result.get('rows'):
+                    return (col, {'documents': result['rows']})
             except Exception as e:
-                print(f"[Appwrite] Error querying {col}: {e}")
+                # Direct barcode columns are optional fallbacks; avoid noisy logs unless
+                # we hit an unexpected failure on the grouping columns.
+                if col not in {'sm_bar', 'rs_bar'}:
+                    log_appwrite(f"Error querying {col}: {e}")
             return (col, None)
 
         # ───────────── BUILD ALL QUERIES ─────────────
-        # sm_bar and rs_bar are string attributes, group columns are integers
+        # Direct barcode columns plus grouping columns.
         queries_to_run = [
-            ('sm_bar', full_barcode_str),
-            ('rs_bar', full_barcode_str),
+            ('sm_bar', direct_barcode_value),
+            ('rs_bar', direct_barcode_value),
         ]
         # Add SM group columns (8 digits)
         for col in SM_GROUP_COLUMNS:
@@ -215,14 +228,14 @@ def get_product_data_appwrite(barcode_value):
 
         # ───────────── HANDLE RESULTS ─────────────
         if not result['documents']:
-            print(f"[Appwrite] Product not found in database")
+            log_appwrite("Product not found in database")
             return {
                 'success': False,
                 'barcode': barcode_value,
                 'message': 'No product found for this barcode',
             }
-        
-        print(f"[Appwrite] Product found in column: {matched_column}")
+
+        log_appwrite(f"Product found in column: {matched_column}")
 
         # Rest of your existing code to format the document...
         doc = result['documents'][0]
@@ -375,7 +388,7 @@ def get_product_data_openfoodfacts(barcode):
             'groups': None
         }
     except Exception as e:
-        print(f"SDK request failed: {e}")
+        log_barcode(f"OpenFoodFacts SDK request failed: {e}")
         return None
 
 
