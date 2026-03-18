@@ -12,6 +12,7 @@ api = openfoodfacts.API(user_agent="NutriLiz/1.0")
 
 RECOMMENDATION_CACHE_TTL_SECONDS = int(os.getenv('RECOMMENDATION_CACHE_TTL_SECONDS', '300'))
 RECOMMENDATION_CACHE_MAX_ITEMS = int(os.getenv('RECOMMENDATION_CACHE_MAX_ITEMS', '500'))
+OPENFOODFACTS_TIMEOUT_SECONDS = int(os.getenv('OPENFOODFACTS_TIMEOUT_SECONDS', '20'))
 
 RECOMMENDATION_CACHE = {}
 PRODUCT_CACHE = {}
@@ -69,6 +70,49 @@ def _pick_nutriment(nutriments, keys):
             return nutriments[key]
     return None
 
+
+def _normalize_category_tag(tag):
+    value = str(tag or '').strip().lower()
+    if not value:
+        return ''
+    if value.startswith('en:'):
+        return value
+    return f"en:{value}"
+
+
+def _category_search_key(category_tag, countries_tag, page_size):
+    country_part = countries_tag or 'global'
+    return f"{category_tag}:{country_part}:{int(page_size)}"
+
+
+def _search_products_by_category(category_tag, countries_tag=None, page_size=50):
+    cache_key = _category_search_key(category_tag, countries_tag, page_size)
+    cache_hit, cached_candidates = _cache_get(CATEGORY_SEARCH_CACHE, cache_key)
+    if cache_hit:
+        log_recommendation(
+            f"Using cached category candidates: category={category_tag} country={countries_tag or 'global'} count={len(cached_candidates)}"
+        )
+        return cached_candidates
+
+    search_params = {
+        'categories_tags': category_tag,
+        'page_size': int(page_size),
+        'fields': 'code,product_name,brands,brands_tags,countries,countries_tags,manufacturing_places,nutriments,image_url,image_front_url,image_front_small_url'
+    }
+    if countries_tag:
+        search_params['countries_tags'] = countries_tag
+
+    search = requests.get(
+        "https://world.openfoodfacts.org/api/v2/search",
+        params=search_params,
+        timeout=20
+    )
+    search.raise_for_status()
+    search_data = search.json()
+    candidates = search_data.get('products', [])
+    _cache_set(CATEGORY_SEARCH_CACHE, cache_key, candidates)
+    return candidates
+
 def build_vector(product_data):
     nutriments = product_data.get('nutriments', {})
 
@@ -123,6 +167,22 @@ def fetch_product(barcode):
     if cache_hit:
         return cached_product
 
+    # Prefer direct API call with explicit timeout for predictable behavior.
+    try:
+        response = requests.get(
+            f"https://world.openfoodfacts.org/api/v2/product/{barcode_key}.json",
+            timeout=OPENFOODFACTS_TIMEOUT_SECONDS
+        )
+        response.raise_for_status()
+        payload = response.json() or {}
+        product_data = payload.get('product', payload)
+        if isinstance(product_data, dict) and (product_data.get('code') or barcode_key):
+            _cache_set(PRODUCT_CACHE, barcode_key, product_data)
+            return product_data
+    except Exception as e:
+        log_recommendation(f"Direct API fetch failed for product {barcode_key}: {e}")
+
+    # Keep SDK call as secondary fallback.
     try:
         raw_data = api.product.get(barcode)
         if not raw_data:
@@ -193,6 +253,7 @@ def get_recommendations(barcode, limit=9):
     
     # Build feature vector for base product
     base_vec = build_vector(base)
+    base_norm = np.linalg.norm(base_vec)
     
     # Get categories from the base product
     categories = base.get('categories_tags', [])
@@ -202,38 +263,51 @@ def get_recommendations(barcode, limit=9):
         log_recommendation("No categories available")
         return []
     
-    primary_category = categories[0].replace('en:', '')
-    log_recommendation(f"Searching with category: {primary_category}")
-    
-    try:
-        # Search for products in the same category
-        category_cache_key = f"{primary_category}:en:philippines:25"
-        category_cache_hit, cached_candidates = _cache_get(CATEGORY_SEARCH_CACHE, category_cache_key)
-        if category_cache_hit:
-            candidates = cached_candidates
-            log_recommendation(f"Using cached category candidates: {len(candidates)}")
-        else:
-            search_params = {
-                'categories_tags': primary_category,
-                'countries_tags': 'en:philippines',
-                'page_size': 25,
-                'fields': 'code,product_name,brands,brands_tags,countries,countries_tags,manufacturing_places,nutriments,image_url,image_front_url,image_front_small_url'
-            }
+    # Prefer specific categories first (usually at the end of OFF category list).
+    normalized_categories = [_normalize_category_tag(tag) for tag in categories]
+    normalized_categories = [tag for tag in normalized_categories if tag]
+    category_candidates = list(reversed(normalized_categories))
+    if len(category_candidates) > 5:
+        category_candidates = category_candidates[:5]
 
-            search = requests.get(
-                "https://world.openfoodfacts.org/api/v2/search",
-                params=search_params,
-                timeout=15
-            )
-            search.raise_for_status()
-            search_data = search.json()
-            candidates = search_data.get('products', [])
-            _cache_set(CATEGORY_SEARCH_CACHE, category_cache_key, candidates)
+    candidates = []
+    seen_codes = set()
+    country_scopes = ['en:philippines', None]
 
-        log_recommendation(f"Found {len(candidates)} PH candidates")
-        
-    except requests.exceptions.RequestException as e:
-        log_recommendation(f"PH search API failed: {e}")
+    for category_tag in category_candidates:
+        if len(candidates) >= max(30, limit * 3):
+            break
+
+        log_recommendation(f"Searching category={category_tag}")
+
+        for country_tag in country_scopes:
+            try:
+                found = _search_products_by_category(
+                    category_tag=category_tag,
+                    countries_tag=country_tag,
+                    page_size=60
+                )
+                log_recommendation(
+                    f"Found {len(found)} candidates category={category_tag} country={country_tag or 'global'}"
+                )
+            except requests.exceptions.RequestException as e:
+                log_recommendation(
+                    f"Category search failed category={category_tag} country={country_tag or 'global'}: {e}"
+                )
+                continue
+
+            for product in found:
+                code = str(product.get('code', '')).strip()
+                if not code or code in seen_codes:
+                    continue
+                seen_codes.add(code)
+                candidates.append(product)
+
+            if len(candidates) >= max(30, limit * 3):
+                break
+
+    if not candidates:
+        log_recommendation("No candidates found across category/country fallbacks")
         return []
     
     # Score each candidate product
@@ -250,21 +324,31 @@ def get_recommendations(barcode, limit=9):
             log_recommendation(f"Skipping same product: {item.get('product_name')} ({item_code})")
             continue
         
-        cand_nutrients = item.get('nutriments', {})
-        if not cand_nutrients:
+        cand_nutrients = item.get('nutriments', {}) or {}
+        cand_vector = None
+        cand_norm = 0.0
+
+        if cand_nutrients:
+            try:
+                cand_vector = build_vector({'nutriments': cand_nutrients})
+                cand_norm = np.linalg.norm(cand_vector)
+            except (ValueError, TypeError):
+                cand_vector = None
+                cand_norm = 0.0
+
+        base_name = base.get('product_name', '').lower().strip()
+        cand_name = item.get('product_name', '').lower().strip()
+        name_similarity = SequenceMatcher(None, base_name, cand_name).ratio() if base_name and cand_name else 0.0
+
+        if base_norm > 0.0 and cand_norm > 0.0:
+            score = cosine_similarity([base_vec], [cand_vector])[0][0]
+            # Small text-similarity blending improves tie-breaks for category-near items.
+            score = (0.9 * float(score)) + (0.1 * name_similarity)
+        elif name_similarity > 0.0:
+            # Fallback path when nutritional vectors are sparse/missing.
+            score = 0.15 + (0.7 * name_similarity)
+        else:
             continue
-        
-        try:
-            cand_vector = build_vector({'nutriments': cand_nutrients})
-        except (ValueError, TypeError):
-            continue
-        
-        # Check for zero vectors (would cause division by zero)
-        if np.linalg.norm(base_vec) == 0 or np.linalg.norm(cand_vector) == 0:
-            continue
-        
-        # Calculate cosine similarity
-        score = cosine_similarity([base_vec], [cand_vector])[0][0]
         
         # Get best available image
         image = (item.get('image_url') or 
