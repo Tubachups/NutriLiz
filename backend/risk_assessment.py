@@ -60,6 +60,116 @@ def _summarize_analysis(response_text, max_len=140):
         return single_line
     return single_line[: max_len - 3].rstrip() + "..."
 
+
+def _is_meaningful(value):
+    if value is None:
+        return False
+    if isinstance(value, str) and value.strip().lower() in ('', 'n/a', 'na', 'none', 'null'):
+        return False
+    return True
+
+
+def _pick_first_value(product_data, *keys):
+    nutriments = product_data.get('nutriments', {}) or {}
+    for key in keys:
+        if key in nutriments and _is_meaningful(nutriments.get(key)):
+            return nutriments.get(key)
+        if key in product_data and _is_meaningful(product_data.get(key)):
+            return product_data.get(key)
+    return 'N/A'
+
+
+def _pick_energy_kcal(product_data):
+    kcal_value = _pick_first_value(
+        product_data,
+        'energy-kcal_100g', 'energy-kcal_100ml', 'energy-kcal_serving',
+        'energy-kcal_prepared_100g', 'energy-kcal_prepared_100ml', 'energy-kcal_prepared_serving',
+        'energy-kcal', 'energy-kcal_value',
+        'energy_kcal_100g', 'energy_kcal_serving'
+    )
+    if _is_meaningful(kcal_value):
+        return kcal_value
+
+    kj_value = _pick_first_value(
+        product_data,
+        'energy-kj_100g', 'energy-kj_100ml', 'energy-kj_serving',
+        'energy-kj_prepared_100g', 'energy-kj_prepared_100ml', 'energy-kj_prepared_serving',
+        'energy-kj', 'energy_100g', 'energy_100ml', 'energy_serving', 'energy'
+    )
+    if not _is_meaningful(kj_value):
+        return 'N/A'
+
+    try:
+        return round(float(kj_value) / 4.184, 2)
+    except (TypeError, ValueError):
+        return 'N/A'
+
+
+def _resolve_openfoodfacts_nutrition(product_data):
+    return {
+        'calories_kcal': _pick_energy_kcal(product_data),
+        'sugars_g': _pick_first_value(
+            product_data,
+            'sugars_100g', 'sugars_100ml', 'sugars_serving',
+            'sugars_prepared_100g', 'sugars_prepared_100ml', 'sugars_prepared_serving',
+            'sugars'
+        ),
+        'fat_g': _pick_first_value(
+            product_data,
+            'fat_100g', 'fat_100ml', 'fat_serving',
+            'fat_prepared_100g', 'fat_prepared_100ml', 'fat_prepared_serving',
+            'fat'
+        ),
+        'saturated_fat_g': _pick_first_value(
+            product_data,
+            'saturated-fat_100g', 'saturated-fat_100ml', 'saturated-fat_serving',
+            'saturated-fat_prepared_100g', 'saturated-fat_prepared_100ml', 'saturated-fat_prepared_serving',
+            'saturated-fat',
+            'saturated_fat_100g', 'saturated_fat_serving'
+        ),
+        'salt_g': _pick_first_value(
+            product_data,
+            'salt_100g', 'salt_100ml', 'salt_serving',
+            'salt_prepared_100g', 'salt_prepared_100ml', 'salt_prepared_serving',
+            'salt'
+        ),
+        'sodium_g': _pick_first_value(
+            product_data,
+            'sodium_100g', 'sodium_100ml', 'sodium_serving',
+            'sodium_prepared_100g', 'sodium_prepared_100ml', 'sodium_prepared_serving',
+            'sodium'
+        ),
+        'proteins_g': _pick_first_value(
+            product_data,
+            'proteins_100g', 'proteins_100ml', 'proteins_serving',
+            'proteins_prepared_100g', 'proteins_prepared_100ml', 'proteins_prepared_serving',
+            'proteins'
+        ),
+        'fiber_g': _pick_first_value(
+            product_data,
+            'fiber_100g', 'fiber_100ml', 'fiber_serving',
+            'fiber_prepared_100g', 'fiber_prepared_100ml', 'fiber_prepared_serving',
+            'fiber'
+        ),
+        'carbohydrates_g': _pick_first_value(
+            product_data,
+            'carbohydrates_100g', 'carbohydrates_100ml', 'carbohydrates_serving',
+            'carbohydrates_prepared_100g', 'carbohydrates_prepared_100ml', 'carbohydrates_prepared_serving',
+            'carbohydrates'
+        ),
+    }
+
+
+def _format_nutrient(value):
+    if not _is_meaningful(value):
+        return 'N/A'
+    try:
+        numeric = float(value)
+        formatted = f"{numeric:.2f}".rstrip('0').rstrip('.')
+        return formatted
+    except (TypeError, ValueError):
+        return str(value)
+
 def call_llm(prompt):
     try:
         cache_key = _build_cache_key(prompt)
@@ -168,7 +278,7 @@ If any of my blood markers are abnormal, please highlight specific concerns for 
     if source == 'openfoodfacts':
         name = product_data.get('name', 'Unknown')
         barcode = product_data.get('barcode', 'N/A')
-        n = product_data.get('nutriments', {})
+        nutrition = _resolve_openfoodfacts_nutrition(product_data)
 
         allergen_info = get_allergen_info(product_data)
         allergen_str = ', '.join(allergen_info['allergens']) if allergen_info['allergens'] else 'None listed'
@@ -203,13 +313,13 @@ Processing Level: NOVA Group {nova_group} - {nova_desc}
 ⚠️ MAY CONTAIN TRACES: {traces_str}
 
 Nutrition per 100g:
-- Calories: {n.get('energy-kcal_100g', 'N/A')} kcal
-- Sugar: {n.get('sugars_100g', 'N/A')}g
-- Fat: {n.get('fat_100g', 'N/A')}g (Saturated: {n.get('saturated-fat_100g', 'N/A')}g)
-- Salt: {n.get('salt_100g', 'N/A')}g (Sodium: {n.get('sodium_100g', 'N/A')}g)
-- Protein: {n.get('proteins_100g', 'N/A')}g
-- Fiber: {n.get('fiber_100g', 'N/A')}g
-- Carbohydrates: {n.get('carbohydrates_100g', 'N/A')}g
+- Calories: {_format_nutrient(nutrition['calories_kcal'])} kcal
+- Sugar: {_format_nutrient(nutrition['sugars_g'])}g
+- Fat: {_format_nutrient(nutrition['fat_g'])}g (Saturated: {_format_nutrient(nutrition['saturated_fat_g'])}g)
+- Salt: {_format_nutrient(nutrition['salt_g'])}g (Sodium: {_format_nutrient(nutrition['sodium_g'])}g)
+- Protein: {_format_nutrient(nutrition['proteins_g'])}g
+- Fiber: {_format_nutrient(nutrition['fiber_g'])}g
+- Carbohydrates: {_format_nutrient(nutrition['carbohydrates_g'])}g
 
 Nutri-Score: {product_data.get('nutri_grade', 'N/A')}
 
