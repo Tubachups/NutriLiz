@@ -2,9 +2,11 @@ import { createLazyFileRoute, useSearch } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { Utensils } from 'lucide-react'
 import { useProductHistory } from '../hooks/useProductHistory'
+import { useFoodImageAPI } from '../hooks/useFoodImageAPI'
 import CapturePanel from '../components/ImageSearch/CapturePanel'
 import ResultsPanel from '../components/ImageSearch/ResultsPanel'
 import DisclaimerModal from '../components/ImageSearch/DisclaimerModal'
+import FoodDisambiguationModal from '../components/ImageSearch/FoodDisambiguationModal'
 
 export const Route = createLazyFileRoute('/image-search')({
   component: RouteComponent,
@@ -18,18 +20,25 @@ export const Route = createLazyFileRoute('/image-search')({
 
 function RouteComponent() {
   const { foodData, foodImage } = useSearch({ from: '/image-search' })
-  const videoSrc = 'http://192.168.8.99:5000/video'
+  const apiBaseUrl = 'http://192.168.100.69:5000'
+  const videoSrc = `${apiBaseUrl}/video`
   const imgRef = useRef(null)
   const canvasRef = useRef(null)
+  const requestControllerRef = useRef(null)
 
   const [analyzing, setAnalyzing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState(null)
   const [capturedImage, setCapturedImage] = useState(null)
   const [error, setError] = useState(null)
+  const [processingMessage, setProcessingMessage] = useState('')
   const [showDisclaimer, setShowDisclaimer] = useState(false)
+  const [disambiguationData, setDisambiguationData] = useState(null)
+  const [showDisambiguationModal, setShowDisambiguationModal] = useState(false)
 
   const { addFoodItem } = useProductHistory()
+  const { analyzeFoodImage, confirmFoodName, loading: foodApiLoading } = useFoodImageAPI()
+  const isProcessing = analyzing || foodApiLoading
 
   useEffect(() => {
     if (foodData) {
@@ -46,9 +55,15 @@ function RouteComponent() {
   }, [foodData, foodImage])
 
   useEffect(() => {
+    return () => {
+      requestControllerRef.current?.abort()
+    }
+  }, [])
+
+  useEffect(() => {
     let interval
 
-    if (analyzing) {
+    if (isProcessing) {
       setProgress(0)
       interval = setInterval(() => {
         setProgress((prev) => {
@@ -61,15 +76,28 @@ function RouteComponent() {
     }
 
     return () => clearInterval(interval)
-  }, [analyzing])
+  }, [isProcessing])
+
+  const finalizeFoodResult = async (foodResult, imageData) => {
+    setResult(foodResult)
+    await addFoodItem(foodResult, imageData)
+    setShowDisclaimer(true)
+  }
 
   const captureAndAnalyze = async () => {
-    if (!imgRef.current || !canvasRef.current) return
+    if (!imgRef.current || !canvasRef.current || isProcessing) return
+
+    requestControllerRef.current?.abort()
+    const controller = new AbortController()
+    requestControllerRef.current = controller
 
     setAnalyzing(true)
     setError(null)
+    setProcessingMessage('Analyzing captured image...')
     setResult(null)
     setCapturedImage(null)
+    setDisambiguationData(null)
+    setShowDisambiguationModal(false)
 
     try {
       const img = imgRef.current
@@ -84,31 +112,69 @@ function RouteComponent() {
       const imageData = canvas.toDataURL('image/jpeg', 0.8)
       setCapturedImage(imageData)
 
-      const response = await fetch('http://192.168.100.69:5000/api/analyze-food-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image: imageData,
-          includeRecommendations: true,
-        }),
-      })
+      const foodResult = await analyzeFoodImage(imageData, controller.signal)
 
-      const data = await response.json()
+      if (foodResult?.identified) {
+        const confidence = String(foodResult.confidence || '').toLowerCase()
+        const requiresConfirmation =
+          foodResult.disambiguation_needed || confidence === 'medium' || confidence === 'low'
 
-      if (response.ok && data.success) {
-        setResult(data.data)
-        await addFoodItem(data.data, imageData)
-        setShowDisclaimer(true)
+        if (requiresConfirmation) {
+          setProcessingMessage('Awaiting your food verification...')
+          setDisambiguationData({ foodData: foodResult, imageData })
+          setShowDisambiguationModal(true)
+          return
+        }
+
+        await finalizeFoodResult(foodResult, imageData)
+      } else if (foodResult && !foodResult.identified) {
+        setError(foodResult.description || 'Could not identify the food in this image')
       } else {
-        setError(data.error || 'Analysis failed')
+        setError('Analysis failed')
       }
     } catch (err) {
-      setError(err.message)
+      if (err?.name !== 'AbortError') {
+        setError(err.message || 'Unexpected error during analysis')
+      }
     } finally {
       setAnalyzing(false)
+      setProcessingMessage('')
     }
+  }
+
+  const handleDisambiguationConfirm = async (resolvedName) => {
+    if (!disambiguationData) return
+
+    const { foodData: unresolvedFoodData, imageData } = disambiguationData
+    setShowDisambiguationModal(false)
+
+    requestControllerRef.current?.abort()
+    const controller = new AbortController()
+    requestControllerRef.current = controller
+    setProcessingMessage('Finalizing USDA nutrition data...')
+
+    try {
+      const confirmedData = await confirmFoodName(unresolvedFoodData, resolvedName, controller.signal)
+      const updatedFoodData = confirmedData || {
+        ...unresolvedFoodData,
+        food_name: resolvedName,
+        user_corrected_name: true,
+      }
+
+      await finalizeFoodResult(updatedFoodData, imageData)
+      setDisambiguationData(null)
+    } catch {
+      setError('Failed to confirm food name. Please retry.')
+    } finally {
+      setProcessingMessage('')
+    }
+  }
+
+  const handleDisambiguationDismiss = () => {
+    setShowDisambiguationModal(false)
+    setDisambiguationData(null)
+    setCapturedImage(null)
+    setResult(null)
   }
 
   return (
@@ -122,9 +188,11 @@ function RouteComponent() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
           <CapturePanel
             videoSrc={videoSrc}
+            frozenFrame={capturedImage}
             imgRef={imgRef}
-            analyzing={analyzing}
+            analyzing={isProcessing}
             progress={progress}
+            processingMessage={processingMessage}
             error={error}
             onCapture={captureAndAnalyze}
           />
@@ -132,12 +200,24 @@ function RouteComponent() {
           <canvas ref={canvasRef} style={{ display: 'none' }} />
 
           <div className="lg:col-span-2">
-            <ResultsPanel result={result} analyzing={analyzing} capturedImage={capturedImage} />
+            <ResultsPanel result={result} analyzing={isProcessing} capturedImage={capturedImage} />
           </div>
         </div>
       </div>
 
       <DisclaimerModal show={showDisclaimer} onClose={() => setShowDisclaimer(false)} />
+
+      <FoodDisambiguationModal
+        show={showDisambiguationModal}
+        alternatives={disambiguationData?.foodData?.alternatives ?? []}
+        foodContext={{
+          food_name: disambiguationData?.foodData?.food_name ?? '',
+          category: disambiguationData?.foodData?.category ?? '',
+          description: disambiguationData?.foodData?.description ?? '',
+        }}
+        onConfirm={handleDisambiguationConfirm}
+        onDismiss={handleDisambiguationDismiss}
+      />
     </div>
   )
 }

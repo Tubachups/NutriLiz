@@ -3,32 +3,112 @@ import numpy as np
 import openfoodfacts
 from sklearn.metrics.pairwise import cosine_similarity
 from difflib import SequenceMatcher
+import json
+import os
+import time
 
 # Initialize OpenFoodFacts API
 api = openfoodfacts.API(user_agent="NutriLiz/1.0")
 
+RECOMMENDATION_CACHE_TTL_SECONDS = int(os.getenv('RECOMMENDATION_CACHE_TTL_SECONDS', '300'))
+RECOMMENDATION_CACHE_MAX_ITEMS = int(os.getenv('RECOMMENDATION_CACHE_MAX_ITEMS', '500'))
+
+RECOMMENDATION_CACHE = {}
+PRODUCT_CACHE = {}
+CATEGORY_SEARCH_CACHE = {}
+
+
+def log_recommendation(message):
+    print(f"[Recommendations] {message}")
+
+
+def _clone_data(value):
+    return json.loads(json.dumps(value))
+
+
+def _cache_get(cache, key):
+    entry = cache.get(key)
+    if not entry:
+        return False, None
+
+    expires_at, value = entry
+    if expires_at < time.time():
+        cache.pop(key, None)
+        return False, None
+
+    return True, _clone_data(value)
+
+
+def _cache_set(cache, key, value):
+    now = time.time()
+
+    if len(cache) >= RECOMMENDATION_CACHE_MAX_ITEMS:
+        expired_keys = [k for k, (exp, _) in cache.items() if exp < now]
+        for old_key in expired_keys:
+            cache.pop(old_key, None)
+
+    if len(cache) >= RECOMMENDATION_CACHE_MAX_ITEMS and cache:
+        oldest_key = min(cache.items(), key=lambda item: item[1][0])[0]
+        cache.pop(oldest_key, None)
+
+    cache[key] = (now + RECOMMENDATION_CACHE_TTL_SECONDS, _clone_data(value))
+
+
+def _to_float(value, default=0.0):
+    try:
+        if value is None or value == '' or value == 'N/A':
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _pick_nutriment(nutriments, keys):
+    for key in keys:
+        if key in nutriments and nutriments[key] not in (None, '', 'N/A'):
+            return nutriments[key]
+    return None
+
 def build_vector(product_data):
     nutriments = product_data.get('nutriments', {})
+
+    carbs_value = _pick_nutriment(nutriments, ['carbohydrates_100g', 'carbohydrates_100ml', 'carbohydrates_serving', 'carbohydrates_prepared_100g', 'carbohydrates_prepared_100ml', 'carbohydrates_prepared_serving', 'carbohydrates'])
+    proteins_value = _pick_nutriment(nutriments, ['proteins_100g', 'proteins_100ml', 'proteins_serving', 'proteins_prepared_100g', 'proteins_prepared_100ml', 'proteins_prepared_serving', 'proteins'])
+    fats_value = _pick_nutriment(nutriments, ['fat_100g', 'fat_100ml', 'fat_serving', 'fat_prepared_100g', 'fat_prepared_100ml', 'fat_prepared_serving', 'fat'])
+    sugars_value = _pick_nutriment(nutriments, ['sugars_100g', 'sugars_100ml', 'sugars_serving', 'sugars_prepared_100g', 'sugars_prepared_100ml', 'sugars_prepared_serving', 'sugars'])
+    fiber_value = _pick_nutriment(nutriments, ['fiber_100g', 'fiber_100ml', 'fiber_serving', 'fiber_prepared_100g', 'fiber_prepared_100ml', 'fiber_prepared_serving', 'fiber'])
+    saturated_fat_value = _pick_nutriment(nutriments, ['saturated-fat_100g', 'saturated-fat_100ml', 'saturated-fat_serving', 'saturated-fat_prepared_100g', 'saturated-fat_prepared_100ml', 'saturated-fat_prepared_serving', 'saturated-fat'])
+    salt_value = _pick_nutriment(nutriments, ['salt_100g', 'salt_100ml', 'salt_serving', 'salt_prepared_100g', 'salt_prepared_100ml', 'salt_prepared_serving', 'salt'])
+    sodium_value = _pick_nutriment(nutriments, ['sodium_100g', 'sodium_100ml', 'sodium_serving', 'sodium_prepared_100g', 'sodium_prepared_100ml', 'sodium_prepared_serving', 'sodium'])
+
+    kcal_value = _pick_nutriment(nutriments, ['energy-kcal_100g', 'energy-kcal_100ml', 'energy-kcal_serving', 'energy-kcal_prepared_100g', 'energy-kcal_prepared_100ml', 'energy-kcal_prepared_serving', 'energy-kcal', 'energy-kcal_value'])
+    kj_value = _pick_nutriment(nutriments, ['energy-kj_100g', 'energy-kj_100ml', 'energy-kj_serving', 'energy-kj_prepared_100g', 'energy-kj_prepared_100ml', 'energy-kj_prepared_serving', 'energy-kj', 'energy_100g', 'energy_100ml', 'energy_serving', 'energy'])
+
+    energy_kcal = _to_float(kcal_value)
+    if energy_kcal == 0.0:
+        energy_kj = _to_float(kj_value)
+        if energy_kj > 0.0:
+            energy_kcal = energy_kj / 4.184
     
     # Extract key nutrients and normalize them (per 100g for standardization)
-    carbs = float(nutriments.get('carbohydrates_100g', 0)) / 100.0
-    proteins = float(nutriments.get('proteins_100g', 0)) / 100.0
-    fats = float(nutriments.get('fat_100g', 0)) / 100.0
+    carbs = _to_float(carbs_value) / 100.0
+    proteins = _to_float(proteins_value) / 100.0
+    fats = _to_float(fats_value) / 100.0
     
-    sugars = float(nutriments.get('sugars_100g', 0)) / 100.0
-    fiber = float(nutriments.get('fiber_100g', 0)) / 100.0
-    saturated_fat = float(nutriments.get('saturated-fat_100g', 0)) / 100.0
-    salt = float(nutriments.get('salt_100g', 0)) / 10.0  # Normalize to ~0-1 range
-    sodium = float(nutriments.get('sodium_100g', 0)) / 10.0  # Normalize to ~0-1 range
+    sugars = _to_float(sugars_value) / 100.0
+    fiber = _to_float(fiber_value) / 100.0
+    saturated_fat = _to_float(saturated_fat_value) / 100.0
+    salt = _to_float(salt_value) / 10.0  # Normalize to ~0-1 range
+    sodium = _to_float(sodium_value) / 10.0  # Normalize to ~0-1 range
     
     # Energy (normalize kcal to 0-1 range, assuming max ~900 kcal per 100g)
-    energy = float(nutriments.get('energy-kcal_100g', 0)) / 900.0
+    energy = energy_kcal / 900.0
     
     # Micronutrients (if available)
-    calcium = float(nutriments.get('calcium_100g', 0)) / 1000.0  # Normalize mg
+    calcium = _to_float(_pick_nutriment(nutriments, ['calcium_100g', 'calcium_100ml', 'calcium_serving', 'calcium'])) / 1000.0  # Normalize mg
     
     # Quality indicators
-    nova_group = float(nutriments.get('nova_group', 0)) / 4.0
+    nova_group = _to_float(product_data.get('nova_group', nutriments.get('nova_group', 0))) / 4.0
     
     return np.array([
         carbs, proteins, fats, sugars, fiber, 
@@ -38,13 +118,24 @@ def build_vector(product_data):
 
 
 def fetch_product(barcode):
+    barcode_key = str(barcode).strip()
+    cache_hit, cached_product = _cache_get(PRODUCT_CACHE, barcode_key)
+    if cache_hit:
+        return cached_product
+
     try:
-        product_data = api.product.get(barcode)
-        if product_data and product_data.get('code'):
+        raw_data = api.product.get(barcode)
+        if not raw_data:
+            return None
+
+        # SDK can return flat payload or nested under `product`.
+        product_data = raw_data.get('product', raw_data)
+        if isinstance(product_data, dict) and (product_data.get('code') or raw_data.get('code')):
+            _cache_set(PRODUCT_CACHE, barcode_key, product_data)
             return product_data
         return None
     except Exception as e:
-        print(f"Failed to fetch product {barcode}: {e}")
+        log_recommendation(f"Failed to fetch product {barcode}: {e}")
         return None
 
 
@@ -80,54 +171,69 @@ def is_same_product(base_product, candidate_product, base_barcode, candidate_bar
     return False
 
 def get_recommendations(barcode, limit=9):
-    print(f"Getting recommendations for barcode: {barcode}")
+    log_recommendation(f"Start barcode={barcode} limit={limit}")
     
     # Normalize barcode to string for consistent comparison
     base_barcode = str(barcode).strip()
+    cache_key = f"{base_barcode}:{int(limit)}"
+    cache_hit, cached_recommendations = _cache_get(RECOMMENDATION_CACHE, cache_key)
+    if cache_hit:
+        log_recommendation(f"Cache hit for barcode={base_barcode} count={len(cached_recommendations)}")
+        return cached_recommendations
     
     # Fetch the base product
     base = fetch_product(base_barcode)
     if not base:
-        print("Base product not found")
+        log_recommendation("Base product not found")
         return []
-    
-    print(f"Base product: {base.get('product_name', 'Unknown')} - {base.get('brands', 'Unknown')}")
+
+    log_recommendation(
+        f"Base product: {base.get('product_name', 'Unknown')} - {base.get('brands', 'Unknown')}"
+    )
     
     # Build feature vector for base product
     base_vec = build_vector(base)
     
     # Get categories from the base product
     categories = base.get('categories_tags', [])
-    print(f"Categories found: {categories}")
+    log_recommendation(f"Categories found: {categories}")
     
     if not categories:
-        print("No categories available")
+        log_recommendation("No categories available")
         return []
     
     primary_category = categories[0].replace('en:', '')
-    print(f"Searching with category: {primary_category}")
+    log_recommendation(f"Searching with category: {primary_category}")
     
     try:
         # Search for products in the same category
-        search_params = {
-            'categories_tags': primary_category,
-            'countries_tags': 'en:philippines',
-            'page_size': 25,
-            'fields': 'code,product_name,brands,brands_tags,countries,countries_tags,manufacturing_places,nutriments,image_url,image_front_url,image_front_small_url'
-        }
-        
-        search = requests.get(
-            "https://world.openfoodfacts.org/api/v2/search",
-            params=search_params,
-            # timeout=30
-        )
-        search.raise_for_status()
-        search_data = search.json()
-        candidates = search_data.get('products', [])
-        print(f"Found {len(candidates)} PH candidates")
+        category_cache_key = f"{primary_category}:en:philippines:25"
+        category_cache_hit, cached_candidates = _cache_get(CATEGORY_SEARCH_CACHE, category_cache_key)
+        if category_cache_hit:
+            candidates = cached_candidates
+            log_recommendation(f"Using cached category candidates: {len(candidates)}")
+        else:
+            search_params = {
+                'categories_tags': primary_category,
+                'countries_tags': 'en:philippines',
+                'page_size': 25,
+                'fields': 'code,product_name,brands,brands_tags,countries,countries_tags,manufacturing_places,nutriments,image_url,image_front_url,image_front_small_url'
+            }
+
+            search = requests.get(
+                "https://world.openfoodfacts.org/api/v2/search",
+                params=search_params,
+                timeout=15
+            )
+            search.raise_for_status()
+            search_data = search.json()
+            candidates = search_data.get('products', [])
+            _cache_set(CATEGORY_SEARCH_CACHE, category_cache_key, candidates)
+
+        log_recommendation(f"Found {len(candidates)} PH candidates")
         
     except requests.exceptions.RequestException as e:
-        print(f"PH Search API failed: {e}")
+        log_recommendation(f"PH search API failed: {e}")
         return []
     
     # Score each candidate product
@@ -141,7 +247,7 @@ def get_recommendations(barcode, limit=9):
         
         # Skip if it's the same product (by barcode, brand, or name)
         if is_same_product(base, item, base_barcode, item_code):
-            print(f"Skipping same product: {item.get('product_name')} ({item_code})")
+            log_recommendation(f"Skipping same product: {item.get('product_name')} ({item_code})")
             continue
         
         cand_nutrients = item.get('nutriments', {})
@@ -180,6 +286,7 @@ def get_recommendations(barcode, limit=9):
     # Sort by similarity score (highest first)
     scored.sort(reverse=True, key=lambda s: s[0])
     result = [c for _, c in scored[:limit]]
-    
-    print(f"Returning {len(result)} recommendations (excluding base product)")
-    return result 
+    _cache_set(RECOMMENDATION_CACHE, cache_key, result)
+
+    log_recommendation(f"Returning {len(result)} recommendations (excluding base product)")
+    return result

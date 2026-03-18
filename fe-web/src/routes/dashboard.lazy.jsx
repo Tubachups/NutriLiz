@@ -9,7 +9,7 @@ export const Route = createLazyFileRoute('/dashboard')({
 })
 
 // Backend API URL - adjust if different
-const API_URL = 'http://192.168.8.99:5000'
+const API_URL = 'http://192.168.100.69:5000'
 
 function AdminDashboard() {
   const { user, isAdmin, isLoadingUser } = useAuth()
@@ -149,9 +149,6 @@ function AdminDashboard() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Joined
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -187,9 +184,6 @@ function AdminDashboard() {
                         }`}>
                           {u.emailVerification ? 'Verified' : 'Unverified'}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(u.$createdAt).toLocaleDateString()}
                       </td>
                     </tr>
                   ))}

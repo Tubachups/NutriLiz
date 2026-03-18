@@ -21,7 +21,7 @@ function PrivacyPolicy() {
             Introduction
           </h2>
           <p className="text-gray-700 leading-relaxed">
-            Welcome to <span className="font-bold text-[#4A7C59]">NutriLiz</span>. We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and web services.
+            Welcome to <span className="font-bold text-[#4A7C59]">NutriTrace</span>. We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and web services.
           </p>
         </section>
 
@@ -88,7 +88,7 @@ function PrivacyPolicy() {
           </h2>
           <div className="bg-[#CBF3BB] bg-opacity-30 rounded-xl p-6">
             <p className="text-gray-700 leading-relaxed">
-              <span className="font-bold text-[#2D5A45]">NutriLiz does not display advertisements.</span> We believe in providing a clean, ad-free experience focused entirely on helping you make healthier food choices. Your data is never sold to advertisers or third-party marketing companies.
+              <span className="font-bold text-[#2D5A45]">NutriTrace does not display advertisements.</span> We believe in providing a clean, ad-free experience focused entirely on helping you make healthier food choices. Your data is never sold to advertisers or third-party marketing companies.
             </p>
           </div>
         </section>
@@ -139,7 +139,7 @@ function PrivacyPolicy() {
             <div className="bg-[#ECF4E8] rounded-xl p-6">
               <h3 className="font-bold text-[#4A7C59] mb-3">Intended Users</h3>
               <p className="text-gray-700">
-                NutriLiz is designed for <span className="font-bold">adults (18+)</span> who want to make informed decisions about their nutrition and dietary choices.
+                NutriTrace is designed for <span className="font-bold">adults (18+)</span> who want to make informed decisions about their nutrition and dietary choices.
               </p>
             </div>
             <div className="bg-[#ECF4E8] rounded-xl p-6">
@@ -206,34 +206,6 @@ function PrivacyPolicy() {
           </p>
         </section>
 
-        {/* Your Rights
-        <section className="bg-white rounded-2xl shadow-lg p-8 mb-8 border-l-4 border-[#93BFC7]">
-          <h2 className="text-2xl font-bold text-[#2D5A45] mb-4">
-            Your Rights
-          </h2>
-          <p className="text-gray-700 mb-4">
-            You have the following rights regarding your personal data:
-          </p>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="bg-[#ECF4E8] rounded-xl p-4">
-              <h3 className="font-bold text-[#4A7C59]">Access</h3>
-              <p className="text-gray-600 text-sm">Request a copy of your personal data</p>
-            </div>
-            <div className="bg-[#ECF4E8] rounded-xl p-4">
-              <h3 className="font-bold text-[#4A7C59]">Correction</h3>
-              <p className="text-gray-600 text-sm">Update or correct your information</p>
-            </div>
-            <div className="bg-[#ECF4E8] rounded-xl p-4">
-              <h3 className="font-bold text-[#4A7C59]">Deletion</h3>
-              <p className="text-gray-600 text-sm">Request deletion of your account and data</p>
-            </div>
-            <div className="bg-[#ECF4E8] rounded-xl p-4">
-              <h3 className="font-bold text-[#4A7C59]">Portability</h3>
-              <p className="text-gray-600 text-sm">Export your data in a readable format</p>
-            </div>
-          </div>
-        </section> */}
-
 
         {/* Footer Note */}
         <div className="text-center text-gray-500 text-sm">
@@ -241,7 +213,7 @@ function PrivacyPolicy() {
             This privacy policy is effective as of January 19, 2026 and will remain in effect except with respect to any changes in its provisions in the future, which will be in effect immediately after being posted on this page.
           </p>
           <p className="mt-4 font-bold text-[#4A7C59]">
-            © 2026 NutriLiz. All rights reserved.
+            © 2026 NutriTrace. All rights reserved.
           </p>
         </div>
       </div>

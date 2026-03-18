@@ -58,7 +58,7 @@ const ModalDashboard = forwardRef(({
 
   return (
     <dialog ref={modalRef} className="modal">
-      <div className="modal-box max-w-2xl">
+      <div className="modal-box max-w-2xl bg-white text-gray-900 shadow-2xl border border-gray-200">
         <form method="dialog">
           <button 
             className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 no-print"
@@ -117,7 +117,7 @@ const ModalDashboard = forwardRef(({
                   {userHistory.map((item, index) => (
                     <div
                       key={item.$id}
-                      className="flex items-center gap-4 p-3 bg-base-200 rounded-lg hover:bg-base-300 transition-colors print:bg-gray-100 print:break-inside-avoid"
+                      className="flex items-center gap-4 p-3 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors print:bg-gray-100 print:break-inside-avoid"
                     >
                       {/* Index number for print */}
                       <span className="hidden print:block text-sm font-medium text-gray-500 w-6">

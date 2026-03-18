@@ -6,6 +6,7 @@ NutriLiz is an intelligent nutrition analysis system that combines barcode scann
 
 - [Features](#features)
 - [System Architecture](#system-architecture)
+- [API Endpoints](#api-endpoints)
 - [Tech Stack](#tech-stack)
 - [Prerequisites](#prerequisites)
 - [Testing](#testing)
@@ -18,10 +19,11 @@ NutriLiz is an intelligent nutrition analysis system that combines barcode scann
 - Automatic fallback mechanism between data sources
 
 ### 🤖 AI-Powered Health Analysis
-- **Google Gemini AI Integration**: Advanced nutritional risk assessment
+- **Google Gemini AI Integration**: Advanced nutritional risk assessment (Gemini 2.5 Flash)
 - **Comorbidity-Aware Recommendations**: Tailored advice for users with specific health conditions
 - **Allergen Detection**: Comprehensive allergen and trace detection
 - **Processing Level Assessment**: NOVA group classification
+- **Food Image Recognition**: Identify fresh foods from photos and get instant nutritional info
 
 ### 📊 Comprehensive Nutritional Data
 - Macronutrients (carbs, proteins, fats, fiber, sugars)
@@ -44,85 +46,122 @@ NutriLiz is an intelligent nutrition analysis system that combines barcode scann
 - Labels and certifications
 - Awards and recognitions
 
+### 📸 Camera & Vision Features
+- **Live Camera Feed**: MJPEG video stream from hardware camera (`/video`)
+- **Real-time Barcode Detection**: Hardware barcode scanner integration via serial port
+- **Food Image Analysis**: Upload or capture images of fresh food for AI-powered identification and nutrition lookup
+
+### 🛡️ Admin Panel
+- **User Management**: List and view all registered users (`/api/admin/users`)
+- **Scan History Tracking**: Per-user scan history access for admins (`/api/admin/users/<id>/scan-history`)
+- **Admin-only Routes**: Role-based access control on both backend and frontend
+
 ### 🖥️ Multi-Platform Support
-- **Web Frontend**: React-based responsive web application
-- **Mobile App**: React Native/Expo mobile application (in development)
-- **Hardware Integration**: USB barcode scanner support
+- **Web Frontend**: React 19 + TailwindCSS 4 responsive web application with TanStack Router
+- **Mobile App**: React Native/Expo mobile application with camera and barcode scanning
+- **Hardware Integration**: USB barcode scanner + Raspberry Pi camera support
 
 ## 🏗️ System Architecture
 
 ```
-┌─────────────────┐
-│  Barcode Scanner│
-│   (USB Device)  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│      Backend (Flask API)            │
-│  ┌─────────────────────────────┐   │
-│  │  Serial Communication       │   │
-│  │  (barcode.py)              │   │
-│  └──────────┬──────────────────┘   │
-│             │                       │
-│             ▼                       │
-│  ┌─────────────────────────────┐   │
-│  │  Data Fetching Layer        │   │
-│  │  • Appwrite (Custom DB)     │   │
-│  │  • OpenFoodFacts API        │   │
-│  └──────────┬──────────────────┘   │
-│             │                       │
-│             ▼                       │
-│  ┌─────────────────────────────┐   │
-│  │  Recommendation Engine      │   │
-│  │  (scikit-learn/ML)         │   │
-│  └──────────┬──────────────────┘   │
-│             │                       │
-│             ▼                       │
-│  ┌─────────────────────────────┐   │
-│  │  AI Risk Assessment         │   │
-│  │  (Google Gemini 2.5 Flash)  │   │
-│  └──────────┬──────────────────┘   │
-└─────────────┼───────────────────────┘
-              │
-              ▼
-    ┌─────────────────┐
-    │   Frontend      │
-    │  (React/Vite)   │
-    │  • Web App      │
-    │  • Mobile App   │
-    └─────────────────┘
+┌─────────────────┐     ┌──────────────────┐
+│  Barcode Scanner│     │  Device Camera   │
+│   (USB/Serial)  │     │  (Pi / Webcam)   │
+└────────┬────────┘     └────────┬─────────┘
+         │                       │
+         ▼                       ▼
+┌────────────────────────────────────────────┐
+│            Backend (Flask API)             │
+│  ┌──────────────────────────────────────┐  │
+│  │  barcode.py  │  food_recognition.py  │  │
+│  └──────────────┴──────────────┬────────┘  │
+│                                │           │
+│                                ▼           │
+│  ┌──────────────────────────────────────┐  │
+│  │          Data Fetching Layer         │  │
+│  │    • Appwrite (Custom DB)            │  │
+│  │    • OpenFoodFacts API               │  │
+│  └──────────────────┬───────────────────┘  │
+│                     │                      │
+│                     ▼                      │
+│  ┌──────────────────────────────────────┐  │
+│  │       Recommendation Engine          │  │
+│  │       (scikit-learn / ML)            │  │
+│  └──────────────────┬───────────────────┘  │
+│                     │                      │
+│                     ▼                      │
+│  ┌──────────────────────────────────────┐  │
+│  │    AI Risk Assessment & Vision       │  │
+│  │    (Google Gemini 3.1 Flash-Lite)    │  │
+│  └──────────────────┬───────────────────┘  │
+│                     │                      │
+│  ┌──────────────────────────────────────┐  │
+│  │    Admin Blueprint (/api/admin)      │  │
+│  └──────────────────────────────────────┘  │
+└─────────────────────┬──────────────────────┘
+                      │
+                      ▼
+        ┌─────────────────────────┐
+        │        Frontends        │
+        │  • Web App (React/Vite) │
+        │  • Mobile App (Expo)    │
+        └─────────────────────────┘
 ```
+
+## 🔌 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/video` | MJPEG live camera stream |
+| GET | `/api/latest-barcode` | Fetch the last scanned barcode |
+| GET | `/api/product/<barcode>` | Get product data (with optional `?recommendations=true`) |
+| GET | `/api/recommendations/<barcode>` | Get similar product recommendations (`?limit=1-10`) |
+| GET/POST | `/api/assess/<barcode>` | AI risk assessment; POST with user profile for personalized results |
+| POST | `/api/analyze-food-image` | Analyze a food image (base64); returns identification + nutrition |
+| POST | `/api/food-alternatives` | Get healthier food alternatives by food name |
+| GET | `/api/admin/users` | *(Admin)* List all users |
+| GET | `/api/admin/users/<user_id>` | *(Admin)* Get a specific user's details |
+| GET | `/api/admin/users/<user_id>/scan-history` | *(Admin)* Get a user's scan history |
 
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Python 3.x** with Flask
+- **Python 3.x** with Flask 3.1 + Gunicorn
 - **PySerial**: Serial communication with barcode scanner
+- **OpenCV** (`opencv-python-headless`): Camera capture and MJPEG streaming
 - **OpenFoodFacts SDK**: Product data retrieval
-- **scikit-learn**: Machine learning for recommendations
-- **Google GenAI**: AI-powered health analysis (Gemini 2.5 Flash)
-- **Appwrite SDK**: Custom database integration
+- **scikit-learn + NumPy**: ML-based product recommendations (cosine similarity)
+- **Google GenAI**: AI-powered health analysis and food image recognition (Gemini 2.5 Flash)
+- **Appwrite SDK**: Custom database and user management
 
-### Frontend (Web)
-- **React 19** with Vite
-- **TailwindCSS 4**: Utility-first styling
-- Custom hooks for state management
+### Frontend (Web) — `fe-web/`
+- **React 19** with **Vite 7**
+- **TanStack Router v1**: File-based routing with lazy loading
+- **TailwindCSS 4** + **DaisyUI 5**: Utility-first styling and component library
+- **Lucide React**: Icon library
+- **Appwrite JS SDK v21**: Auth, database, and storage
+- **react-to-print**: Print support
+- Pages: Dashboard (admin), Scan, Product Detail, Image Search, History, Profile, Login, Forgot Password
 
-### Frontend (Mobile)
-- **React Native** with Expo
-- **TypeScript**: Type safety
+### Frontend (Mobile) — `fe-mob/`
+- **React Native 0.81** with **Expo SDK 54**
+- **Expo Router v6**: File-based navigation
+- **React Native Paper**: Material Design UI components
+- **expo-camera** + **expo-image-picker**: Camera and image capture
+- **react-native-appwrite v0.18**: Auth, database, and storage
+- **expo-print**: PDF/print support
+- Screens: Home, Scan, Food Scan, Product Detail, Food Detail, List, Profile, Admin Dashboard, User Details
 
 ### Database & Services
-- **Appwrite Cloud**: Database, file storage, and real-time sync
+- **Appwrite Cloud**: Database, file storage, user auth, and real-time sync
 - **OpenFoodFacts API**: Global food product database
-- **Google Gemini API**: AI health analysis
+- **Google Gemini API**: AI health analysis and food vision
 
 ## 📋 Prerequisites
 
 ### Hardware
 - USB Barcode Scanner (serial communication compatible)
-- Computer/Raspberry Pi with USB port
+- Computer/Raspberry Pi with USB port and camera module
 - Internet connection
 
 ### Software
@@ -135,13 +174,33 @@ NutriLiz is an intelligent nutrition analysis system that combines barcode scann
 2. **Appwrite Account** - [Sign up](https://cloud.appwrite.io)
    - Project ID, API Key, Database ID, Collection ID, Bucket ID
 
+### Environment Variables
+
+#### Backend (`backend/.env`)
+```
+GEMINI_API_KEY=your_gemini_api_key
+APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+APPWRITE_PROJECT_ID=your_project_id
+APPWRITE_API_KEY=your_api_key
+APPWRITE_DATABASE_ID=your_database_id
+APPWRITE_COLLECTION_ID=your_collection_id
+```
+
+#### Frontend Web (`fe-web/.env`)
+```
+VITE_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+VITE_APPWRITE_PROJECT_ID=your_project_id
+VITE_BACKEND_URL=http://localhost:5000
+```
+
 ## 🧪 Testing
 
-Test individual components:
+Test individual backend components:
 
 ```bash
-# Test barcode scanner
 cd backend
+
+# Test barcode scanner
 python test_barcode.py
 
 # Test Gemini AI
@@ -154,8 +213,8 @@ python test_appwrite.py
 ## 🙏 Acknowledgments
 
 - **OpenFoodFacts**: Comprehensive food product data
-- **Google Gemini**: AI-powered health analysis capabilities
-- **Appwrite**: Cloud database and storage infrastructure
+- **Google Gemini**: AI-powered health analysis and food recognition capabilities
+- **Appwrite**: Cloud database, auth, and storage infrastructure
 - **Open Source Community**: Amazing tools and libraries
 
 ---

@@ -1,18 +1,44 @@
+import { memo } from 'react'
 import { Camera } from 'lucide-react'
 
-export default function CapturePanel({ videoSrc, imgRef, analyzing, progress, error, onCapture }) {
+function CapturePanel({ videoSrc, frozenFrame, imgRef, analyzing, progress, processingMessage, error, onCapture }) {
+  const displaySrc = analyzing && frozenFrame ? frozenFrame : videoSrc
+  const statusText = processingMessage || 'Please hold on while we analyze your food.'
+
   return (
     <div className="lg:col-span-1 space-y-4">
       <div className="card bg-base-100 shadow-xl overflow-hidden sticky top-4 rounded-sm">
         <figure className="relative">
           <img
             ref={imgRef}
-            src={videoSrc}
-            alt="Live Video Feed"
-            className="w-full aspect-[4/3] object-cover"
+            src={displaySrc}
+            alt={analyzing ? 'Captured frame' : 'Live Video Feed'}
+            className="w-full aspect-4/3 object-cover"
             crossOrigin="anonymous"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent pointer-events-none" />
+
+          {analyzing && (
+            <div className="absolute inset-0 z-10 bg-base-100/75 backdrop-blur-[2px] flex items-center justify-center">
+              <div className="w-[85%] max-w-xs rounded-xl bg-base-100/95 shadow-xl p-4">
+                <div className="flex items-center gap-3">
+                  <span className="loading loading-spinner loading-lg text-primary" />
+                  <div>
+                    <p className="font-semibold text-base-content">Processing Capture</p>
+                    <p className="text-xs text-base-content/70">{statusText}</p>
+                  </div>
+                </div>
+                <progress
+                  className="progress progress-primary mt-4 w-full"
+                  value={Math.round(progress)}
+                  max="100"
+                  aria-label="Food analysis progress"
+                />
+                <p className="text-right text-xs mt-1 text-base-content/70">{Math.round(progress)}%</p>
+              </div>
+            </div>
+          )}
+
           <div className="absolute bottom-4 left-4 right-4">
             <button
               className={`btn btn-primary w-full gap-2 shadow-lg ${analyzing ? 'loading' : ''} border-none rounded-sm`}
@@ -26,20 +52,6 @@ export default function CapturePanel({ videoSrc, imgRef, analyzing, progress, er
         </figure>
       </div>
 
-      {analyzing && (
-        <div className="card bg-base-100 shadow-xl">
-          <div className="card-body items-center text-center py-8">
-            <div
-              className="radial-progress text-primary"
-              style={{ '--value': Math.round(progress), '--size': '6rem', '--thickness': '6px' }}
-              role="progressbar"
-            >
-              {Math.round(progress)}%
-            </div>
-            <p className="mt-3 font-medium animate-pulse">Analyzing...</p>
-          </div>
-        </div>
-      )}
 
       {error && (
         <div className="alert alert-error shadow-lg">
@@ -62,3 +74,5 @@ export default function CapturePanel({ videoSrc, imgRef, analyzing, progress, er
     </div>
   )
 }
+
+export default memo(CapturePanel)

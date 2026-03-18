@@ -4,7 +4,12 @@ from flask_cors import CORS
 from barcode import get_latest_barcode, start_barcode_scanner, get_product_data
 from recommend import get_recommendations
 from risk_assessment import analyze_product
-from food_recognition import analyze_food_image, get_food_recommendations
+from food_recognition import (
+    analyze_food_image,
+    get_food_recommendations,
+    validate_food_input,
+    apply_user_confirmed_food_name,
+)
 from admin import admin_bp
 import cv2
 
@@ -16,6 +21,10 @@ CORS(app)
 app.register_blueprint(admin_bp)
 
 camera = None
+
+
+def log_recommendation(message):
+    print(f"[Recommendations] {message}")
 
 def get_camera():
     global camera
@@ -79,11 +88,14 @@ def get_product(barcode):
         
         if include_recommendations and data_source == 'openfoodfacts':
             try:
-                recommendations = get_recommendations(barcode, limit=9)
+                lookup_barcode = product_data.get('barcode') or product_data.get('requested_barcode') or barcode
+                log_recommendation(f"Fetching recommendations for barcode={lookup_barcode} via /api/product")
+                recommendations = get_recommendations(lookup_barcode, limit=9)
                 product_data['recommendations'] = recommendations
                 product_data['recommendations_count'] = len(recommendations)
+                log_recommendation(f"Attached {len(recommendations)} recommendations to barcode={lookup_barcode}")
             except Exception as e:
-                print(f"Error getting recommendations: {e}")
+                log_recommendation(f"Error getting recommendations for barcode={barcode}: {e}")
                 product_data['recommendations'] = []
                 product_data['recommendations_count'] = 0
                 product_data['recommendations_error'] = str(e)
@@ -93,9 +105,10 @@ def get_product(barcode):
             product_data['recommendations_count'] = 0
             product_data['recommendations_available'] = False
             product_data['message'] = 'Recommendations only available for OpenFoodFacts products'
+            log_recommendation(f"Skipped barcode={barcode} because source=appwrite")
         
         return jsonify(product_data)
-    return jsonify({'error': 'Search query limit reached. Please retry after 1 minute.'}), 404
+    return jsonify({'error': 'Product not found in Appwrite or Open Food Facts for this barcode.'}), 404
 
 
 @app.route('/api/recommendations/<barcode>')
@@ -104,7 +117,8 @@ def get_product_recommendations(barcode):
         # Get limit from query parameter (default: 9)
         limit = request.args.get('limit', default=9, type=int)
         limit = min(max(1, limit), 10)  # Clamp between 1 and 10
-        
+
+        log_recommendation(f"Direct recommendations request barcode={barcode} limit={limit}")
         recommendations = get_recommendations(barcode, limit=limit)
         
         if recommendations:
@@ -178,6 +192,51 @@ def analyze_food():
             
     except Exception as e:
         print(f"Error analyzing food image: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/validate-food-input', methods=['POST'])
+def validate_food_input_endpoint():
+    """Validate a user-typed food name for the disambiguation modal."""
+    try:
+        data = request.get_json()
+        if not data or 'food_name' not in data:
+            return jsonify({'error': 'food_name required'}), 400
+
+        food_name = str(data.get('food_name', '')).strip()
+        if not food_name:
+            return jsonify({'valid': False, 'reason': 'Empty input.', 'sanitized_name': ''}), 200
+        if len(food_name) > 100:
+            return jsonify({'valid': False, 'reason': 'Input is too long.', 'sanitized_name': ''}), 200
+
+        context = data.get('context', {})
+        result = validate_food_input(food_name, context)
+        return jsonify(result)
+    except Exception as e:
+        print(f"Error in validate_food_input_endpoint: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/confirm-food-name', methods=['POST'])
+def confirm_food_name_endpoint():
+    """Apply user-confirmed food name and fetch USDA nutrition after confirmation."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body required'}), 400
+
+        food_data = data.get('foodData')
+        confirmed_name = str(data.get('confirmedName', '')).strip()
+
+        if not isinstance(food_data, dict):
+            return jsonify({'error': 'foodData object required'}), 400
+        if not confirmed_name:
+            return jsonify({'error': 'confirmedName required'}), 400
+
+        updated_food_data = apply_user_confirmed_food_name(food_data, confirmed_name)
+        return jsonify({'success': True, 'data': updated_food_data})
+    except Exception as e:
+        print(f"Error in confirm_food_name_endpoint: {e}")
         return jsonify({'error': str(e)}), 500
 
 

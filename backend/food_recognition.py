@@ -1,55 +1,54 @@
-from google import genai
-from dotenv import load_dotenv
 import base64
+import hashlib
 import json
-import os
 import re
-import requests
 
-load_dotenv()
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-USDA_API_KEY = os.getenv('USDA_API_KEY')
-USDA_BASE_URL = os.getenv('USDA_BASE_URL', 'https://api.nal.usda.gov/fdc/v1')
-client = genai.Client(api_key=GEMINI_API_KEY)
-
-
-NUTRIENT_NUMBER_MAP = {
-    'calories': '208',
-    'protein_g': '203',
-    'carbohydrates_g': '205',
-    'fat_g': '204',
-    'fiber_g': '291',
-    'sugar_g': '269',
-    'sodium_mg': '307',
-    'saturated_fat_g': '606'
-}
-
-USDA_ALLOWED_DATA_TYPES = ('SR Legacy', 'Foundation')
-USDA_PROCESSED_KEYWORDS = (
-    'flour', 'powder', 'starch', 'chip', 'chips', 'fried', 'baked',
-    'dehydrated', 'dried', 'instant', 'mix', 'snack', 'canned',
-    'frozen', 'puree', 'mashed'
+from food_recognition_config import (
+    ANALYSIS_CACHE,
+    FOOD_ANALYSIS_FAST_MODE,
+    cache_get,
+    cache_set,
+    client,
+    to_bool,
+)
+from food_recognition_helpers import (
+    build_health_context,
+    ensure_disambiguation_alternatives,
+    is_labeled_product,
+    normalize_food_text,
+    requires_user_confirmation,
+    resolve_local_dish_mapping,
+)
+from food_recognition_sources import (
+    build_openfoodfacts_queries,
+    extract_nutrition_per_100g,
+    extract_openfoodfacts_nutrition,
+    extract_quantity_value,
+    get_openfoodfacts_nutrition,
+    get_usda_nutrition,
+    search_fooddata_central,
+    search_openfoodfacts_product,
 )
 
 
 def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
     """
     Analyze a food image using Gemini Vision API.
-    
+
     Args:
         image_data: Base64 encoded image string
         user_profile: Optional user health profile for personalized assessment
-    
+
     Returns:
         Dictionary with food identification and nutritional info
     """
     try:
-        # Build the prompt for food recognition
         prompt = """Analyze this food image and provide detailed information in the following JSON format:
 
 {
     "identified": true/false,
     "confidence": "high/medium/low",
+    "has_visible_label_or_packaging": true/false,
     "food_name": "Name of the food",
     "food_name_local": "Local/regional name if applicable",
     "category": "Category (e.g., Fruit, Vegetable, Meat, Dairy, Grain, etc.)",
@@ -76,23 +75,51 @@ def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
     },
     "nutri_score_estimate": "A/B/C/D/E",
     "ingredients_if_dish": ["ingredient1", "ingredient2"],
-    "preparation_notes": "How the food appears to be prepared"
+    "preparation_notes": "How the food appears to be prepared",
+    "disambiguation_needed": false,
+    "alternatives": []
 }
 
 If you cannot identify the food or it's not a food item, set "identified" to false and explain in the description.
 Do not estimate nutrition values. Keep nutrition fields null, they will be populated from an external nutrition database.
+
+Set "disambiguation_needed" to true only when the exact food identity is genuinely ambiguous due to:
+1. The food appears to be an unlabeled liquid (e.g., tea, juice, smoothie, soup, broth, coffee, unknown drink) where the specific variety cannot be reliably determined from the image alone.
+2. The dish has heavy sauces, dressings, gravies, or toppings that significantly obscure the identity of the underlying main food item (e.g., pasta completely submerged in sauce, a salad fully drenched in thick dressing).
+3. The dish appears to be a regional noodle dish with broth/sauce where lookalike noodle dishes are common (e.g., Lomi vs Pancit Canton vs Mami).
+When "disambiguation_needed" is true, populate "alternatives" with 2-3 of the most plausible food names as candidates for what is shown.
+In all other cases, keep "disambiguation_needed" as false and "alternatives" as an empty array.
+
+Set "has_visible_label_or_packaging" to true only when there are explicit visible cues of commercial packaging or labels
+(for example: branded wrappers, product labels, bottle/can labels, nutrition panel, barcodes, clear package text).
+For plated, home-cooked, unpacked, or unlabeled foods, set it to false.
+
 Return ONLY valid JSON, no additional text."""
 
-        # Add personalization if user profile provided
-       # Add personalization if user profile provided
+        profile_payload = ''
+        if user_profile:
+            try:
+                profile_payload = json.dumps(user_profile, sort_keys=True, default=str)
+            except Exception:
+                profile_payload = str(user_profile)
+
+        image_hash = hashlib.sha256(image_data.encode('utf-8')).hexdigest()
+        profile_hash = hashlib.sha256(profile_payload.encode('utf-8')).hexdigest() if profile_payload else 'none'
+        analysis_cache_key = f"{image_hash}:{profile_hash}:{int(FOOD_ANALYSIS_FAST_MODE)}"
+
+        cache_hit, cached_food_data = cache_get(ANALYSIS_CACHE, analysis_cache_key)
+        if cache_hit:
+            return {
+                'success': True,
+                'data': cached_food_data
+            }
+
         if user_profile:
             health_context = build_health_context(user_profile)
             prompt += f"\n\nUser Health Context:\n{health_context}\n\nAlso include a 'personalized_advice' field with specific recommendations for this user."
 
-        # Detect mime type from base64 header or default to jpeg
         mime_type = "image/jpeg"
         try:
-            # Decode a small portion to detect image type
             image_bytes = base64.b64decode(image_data)
             if image_bytes[:8] == b'\x89PNG\r\n\x1a\n':
                 mime_type = "image/png"
@@ -101,11 +128,10 @@ Return ONLY valid JSON, no additional text."""
             elif image_bytes[:4] == b'RIFF' and image_bytes[8:12] == b'WEBP':
                 mime_type = "image/webp"
         except Exception:
-            pass  # Use default jpeg if detection fails
-        
-        # Create content with image for Gemini
+            pass
+
         response = client.models.generate_content(
-            model="gemini-3.1-flash-image-preview",
+            model="gemini-3.1-flash-lite-preview",
             contents=[
                 {
                     "role": "user",
@@ -121,44 +147,72 @@ Return ONLY valid JSON, no additional text."""
                 }
             ]
         )
-        
-        # Parse the response
+
         response_text = response.text.strip()
-        
-        # Clean up response (remove markdown code blocks if present)
+
         if response_text.startswith("```"):
             response_text = re.sub(r'^```json?\n?', '', response_text)
             response_text = re.sub(r'\n?```$', '', response_text)
-        
+
         food_data = json.loads(response_text)
 
-        # Enrich nutrition using USDA FoodData Central for identified foods.
         if food_data.get('identified'):
-            usda_nutrition = get_usda_nutrition(
-                food_name=food_data.get('food_name', ''),
-                ingredients=food_data.get('ingredients_if_dish', [])
-            )
-            if usda_nutrition:
-                food_data['nutrition_per_100g'] = usda_nutrition['nutrition_per_100g']
-                food_data['nutrition_source'] = 'usda_fooddata_central'
-                food_data['usda_match'] = {
-                    'fdc_id': usda_nutrition['fdc_id'],
-                    'description': usda_nutrition['description'],
-                    'data_type': usda_nutrition.get('data_type')
-                }
-                if not food_data.get('serving_size') and usda_nutrition.get('serving_size'):
-                    food_data['serving_size'] = usda_nutrition['serving_size']
-        
-        # Add source information
+            confirmation_required = requires_user_confirmation(food_data)
+            has_visible_packaging = to_bool(food_data.get('has_visible_label_or_packaging'))
+            heuristic_labeled_product = is_labeled_product(food_data)
+            off_lookup_allowed = has_visible_packaging or heuristic_labeled_product
+            if confirmation_required:
+                food_data['disambiguation_needed'] = True
+                food_data['alternatives'] = ensure_disambiguation_alternatives(food_data)
+                food_data['nutrition_pending_confirmation'] = True
+
+            if off_lookup_allowed:
+                off_nutrition = get_openfoodfacts_nutrition(food_data, fast_mode=FOOD_ANALYSIS_FAST_MODE)
+                if off_nutrition:
+                    food_data['nutrition_per_100g'] = off_nutrition['nutrition_per_100g']
+                    food_data['nutrition_source'] = 'open_food_facts'
+                    food_data['openfoodfacts_match'] = {
+                        'code': off_nutrition.get('code'),
+                        'product_name': off_nutrition.get('product_name'),
+                        'brands': off_nutrition.get('brands'),
+                        'quantity': off_nutrition.get('quantity')
+                    }
+                    if off_nutrition.get('nutri_score'):
+                        food_data['nutri_score_estimate'] = off_nutrition['nutri_score']
+                    if not food_data.get('serving_size') and off_nutrition.get('quantity'):
+                        food_data['serving_size'] = off_nutrition['quantity']
+                    food_data['label_detection'] = {
+                        'has_visible_label_or_packaging': has_visible_packaging,
+                        'heuristic_labeled_product': heuristic_labeled_product,
+                        'off_lookup_allowed': off_lookup_allowed
+                    }
+
+            if not food_data.get('nutrition_source') and not confirmation_required:
+                usda_nutrition = get_usda_nutrition(
+                    food_name=food_data.get('food_name', ''),
+                    ingredients=food_data.get('ingredients_if_dish', []),
+                    fast_mode=FOOD_ANALYSIS_FAST_MODE
+                )
+                if usda_nutrition:
+                    food_data['nutrition_per_100g'] = usda_nutrition['nutrition_per_100g']
+                    food_data['nutrition_source'] = 'usda_fooddata_central'
+                    food_data['usda_match'] = {
+                        'fdc_id': usda_nutrition['fdc_id'],
+                        'description': usda_nutrition['description'],
+                        'data_type': usda_nutrition.get('data_type')
+                    }
+
         food_data['source'] = 'gemini_vision'
         food_data['analysis_type'] = 'image_recognition'
-        
+
+        cache_set(ANALYSIS_CACHE, analysis_cache_key, food_data)
+
         return {
             'success': True,
             'data': food_data
         }
-        
-    except json.JSONDecodeError as e:
+
+    except json.JSONDecodeError:
         return {
             'success': False,
             'error': 'Failed to parse AI response',
@@ -171,213 +225,100 @@ Return ONLY valid JSON, no additional text."""
         }
 
 
-def build_health_context(user_profile: dict) -> str:
-    """Build health context string from user profile."""
-    context_parts = []
-    
-    try:
-        if user_profile.get('age'):
-            context_parts.append(f"Age: {user_profile['age']}")
-        if user_profile.get('gender'):
-            context_parts.append(f"Gender: {user_profile['gender']}")
-        if user_profile.get('weight') and user_profile.get('height'):
-            try:
-                weight = float(user_profile['weight'])
-                height = float(user_profile['height'])
-                bmi = weight / ((height/100) ** 2)
-                context_parts.append(f"BMI: {bmi:.1f}")
-            except (ValueError, TypeError, ZeroDivisionError):
-                pass
-        
-        # Handle allergies - could be list, string, or JSON string
-        allergies = user_profile.get('allergies')
-        if allergies:
-            if isinstance(allergies, list):
-                allergies_str = ', '.join(str(a) for a in allergies if a)
-            elif isinstance(allergies, str):
-                # Try to parse as JSON, otherwise use as-is
-                try:
-                    parsed = json.loads(allergies)
-                    allergies_str = ', '.join(str(a) for a in parsed if a) if isinstance(parsed, list) else allergies
-                except json.JSONDecodeError:
-                    allergies_str = allergies
-            else:
-                allergies_str = str(allergies)
-            if allergies_str:
-                context_parts.append(f"Allergies: {allergies_str}")
-        
-        # Handle health conditions - could be list, string, or JSON string
-        health_conditions = user_profile.get('health_conditions') or user_profile.get('healthConditions')
-        if health_conditions:
-            if isinstance(health_conditions, list):
-                conditions_str = ', '.join(str(c) for c in health_conditions if c)
-            elif isinstance(health_conditions, str):
-                try:
-                    parsed = json.loads(health_conditions)
-                    conditions_str = ', '.join(str(c) for c in parsed if c) if isinstance(parsed, list) else health_conditions
-                except json.JSONDecodeError:
-                    conditions_str = health_conditions
-            else:
-                conditions_str = str(health_conditions)
-            if conditions_str:
-                context_parts.append(f"Health conditions: {conditions_str}")
-        
-        # Handle dietary restrictions - could be list, string, or JSON string
-        dietary_restrictions = user_profile.get('dietary_restrictions') or user_profile.get('dietaryRestrictions')
-        if dietary_restrictions:
-            if isinstance(dietary_restrictions, list):
-                restrictions_str = ', '.join(str(d) for d in dietary_restrictions if d)
-            elif isinstance(dietary_restrictions, str):
-                try:
-                    parsed = json.loads(dietary_restrictions)
-                    restrictions_str = ', '.join(str(d) for d in parsed if d) if isinstance(parsed, list) else dietary_restrictions
-                except json.JSONDecodeError:
-                    restrictions_str = dietary_restrictions
-            else:
-                restrictions_str = str(dietary_restrictions)
-            if restrictions_str:
-                context_parts.append(f"Dietary restrictions: {restrictions_str}")
-                
-    except Exception as e:
-        print(f"Error building health context: {e}")
-        # Return empty context if there's an error
-        return ""
-    
-    return '\n'.join(context_parts)
-
-
-def get_usda_nutrition(food_name: str, ingredients=None) -> dict:
-    """Look up nutrition from USDA FoodData Central and normalize to app schema."""
-    if not USDA_API_KEY or not food_name:
+def apply_user_confirmed_food_name(food_data: dict, confirmed_name: str) -> dict:
+    """Apply a user-confirmed name, run local mapping, then fetch USDA nutrition."""
+    if not isinstance(food_data, dict):
         return {}
 
-    queries = [food_name]
-    if isinstance(ingredients, list):
-        queries.extend([str(item).strip() for item in ingredients if item])
+    updated = dict(food_data)
+    cleaned_name = re.sub(r'\s+', ' ', str(confirmed_name or '')).strip()
+    if not cleaned_name:
+        return updated
 
-    seen = set()
-    deduped_queries = []
-    for query in queries:
-        lowered = query.lower()
-        if lowered in seen:
-            continue
-        seen.add(lowered)
-        deduped_queries.append(query)
+    mapping = resolve_local_dish_mapping(cleaned_name)
+    canonical_name = mapping.get('canonical_name', cleaned_name)
 
-    for query in deduped_queries:
-        food = search_fooddata_central(query)
-        if not food:
-            continue
-
-        nutrition_per_100g = extract_nutrition_per_100g(food)
-        if not nutrition_per_100g:
-            continue
-
-        return {
-            'fdc_id': food.get('fdcId'),
-            'description': food.get('description', query),
-            'data_type': food.get('dataType'),
-            'nutrition_per_100g': nutrition_per_100g
+    updated['food_name'] = canonical_name
+    updated['user_corrected_name'] = True
+    updated['disambiguation_needed'] = False
+    updated['alternatives'] = []
+    updated['nutrition_pending_confirmation'] = False
+    if mapping.get('matched_alias'):
+        updated['local_dish_mapping'] = {
+            'matched_alias': mapping['matched_alias'],
+            'canonical_name': canonical_name
         }
 
-    return {}
+    if updated.get('nutrition_source') == 'open_food_facts':
+        return updated
+
+    usda_nutrition = get_usda_nutrition(
+        food_name=canonical_name,
+        ingredients=updated.get('ingredients_if_dish', []),
+        fast_mode=FOOD_ANALYSIS_FAST_MODE
+    )
+    if usda_nutrition:
+        updated['nutrition_per_100g'] = usda_nutrition['nutrition_per_100g']
+        updated['nutrition_source'] = 'usda_fooddata_central'
+        updated['usda_match'] = {
+            'fdc_id': usda_nutrition['fdc_id'],
+            'description': usda_nutrition['description'],
+            'data_type': usda_nutrition.get('data_type')
+        }
+
+    return updated
 
 
-def search_fooddata_central(query: str) -> dict:
-    """Search USDA FoodData Central and return the best match."""
-    if not USDA_API_KEY or not query:
-        return {}
-
+def validate_food_input(food_name: str, context: dict = None) -> dict:
+    """
+    Validate that a user-typed string is a real food or beverage name and is
+    contextually plausible given what was detected in the image.
+    """
     try:
-        response = requests.get(
-            f"{USDA_BASE_URL}/foods/search",
-            params={
-                'api_key': USDA_API_KEY,
-                'query': query,
-                'pageSize': 10,
-                'dataType': list(USDA_ALLOWED_DATA_TYPES)
-            },
-            timeout=10
+        context_str = ""
+        if context:
+            ctx_name = context.get('food_name', '')
+            ctx_category = context.get('category', '')
+            ctx_desc = context.get('description', '')
+            if ctx_name or ctx_category:
+                context_str = (
+                    f"\nThe image was previously analysed and appears to show: "
+                    f"{ctx_name} ({ctx_category})."
+                )
+                if ctx_desc:
+                    context_str += f" Description: {ctx_desc}"
+
+        prompt = f"""You are a food validation assistant.
+A user manually typed "{food_name}" as the name of a food item they just photographed.{context_str}
+
+Respond ONLY with valid JSON in this exact format:
+{{
+  "valid": true,
+  "reason": "brief explanation",
+  "sanitized_name": "Properly capitalised, clean version of the food name"
+}}
+
+Rules:
+1. "valid" is true ONLY if the input is a real, recognisable food or beverage name (including regional, brand, or colloquial names).
+2. "valid" is false if the input is not food/beverage (e.g. household objects, people, random text, offensive language, nonsense) OR if it is obviously impossible given the image context (e.g. typing "raw carrot" when tea/liquid was detected).
+3. Do NOT be overly strict - regional dishes, brand names, and informal names are all acceptable as long as they refer to something edible.
+4. "sanitized_name" must be filled when valid is true; leave it as an empty string when valid is false.
+Return ONLY valid JSON, no additional text."""
+
+        response = client.models.generate_content(
+            model="gemini-3.1-flash-lite-preview",
+            contents=prompt
         )
-        response.raise_for_status()
-        payload = response.json()
-        foods = payload.get('foods', [])
-        if not foods:
-            return {}
 
-        # Keep only SR Legacy and Foundation entries for consistent USDA reference nutrients.
-        filtered = [
-            item for item in foods
-            if str(item.get('dataType', '')).strip() in USDA_ALLOWED_DATA_TYPES
-        ]
-        if not filtered:
-            return {}
+        response_text = response.text.strip()
+        if response_text.startswith("```"):
+            response_text = re.sub(r'^```json?\n?', '', response_text)
+            response_text = re.sub(r'\n?```$', '', response_text)
 
-        # Favor whole/raw ingredient matches over processed forms (e.g., potato vs potato flour).
-        query_lower = query.lower().strip()
-        query_tokens = [t for t in re.findall(r'[a-z]+', query_lower) if t]
-
-        def rank(item):
-            desc = str(item.get('description', '')).lower()
-            desc_tokens = [t for t in re.findall(r'[a-z]+', desc) if t]
-            starts_with = desc.startswith(query_lower)
-
-            token_overlap = 0
-            for token in query_tokens:
-                if any(dt.startswith(token) or token.startswith(dt) for dt in desc_tokens):
-                    token_overlap += 1
-
-            processed_penalty = sum(
-                1 for keyword in USDA_PROCESSED_KEYWORDS
-                if keyword in desc and keyword not in query_lower
-            )
-            has_raw = 'raw' in desc
-
-            # Lower is better.
-            return (
-                processed_penalty,
-                not starts_with,
-                not has_raw,
-                -token_overlap,
-                len(desc)
-            )
-
-        foods_sorted = sorted(filtered, key=rank)
-        return foods_sorted[0]
+        return json.loads(response_text)
     except Exception as e:
-        print(f"Error searching USDA for '{query}': {e}")
-        return {}
-
-
-def extract_nutrition_per_100g(food: dict) -> dict:
-    """Extract normalized macro nutrition fields from USDA search result."""
-    food_nutrients = food.get('foodNutrients', [])
-    if not food_nutrients:
-        return {}
-
-    result = {}
-    for app_key, nutrient_number in NUTRIENT_NUMBER_MAP.items():
-        value = None
-        for nutrient in food_nutrients:
-            nutrient_meta = nutrient.get('nutrient', {}) if isinstance(nutrient, dict) else {}
-            current_number = str(
-                nutrient.get('nutrientNumber')
-                or nutrient_meta.get('number')
-                or ''
-            ).strip()
-            if current_number == nutrient_number:
-                nutrient_value = nutrient.get('value')
-                if nutrient_value is None:
-                    nutrient_value = nutrient.get('amount')
-                try:
-                    value = float(nutrient_value) if nutrient_value is not None else None
-                except (TypeError, ValueError):
-                    value = None
-                break
-
-        result[app_key] = round(value, 2) if value is not None else None
-
-    return result
+        print(f"Error validating food input: {e}")
+        return {"valid": False, "reason": "Validation service unavailable.", "sanitized_name": ""}
 
 
 def get_food_recommendations(food_data: dict) -> list:
@@ -385,7 +326,7 @@ def get_food_recommendations(food_data: dict) -> list:
     try:
         food_name = food_data.get('food_name', '')
         category = food_data.get('category', '')
-        
+
         prompt = f"""Based on the food "{food_name}" in category "{category}", suggest 3-5 healthier alternatives or complementary foods.
 
 Return as JSON array:
@@ -403,14 +344,36 @@ Return ONLY valid JSON array."""
             model="gemini-3.1-flash-lite-preview",
             contents=prompt
         )
-        
+
         response_text = response.text.strip()
         if response_text.startswith("```"):
             response_text = re.sub(r'^```json?\n?', '', response_text)
             response_text = re.sub(r'\n?```$', '', response_text)
-        
+
         return json.loads(response_text)
-        
+
     except Exception as e:
         print(f"Error getting food recommendations: {e}")
         return []
+
+
+__all__ = [
+    'analyze_food_image',
+    'apply_user_confirmed_food_name',
+    'validate_food_input',
+    'get_food_recommendations',
+    'build_health_context',
+    'build_openfoodfacts_queries',
+    'ensure_disambiguation_alternatives',
+    'extract_nutrition_per_100g',
+    'extract_openfoodfacts_nutrition',
+    'extract_quantity_value',
+    'get_openfoodfacts_nutrition',
+    'get_usda_nutrition',
+    'is_labeled_product',
+    'normalize_food_text',
+    'requires_user_confirmation',
+    'resolve_local_dish_mapping',
+    'search_fooddata_central',
+    'search_openfoodfacts_product',
+]

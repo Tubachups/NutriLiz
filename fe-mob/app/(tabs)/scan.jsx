@@ -11,6 +11,7 @@ import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { useAuth } from '@/hooks/auth-context';
 import { getUserProfile } from '@/lib/appwriteDb';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import FoodDisambiguationModal from '@/app/components/FoodDisambiguationModal';
 
 export default function Index() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -24,16 +25,22 @@ export default function Index() {
   const [pendingNavigation, setPendingNavigation] = useState(null);
   const [errorModal, setErrorModal] = useState({ visible: false, title: '', message: '' });
   const [barcodeFinalizing, setBarcodeFinalizing] = useState(false);
+  // Disambiguation state — shown for unlabeled liquids and sauce-heavy dishes
+  const [disambiguationData, setDisambiguationData] = useState(null); // { foodData, imageUri }
+  const [showDisambiguationModal, setShowDisambiguationModal] = useState(false);
   const cameraRef = useRef(null);
+  const lastBarcodeRef = useRef(null);
+  const isBarcodeFetchInProgressRef = useRef(false);
   
   const { fetchProduct, loading: productLoading } = useProductAPI();
-  const { analyzeFoodImage, loading: foodLoading } = useFoodImageAPI();
+  const { analyzeFoodImage, confirmFoodName, loading: foodLoading } = useFoodImageAPI();
   const { addProduct, addFoodItem } = useProductHistory();
   const { user } = useAuth();
   const router = useRouter();
   const isFocused = useIsFocused();
 
   const loading = productLoading || foodLoading;
+  const normalizeBarcode = (value) => String(value || '').replace(/\D/g, '');
 
   // Reset scan state every time screen is focused
   useFocusEffect(
@@ -46,6 +53,10 @@ export default function Index() {
       setShowDisclaimerModal(false);
       setPendingNavigation(null);
       setErrorModal({ visible: false, title: '', message: '' });
+      setDisambiguationData(null);
+      setShowDisambiguationModal(false);
+      lastBarcodeRef.current = null;
+      isBarcodeFetchInProgressRef.current = false;
 
       // Add a small delay before activating camera to let the other camera release
       const timer = setTimeout(() => {
@@ -57,6 +68,7 @@ export default function Index() {
         setTorchEnabled(false);
         setCameraReady(false);
         setFinalizing(false);
+        isBarcodeFetchInProgressRef.current = false;
       };
     }, [])
   );
@@ -72,6 +84,7 @@ export default function Index() {
     setErrorModal({ visible: false, title: '', message: '' });
     setCapturedImage(null);
     setScanned(false);
+    setBarcodeFinalizing(false);
   };
 
   if (!permission) return <View />;
@@ -91,34 +104,49 @@ export default function Index() {
 
   // ===== BARCODE MODE FUNCTIONS =====
   const handleBarcodeScanned = async ({ type, data }) => {
-    if (scanMode !== 'barcode' || scanned || loading) return;
-    
+    if (scanMode !== 'barcode' || loading || isBarcodeFetchInProgressRef.current) return;
+
+    const normalizedBarcode = normalizeBarcode(data);
+    if (!normalizedBarcode) return;
+
+    // Same barcode can fire multiple events in quick succession.
+    if (normalizedBarcode === lastBarcodeRef.current) return;
+
+    lastBarcodeRef.current = normalizedBarcode;
+    isBarcodeFetchInProgressRef.current = true;
     setScanned(true);
     setTorchEnabled(false);
-    console.log(`Scanned: ${data}`);
+    console.log(`Scanned (${type}): ${normalizedBarcode}`);
 
-    const productData = await fetchProduct(data);
+    try {
+      const productData = await fetchProduct(normalizedBarcode);
 
-    if (productData) {
-      // Show finalizing message
+      if (!productData) {
+        showError('Product Not Found', 'We could not find this product in Open Food Facts or Appwrite.');
+        setScanned(false);
+        lastBarcodeRef.current = null;
+        return;
+      }
+
       setBarcodeFinalizing(true);
-      
-      // Save to history
-      await addProduct(productData, data);
-      
-      // Brief delay for UX
+      await addProduct(productData, normalizedBarcode);
+
       setTimeout(() => {
         setBarcodeFinalizing(false);
         router.push({
           pathname: '/product-detail',
-          params: { 
-            barcode: data,
+          params: {
+            barcode: normalizedBarcode,
             productData: JSON.stringify(productData)
           }
         });
-      }, 800);
-    } else {
-      showError('Product Not Found', 'We couldn\'t find this product in our database. Please try scanning again or check if the barcode is valid.');
+      }, 600);
+    } catch (error) {
+      showError('Scan Error', 'Something went wrong while fetching this barcode. Please try again.');
+      setScanned(false);
+      lastBarcodeRef.current = null;
+    } finally {
+      isBarcodeFetchInProgressRef.current = false;
     }
   };
 
@@ -167,23 +195,69 @@ export default function Index() {
     const foodData = await analyzeFoodImage(base64Image, userProfile);
 
     if (foodData && foodData.identified) {
-      // Show finalizing message before navigation
-      setFinalizing(true);
-      
-      // Save to history
-      await addFoodItem(foodData, imageUri);
-      
-      // Store pending navigation and show disclaimer modal
-      setPendingNavigation({
-        pathname: '/food-detail',
-        params: { foodData: JSON.stringify(foodData) },
-      });
-      setShowDisclaimerModal(true);
+      const confidence = String(foodData.confidence || '').toLowerCase();
+      const requiresConfirmation =
+        foodData.disambiguation_needed ||
+        confidence === 'medium' ||
+        confidence === 'low';
+
+      // Mandatory confirmation for medium/low confidence and ambiguous dishes.
+      if (requiresConfirmation) {
+        setDisambiguationData({ foodData, imageUri });
+        setShowDisambiguationModal(true);
+        return;
+      }
+
+      // Normal flow — proceed directly
+      await proceedAfterIdentification(foodData, imageUri);
     } else if (foodData && !foodData.identified) {
       showError('Food Not Recognized', foodData.description || 'We couldn\'t identify the food in this image. Please try taking a clearer photo.');
     } else {
       showError('Analysis Failed', 'Failed to analyze the image. Please check your connection and try again.');
     }
+  };
+
+  // Shared helper used both by the normal path and after disambiguation resolves
+  const proceedAfterIdentification = async (foodData, imageUri, options = {}) => {
+    const { skipReminderModal = false } = options;
+
+    setFinalizing(true);
+    await addFoodItem(foodData, imageUri);
+    const navigationTarget = {
+      pathname: '/food-detail',
+      params: { foodData: JSON.stringify(foodData) },
+    };
+
+    if (skipReminderModal) {
+      setShowDisclaimerModal(false);
+      setPendingNavigation(null);
+      router.push(navigationTarget);
+      return;
+    }
+
+    setPendingNavigation(navigationTarget);
+    setShowDisclaimerModal(true);
+  };
+
+  // Called when the user selects an option in the disambiguation modal
+  const handleDisambiguationConfirm = async (resolvedName) => {
+    setShowDisambiguationModal(false);
+    if (!disambiguationData) return;
+    const { foodData, imageUri } = disambiguationData;
+    setDisambiguationData(null);
+
+    // Fetch USDA nutrition only after the user confirms the final dish name.
+    const confirmedData = await confirmFoodName(foodData, resolvedName);
+    const updatedFoodData = confirmedData || { ...foodData, food_name: resolvedName, user_corrected_name: true };
+    await proceedAfterIdentification(updatedFoodData, imageUri, { skipReminderModal: true });
+  };
+
+  // Called when the user cancels the disambiguation modal
+  const handleDisambiguationDismiss = () => {
+    setShowDisambiguationModal(false);
+    setDisambiguationData(null);
+    setCapturedImage(null);
+    setFinalizing(false);
   };
 
   // Toggle between modes
@@ -212,6 +286,19 @@ export default function Index() {
           </View>
         )}
 
+        {/* Disambiguation modal — shown for unlabeled liquids and sauce-heavy dishes */}
+        <FoodDisambiguationModal
+          visible={showDisambiguationModal}
+          alternatives={disambiguationData?.foodData?.alternatives ?? []}
+          foodContext={{
+            food_name: disambiguationData?.foodData?.food_name ?? '',
+            category: disambiguationData?.foodData?.category ?? '',
+            description: disambiguationData?.foodData?.description ?? '',
+          }}
+          onConfirm={handleDisambiguationConfirm}
+          onDismiss={handleDisambiguationDismiss}
+        />
+
         <Modal
           visible={showDisclaimerModal}
           transparent={true}
@@ -220,8 +307,8 @@ export default function Index() {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Ionicons name="warning-outline" size={40} color="#e67e22" style={styles.modalIcon} />
-              <Text style={styles.modalTitle}>Disclaimer</Text>
+              <Ionicons name="notifications-outline" size={40} color="#e67e22" style={styles.modalIcon} />
+              <Text style={styles.modalTitle}>Reminder</Text>
               <Text style={styles.modalText}>
                 Results may not be fully accurate as it mainly relies on labeled products and colors, which may resemble other items than expected. Always verify with proper information.
               </Text>

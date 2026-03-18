@@ -9,6 +9,7 @@ export default function FoodDetail() {
   const [isAllergensExpanded, setIsAllergensExpanded] = useState(false);
 
   const nutrition = foodData.nutrition_per_100g || foodData.nutrition_per_serving || {};
+  const reference = getReferenceLabel(foodData);
 
   return (
     <ScrollView style={styles.container}>
@@ -18,17 +19,13 @@ export default function FoodDetail() {
           <Text variant="headlineMedium" style={styles.title}>
             {foodData.food_name}
           </Text>
+        
           {foodData.food_name_local && (
             <Text variant="bodyMedium" style={styles.subtitle}>
               {foodData.food_name_local}
             </Text>
           )}
           <Chip style={styles.categoryChip} textStyle={styles.categoryChipText}>{foodData.category}</Chip>
-          {foodData.usda_match?.fdc_id && (
-            <Text variant="bodySmall" style={styles.metaText}>
-              USDA FDC ID: {foodData.usda_match.fdc_id}
-            </Text>
-          )}
           <Text variant="bodyMedium" style={styles.description}>
             {foodData.description}
           </Text>
@@ -65,6 +62,9 @@ export default function FoodDetail() {
         <Card.Content>
           <Text variant="titleMedium" style={styles.sectionTitle}>
             Nutrition per 100g
+          </Text>
+            <Text variant="bodySmall" style={styles.referenceText}>
+            Reference: {reference}
           </Text>
           <View style={styles.nutritionGrid}>
             <NutritionItem label="Calories" value={`${nutrition.calories || 0} kcal`} />
@@ -208,6 +208,25 @@ const NutritionItem = ({ label, value }) => (
   </View>
 );
 
+function getReferenceLabel(foodData) {
+  if (foodData.nutrition_source === 'open_food_facts') {
+    return 'Open Food Facts';
+  }
+
+  if (foodData.nutrition_source === 'usda_fooddata_central') {
+    if (foodData.usda_match?.fdc_id) {
+      return `USDA FoodData Central (${foodData.usda_match.fdc_id})`;
+    }
+    return 'USDA FoodData Central';
+  }
+
+  if (foodData.source === 'gemini_vision') {
+    return 'Gemini Vision';
+  }
+
+  return foodData.source || 'unknown';
+}
+
 const styles = StyleSheet.create({
   // Layout
   container: { 
@@ -242,11 +261,10 @@ const styles = StyleSheet.create({
     color: '#6f7472ff', 
     marginTop: 4 
   },
-  metaText: {
+  referenceText: {
     color: '#3c5a50',
-    marginTop: 8,
+    marginTop: 4,
     fontSize: 12,
-    fontWeight: '600'
   },
   description: { 
     color: '#000000ff', 

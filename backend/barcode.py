@@ -4,6 +4,7 @@ from flask_cors import CORS
 from appwrite.client import Client
 from appwrite.services.databases import Databases
 from appwrite.services.storage import Storage
+from appwrite.services.tables_db import TablesDB
 from appwrite.query import Query
 from appwrite.exception import AppwriteException
 import os
@@ -30,6 +31,7 @@ client.set_project(os.getenv('APPWRITE_PROJECT_ID'))
 client.set_key(os.getenv('APPWRITE_API_KEY'))
 
 databases = Databases(client)
+tabledb = TablesDB(client)
 storage = Storage(client)
 
 DATABASE_ID = os.getenv('APPWRITE_DATABASE_ID')
@@ -41,6 +43,41 @@ latest_barcode = None
 
 # Initialize OpenFoodFacts API
 api = openfoodfacts.API(user_agent="NutriLiz/1.0", timeout=15)
+
+
+def log_barcode(message):
+    print(f"[Barcode] {message}")
+
+
+def log_appwrite(message):
+    print(f"[Appwrite] {message}")
+
+
+def normalize_barcode_input(barcode):
+    """Normalize scanner/input barcode to digits only."""
+    return ''.join(filter(str.isdigit, str(barcode or '').strip()))
+
+
+def build_openfoodfacts_barcode_candidates(barcode_digits):
+    """Build likely UPC/EAN variants for OpenFoodFacts lookup."""
+    if not barcode_digits:
+        return []
+
+    candidates = [barcode_digits]
+
+    if len(barcode_digits) == 12:
+        candidates.append(f"0{barcode_digits}")
+
+    if len(barcode_digits) == 13 and barcode_digits.startswith('0'):
+        candidates.append(barcode_digits[1:])
+
+    seen = set()
+    ordered = []
+    for code in candidates:
+        if code and code not in seen:
+            ordered.append(code)
+            seen.add(code)
+    return ordered
 
 # ─────────────── GROUP COLUMN DEFINITIONS ───────────────
 # RS groups (7-digit barcodes)
@@ -128,34 +165,37 @@ def get_product_data_appwrite(barcode_value):
                 'message': 'Invalid barcode - no digits found'
             }
         
-        # Keep barcode as string for sm_bar/rs_bar queries (they're string attributes)
-        full_barcode_str = barcode_str
-        # Use integers for group columns (they're integer attributes)
+        # Appwrite table columns accept numeric barcode values for direct lookups.
+        direct_barcode_value = int(barcode_str)
+        # Group columns are integer attributes.
         sm_group_value = int(barcode_str[:8]) if len(barcode_str) >= 8 else int(barcode_str)
         rs_group_value = int(barcode_str[:7]) if len(barcode_str) >= 7 else int(barcode_str)
-        
-        print(f"[Appwrite] Searching barcode: {barcode_str}")
+
+        log_appwrite(f"Searching barcode: {barcode_str}")
 
         # ───────────── PARALLEL QUERY FUNCTION ─────────────
         def query_column(col, value):
             """Query a single column, return (col, result) tuple"""
             try:
-                result = databases.list_documents(
+                result = tabledb.list_rows(
                     DATABASE_ID,
                     COLLECTION_ID,
                     queries=[Query.equal(col, [value])]
                 )
-                if result.get('documents'):
-                    return (col, result)
+                if result.get('rows'):
+                    return (col, {'documents': result['rows']})
             except Exception as e:
-                print(f"[Appwrite] Error querying {col}: {e}")
+                # Direct barcode columns are optional fallbacks; avoid noisy logs unless
+                # we hit an unexpected failure on the grouping columns.
+                if col not in {'sm_bar', 'rs_bar'}:
+                    log_appwrite(f"Error querying {col}: {e}")
             return (col, None)
 
         # ───────────── BUILD ALL QUERIES ─────────────
-        # sm_bar and rs_bar are string attributes, group columns are integers
+        # Direct barcode columns plus grouping columns.
         queries_to_run = [
-            ('sm_bar', full_barcode_str),
-            ('rs_bar', full_barcode_str),
+            ('sm_bar', direct_barcode_value),
+            ('rs_bar', direct_barcode_value),
         ]
         # Add SM group columns (8 digits)
         for col in SM_GROUP_COLUMNS:
@@ -188,14 +228,14 @@ def get_product_data_appwrite(barcode_value):
 
         # ───────────── HANDLE RESULTS ─────────────
         if not result['documents']:
-            print(f"[Appwrite] Product not found in database")
+            log_appwrite("Product not found in database")
             return {
                 'success': False,
                 'barcode': barcode_value,
                 'message': 'No product found for this barcode',
             }
-        
-        print(f"[Appwrite] Product found in column: {matched_column}")
+
+        log_appwrite(f"Product found in column: {matched_column}")
 
         # Rest of your existing code to format the document...
         doc = result['documents'][0]
@@ -263,7 +303,7 @@ def get_product_data_openfoodfacts(barcode):
     """Fetch product data from OpenFoodFacts using SDK."""
     try:
         # Use SDK's product lookup with correct syntax
-        product_data = api.product.get(
+        raw_data = api.product.get(
             barcode,
             fields=[
                 "code", "product_name", "categories", "categories_tags",
@@ -279,84 +319,97 @@ def get_product_data_openfoodfacts(barcode):
                 "traces", "traces_tags", "traces_hierarchy", "ingredients_text"
             ]
         )
-        
-        if product_data and product_data.get('code'):
-            nutriments = product_data.get('nutriments', {})
-            ecoscore_data = product_data.get('ecoscore_data', {})
-            
-            return {
-                'source': 'openfoodfacts',
-                'barcode': barcode,
-                'name': product_data.get('product_name', 'N/A'),
-                'type': product_data.get('categories', 'N/A'),
-                'categories_tags': product_data.get('categories_tags', []),
-                'manufacturing_places': product_data.get('manufacturing_places', 'N/A'),
-                'quantity': product_data.get('quantity', 'N/A'),
-                'serving_quantity': product_data.get('serving_quantity', 'N/A'),
-                'image_url': product_data.get('image_url', None),
-                'image_front_url': product_data.get('image_front_url', None),
-                'image_front_small_url': product_data.get('image_front_small_url', None),
-                'image_ingredients_url': product_data.get('image_ingredients_url', None),
-                'image_nutrition_url': product_data.get('image_nutrition_url', None),
-                'energy_kcal_100g': nutriments.get('energy-kcal_100g', 'N/A'),
-                'energy_kcal_serving': nutriments.get('energy-kcal_serving', 'N/A'),
-                'carbohydrates_100g': nutriments.get('carbohydrates_100g', 'N/A'),
-                'carbohydrates_serving': nutriments.get('carbohydrates_serving', 'N/A'),
-                'sugars_100g': nutriments.get('sugars_100g', 'N/A'),
-                'sugars_serving': nutriments.get('sugars_serving', 'N/A'),
-                'fat_100g': nutriments.get('fat_100g', 'N/A'),
-                'fat_serving': nutriments.get('fat_serving', 'N/A'),
-                'saturated_fat_100g': nutriments.get('saturated-fat_100g', 'N/A'),
-                'saturated_fat_serving': nutriments.get('saturated-fat_serving', 'N/A'),
-                'fiber_100g': nutriments.get('fiber_100g', 'N/A'),
-                'fiber_serving': nutriments.get('fiber_serving', 'N/A'),
-                'proteins_100g': nutriments.get('proteins_100g', 'N/A'),
-                'proteins_serving': nutriments.get('proteins_serving', 'N/A'),
-                'salt_100g': nutriments.get('salt_100g', 'N/A'),
-                'salt_serving': nutriments.get('salt_serving', 'N/A'),
-                'sodium_100g': nutriments.get('sodium_100g', 'N/A'),
-                'sodium_serving': nutriments.get('sodium_serving', 'N/A'),
-                'calcium_100g': nutriments.get('calcium_100g', 'N/A'),
-                'calcium_serving': nutriments.get('calcium_serving', 'N/A'),
-                'nutriments': nutriments,
-                'nutri_score': product_data.get('nutriscore_score', 'N/A'),
-                'nutri_grade': product_data.get('nutriscore_grade', 'N/A'),
-                'nova_group': product_data.get('nova_group', 'N/A'),
-                'ecoscore_score': product_data.get('ecoscore_score', 'N/A'),
-                'ecoscore_grade': product_data.get('ecoscore_grade', 'N/A'),
-                'ef_total': ecoscore_data.get('score', 'N/A'),
-                'labels': product_data.get('labels', 'N/A'),
-                'certifications': product_data.get('certifications', 'N/A'),
-                'awards': product_data.get('awards', 'N/A'),
-                # Allergen data
-                'allergens': product_data.get('allergens', ''),
-                'allergens_tags': product_data.get('allergens_tags', []),
-                'allergens_hierarchy': product_data.get('allergens_hierarchy', []),
-                'traces': product_data.get('traces', ''),
-                'traces_tags': product_data.get('traces_tags', []),
-                'traces_hierarchy': product_data.get('traces_hierarchy', []),
-                'ingredients_text': product_data.get('ingredients_text', 'N/A'),
-                # No groups for OpenFoodFacts products
-                'groups': None
-            }
-        return None
+
+        if not raw_data:
+            return None
+
+        product_data = raw_data.get('product', raw_data)
+        if not isinstance(product_data, dict):
+            return None
+
+        resolved_code = product_data.get('code') or raw_data.get('code')
+        if not resolved_code:
+            return None
+
+        nutriments = product_data.get('nutriments', {}) or {}
+        ecoscore_data = product_data.get('ecoscore_data', {}) or {}
+
+        return {
+            'source': 'openfoodfacts',
+            'barcode': str(resolved_code),
+            'name': product_data.get('product_name', 'N/A'),
+            'type': product_data.get('categories', 'N/A'),
+            'categories_tags': product_data.get('categories_tags', []),
+            'manufacturing_places': product_data.get('manufacturing_places', 'N/A'),
+            'quantity': product_data.get('quantity', 'N/A'),
+            'serving_quantity': product_data.get('serving_quantity', 'N/A'),
+            'image_url': product_data.get('image_url', None),
+            'image_front_url': product_data.get('image_front_url', None),
+            'image_front_small_url': product_data.get('image_front_small_url', None),
+            'image_ingredients_url': product_data.get('image_ingredients_url', None),
+            'image_nutrition_url': product_data.get('image_nutrition_url', None),
+            'energy_kcal_100g': nutriments.get('energy-kcal_100g', 'N/A'),
+            'energy_kcal_serving': nutriments.get('energy-kcal_serving', 'N/A'),
+            'carbohydrates_100g': nutriments.get('carbohydrates_100g', 'N/A'),
+            'carbohydrates_serving': nutriments.get('carbohydrates_serving', 'N/A'),
+            'sugars_100g': nutriments.get('sugars_100g', 'N/A'),
+            'sugars_serving': nutriments.get('sugars_serving', 'N/A'),
+            'fat_100g': nutriments.get('fat_100g', 'N/A'),
+            'fat_serving': nutriments.get('fat_serving', 'N/A'),
+            'saturated_fat_100g': nutriments.get('saturated-fat_100g', 'N/A'),
+            'saturated_fat_serving': nutriments.get('saturated-fat_serving', 'N/A'),
+            'fiber_100g': nutriments.get('fiber_100g', 'N/A'),
+            'fiber_serving': nutriments.get('fiber_serving', 'N/A'),
+            'proteins_100g': nutriments.get('proteins_100g', 'N/A'),
+            'proteins_serving': nutriments.get('proteins_serving', 'N/A'),
+            'salt_100g': nutriments.get('salt_100g', 'N/A'),
+            'salt_serving': nutriments.get('salt_serving', 'N/A'),
+            'sodium_100g': nutriments.get('sodium_100g', 'N/A'),
+            'sodium_serving': nutriments.get('sodium_serving', 'N/A'),
+            'calcium_100g': nutriments.get('calcium_100g', 'N/A'),
+            'calcium_serving': nutriments.get('calcium_serving', 'N/A'),
+            'nutriments': nutriments,
+            'nutri_score': product_data.get('nutriscore_score', 'N/A'),
+            'nutri_grade': product_data.get('nutriscore_grade', 'N/A'),
+            'nova_group': product_data.get('nova_group', 'N/A'),
+            'ecoscore_score': product_data.get('ecoscore_score', 'N/A'),
+            'ecoscore_grade': product_data.get('ecoscore_grade', 'N/A'),
+            'ef_total': ecoscore_data.get('score', 'N/A'),
+            'labels': product_data.get('labels', 'N/A'),
+            'certifications': product_data.get('certifications', 'N/A'),
+            'awards': product_data.get('awards', 'N/A'),
+            'allergens': product_data.get('allergens', ''),
+            'allergens_tags': product_data.get('allergens_tags', []),
+            'allergens_hierarchy': product_data.get('allergens_hierarchy', []),
+            'traces': product_data.get('traces', ''),
+            'traces_tags': product_data.get('traces_tags', []),
+            'traces_hierarchy': product_data.get('traces_hierarchy', []),
+            'ingredients_text': product_data.get('ingredients_text', 'N/A'),
+            'groups': None
+        }
     except Exception as e:
-        print(f"SDK request failed: {e}")
+        log_barcode(f"OpenFoodFacts SDK request failed: {e}")
         return None
 
 
 def get_product_data(barcode):
+    normalized_barcode = normalize_barcode_input(barcode)
+    if not normalized_barcode:
+        return None
+
     # Try Appwrite first
-    custom_data = get_product_data_appwrite(barcode)
+    custom_data = get_product_data_appwrite(normalized_barcode)
     
     # Check if Appwrite returned valid product data
     if custom_data and custom_data.get('success') is not False:
         return custom_data
     
     # Fall back to OpenFoodFacts if not found in Appwrite
-    openfoodfacts_data = get_product_data_openfoodfacts(barcode)
-    if openfoodfacts_data:
-        return openfoodfacts_data
+    for candidate in build_openfoodfacts_barcode_candidates(normalized_barcode):
+        openfoodfacts_data = get_product_data_openfoodfacts(candidate)
+        if openfoodfacts_data:
+            openfoodfacts_data['requested_barcode'] = normalized_barcode
+            return openfoodfacts_data
     
     return None
 
