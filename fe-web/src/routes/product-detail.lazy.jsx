@@ -1,6 +1,7 @@
 import { createLazyFileRoute, useSearch } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useProductAssessment } from '../hooks/useProductAssessment'
+import { useProductHistory } from '../hooks/useProductHistory'
 import LoadingStates from '../components/LoadingStates/LoadingStates'
 import ProductCard from '../components/ProductCard/ProductCard'
 import AppwriteProductCard from '../components/AppwriteProductCard/AppwriteProductCard'
@@ -19,10 +20,15 @@ export const Route = createLazyFileRoute('/product-detail')({
 
 function ProductDetailPage() {
   const { barcode, productData: productDataString } = useSearch({ from: '/product-detail' })
+  const { products, loading: historyLoading } = useProductHistory()
   const [productData, setProductData] = useState(null)
   const [error, setError] = useState(null)
+  const [loadingProduct, setLoadingProduct] = useState(false)
+  const fetchedBarcodeRef = useRef(null)
+
+  const API_URL = 'http://192.168.100.69:5000/api'
   
-  // Parse product data from search params
+  // Backward compatibility for old URLs that still pass productData in query params.
   useEffect(() => {
     if (productDataString) {
       try {
@@ -34,6 +40,41 @@ function ProductDetailPage() {
       }
     }
   }, [productDataString])
+
+  useEffect(() => {
+    if (productData || !barcode || error) return
+
+    const productFromHistory = products.find((item) => item.barcode === barcode)
+    if (productFromHistory?.productData) {
+      setProductData(productFromHistory.productData)
+      return
+    }
+
+    if (historyLoading || fetchedBarcodeRef.current === barcode) return
+
+    const fetchProductByBarcode = async () => {
+      setLoadingProduct(true)
+      fetchedBarcodeRef.current = barcode
+
+      try {
+        const response = await fetch(`${API_URL}/product/${barcode}`)
+        const data = await response.json()
+
+        if (response.ok) {
+          setProductData(data)
+        } else {
+          setError('Failed to load product data')
+        }
+      } catch (fetchError) {
+        console.error('Failed to fetch product data:', fetchError)
+        setError('Failed to load product data')
+      } finally {
+        setLoadingProduct(false)
+      }
+    }
+
+    fetchProductByBarcode()
+  }, [barcode, error, historyLoading, productData, products])
 
   const isAppwriteProduct = productData?.source === 'appwrite'
   const { assessment, loading: assessmentLoading, error: assessmentError } = useProductAssessment(barcode)
@@ -51,7 +92,7 @@ function ProductDetailPage() {
     )
   }
 
-  if (!productData) {
+  if (!productData || loadingProduct || historyLoading) {
     return (
       <div className="min-h-screen bg-[#ecf4e8] py-8 px-4 font-display">
         <div className="max-w-4xl mx-auto flex items-center justify-center">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 const API_BASE_URL =  'https://nutriliz-be-a8351183c68f.herokuapp.com';
+// const API_BASE_URL = 'http://192.168.100.69:5000'
 
 const normalizeBarcode = (barcode) => String(barcode || '').replace(/\D/g, '');
 

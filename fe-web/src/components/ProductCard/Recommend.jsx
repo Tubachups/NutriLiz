@@ -26,14 +26,6 @@ const Recommend = ({ recommendations, count }) => {
             <div className="p-4">
               <h4 className="font-bold text-gray-800 mb-2 line-clamp-2">{rec.name}</h4>
               <p className="text-sm text-gray-600 mb-1">{rec.brand}</p>
-              <div className="flex items-center justify-between mt-3">
-                <span className="text-xs bg-dark text-white px-2 py-1 rounded-full font-medium">
-                  Match: {(rec.similarity_score * 100).toFixed(1)}%
-                </span>
-                <span className="text-xs text-gray-600">
-                  📍 {rec.manufacturing_places}
-                </span>
-              </div>
             </div>
           </div>
         ))}

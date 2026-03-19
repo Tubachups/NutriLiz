@@ -20,9 +20,6 @@ const RecommendationsCard = ({ recommendations, recommendationsCount }) => {
            <Card.Content>
               <Text variant="titleSmall" style={styles.recName}>{rec.name || 'Unknown Product'}</Text>
               <Text variant="bodySmall" style={styles.recBrand}>{rec.brand || ''}</Text>
-              <Chip style={styles.matchChip} textStyle={styles.matchChipText}>
-                Match: {rec.similarity_score ? (rec.similarity_score * 100).toFixed(1) : 0}% 
-              </Chip>
             </Card.Content>
           </Card>
         ))}

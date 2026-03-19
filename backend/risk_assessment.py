@@ -296,13 +296,6 @@ If any of my blood markers are abnormal, please highlight specific concerns for 
         }
         nova_desc = nova_context.get(str(nova_group), 'Unknown processing level')
 
-        personalized_section = ""
-        if user_profile:
-            personalized_section = """
-7. **Personalized Assessment for Me**:
-   Please synthesize specific risks, red flags, and tailored serving size recommendations for me based on my BMI and blood metrics.
-"""
-
         return f"""I would like you to analyze this food product's nutritional content and assess its suitability for me given my health conditions:
 {personal_context}
 Product: {name} (Barcode: {barcode})
@@ -334,10 +327,9 @@ Format your response strictly with a maximum of 2 sentences per numbered section
 3. **Saturated Fat Analysis**: 
 
 4. **Fiber Content**:
-  
-5. **Overall Health Summary**: 
-   Summarize the general nutritional quality and suggest one healthier alternative or serving tip.
-{personalized_section}
+
+5. **Personalized Assessment for Me**:
+    Please synthesize specific risks, red flags, and tailored serving size recommendations for me based on my BMI and blood metrics.
 Keep it factual, educational, and evidence-based. Do not provide medical advice or personalized treatment recommendations. Use clear warnings when products are particularly concerning for specific conditions."""
 
     else:
@@ -356,13 +348,6 @@ Keep it factual, educational, and evidence-based. Do not provide medical advice 
         protein = n.get('protein', 'N/A')
         fiber = n.get('fiber', 'N/A')
         carbs = n.get('carbohydrates', 'N/A')
-
-        personalized_section = ""
-        if user_profile:
-            personalized_section = """
-6. **Personalized Assessment for Me**:
-   Please synthesize specific risks, red flags, and tailored serving size recommendations for me based on my BMI and blood metrics.
-"""
 
         return f"""I would like you to analyze this fresh food product's nutritional content and assess its suitability for me given my health conditions:
 {personal_context}
@@ -388,7 +373,6 @@ Format your response strictly with a maximum of 2 sentences per numbered section
 
 4. **Fiber Content**:
 
-5. **Overall Health Summary**: 
-   Summarize the general nutritional quality and suggest one preparation method to maximize health benefits.
-{personalized_section}
+5. **Personalized Assessment for Me**:
+    Please synthesize specific risks, red flags, and tailored serving size recommendations for me based on my BMI and blood metrics.
 Keep it factual, educational, and evidence-based. Do not provide medical advice or personalized treatment recommendations. Emphasize the natural and wholesome nature of fresh foods."""
