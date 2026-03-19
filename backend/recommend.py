@@ -232,6 +232,8 @@ def is_same_product(base_product, candidate_product, base_barcode, candidate_bar
 
 def get_recommendations(barcode, limit=9):
     log_recommendation(f"Start barcode={barcode} limit={limit}")
+    limit = max(1, int(limit))
+    candidate_budget = limit
     
     # Normalize barcode to string for consistent comparison
     base_barcode = str(barcode).strip()
@@ -275,7 +277,7 @@ def get_recommendations(barcode, limit=9):
     country_scopes = ['en:philippines', None]
 
     for category_tag in category_candidates:
-        if len(candidates) >= max(30, limit * 3):
+        if len(candidates) >= candidate_budget:
             break
 
         log_recommendation(f"Searching category={category_tag}")
@@ -285,7 +287,7 @@ def get_recommendations(barcode, limit=9):
                 found = _search_products_by_category(
                     category_tag=category_tag,
                     countries_tag=country_tag,
-                    page_size=60
+                    page_size=candidate_budget
                 )
                 log_recommendation(
                     f"Found {len(found)} candidates category={category_tag} country={country_tag or 'global'}"
@@ -303,7 +305,7 @@ def get_recommendations(barcode, limit=9):
                 seen_codes.add(code)
                 candidates.append(product)
 
-            if len(candidates) >= max(30, limit * 3):
+            if len(candidates) >= candidate_budget:
                 break
 
     if not candidates:

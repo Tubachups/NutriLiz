@@ -14,15 +14,47 @@ OPENFOODFACTS_BASE_URL = os.getenv('OPENFOODFACTS_BASE_URL', 'https://world.open
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 
-NUTRIENT_NUMBER_MAP = {
-    'calories': '208',
-    'protein_g': '203',
-    'carbohydrates_g': '205',
-    'fat_g': '204',
-    'fiber_g': '291',
-    'sugar_g': '269',
-    'sodium_mg': '307',
-    'saturated_fat_g': '606'
+NUTRIENT_MATCHERS = {
+    'calories': {
+        'numbers': ('208', '1008'),
+        'ids': (1008,),
+        'name_contains': ('energy', 'kcal')
+    },
+    'protein_g': {
+        'numbers': ('203', '1003'),
+        'ids': (1003,),
+        'name_contains': ('protein',)
+    },
+    'carbohydrates_g': {
+        'numbers': ('205', '1005'),
+        'ids': (1005,),
+        'name_contains': ('carbohydrate',)
+    },
+    'fat_g': {
+        'numbers': ('204', '1004'),
+        'ids': (1004,),
+        'name_contains': ('total lipid', 'fat')
+    },
+    'fiber_g': {
+        'numbers': ('291', '1079'),
+        'ids': (1079,),
+        'name_contains': ('fiber',)
+    },
+    'sugar_g': {
+        'numbers': ('269', '2000'),
+        'ids': (2000,),
+        'name_contains': ('sugars, total',)
+    },
+    'sodium_mg': {
+        'numbers': ('307', '1093'),
+        'ids': (1093,),
+        'name_contains': ('sodium',)
+    },
+    'saturated_fat_g': {
+        'numbers': ('606', '1258'),
+        'ids': (1258,),
+        'name_contains': ('fatty acids, total saturated', 'saturated')
+    }
 }
 
 USDA_ALLOWED_DATA_TYPES = ('SR Legacy', 'Foundation')
@@ -30,6 +62,12 @@ USDA_PROCESSED_KEYWORDS = (
     'flour', 'powder', 'starch', 'chip', 'chips', 'fried', 'baked',
     'dehydrated', 'dried', 'instant', 'mix', 'snack', 'canned',
     'frozen', 'puree', 'mashed'
+)
+
+USDA_DISH_KEYWORDS = (
+    'cake', 'pie', 'bread', 'cookie', 'pastry', 'dessert', 'donut',
+    'noodle', 'soup', 'stew', 'pasta', 'pizza', 'burger', 'sandwich',
+    'salad', 'adobo', 'lomi', 'pancit', 'mami', 'curry', 'omelet'
 )
 
 OPENFOODFACTS_PACKAGED_HINTS = (

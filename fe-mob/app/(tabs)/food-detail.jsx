@@ -10,6 +10,7 @@ export default function FoodDetail() {
 
   const nutrition = foodData.nutrition_per_100g || foodData.nutrition_per_serving || {};
   const reference = getReferenceLabel(foodData);
+  const estimatedFields = foodData?.nutrition_estimation?.estimated_fields || [];
 
   return (
     <ScrollView style={styles.container}>
@@ -63,18 +64,23 @@ export default function FoodDetail() {
           <Text variant="titleMedium" style={styles.sectionTitle}>
             Nutrition per 100g
           </Text>
-            <Text variant="bodySmall" style={styles.referenceText}>
+          <Text variant="bodySmall" style={styles.referenceText}>
             Reference: {reference}
           </Text>
+          {estimatedFields.length > 0 && (
+            <Text variant="bodySmall" style={styles.estimationText}>
+              Estimated from ingredients for: {formatEstimatedFields(estimatedFields)}
+            </Text>
+          )}
           <View style={styles.nutritionGrid}>
-            <NutritionItem label="Calories" value={`${nutrition.calories || 0} kcal`} />
-            <NutritionItem label="Protein" value={`${nutrition.protein_g || 0}g`} />
-            <NutritionItem label="Carbs" value={`${nutrition.carbohydrates_g || 0}g`} />
-            <NutritionItem label="Fat" value={`${nutrition.fat_g || 0}g`} />
-            <NutritionItem label="Fiber" value={`${nutrition.fiber_g || 0}g`} />
-            <NutritionItem label="Sugar" value={`${nutrition.sugar_g || 0}g`} />
-            <NutritionItem label="Sodium" value={`${nutrition.sodium_mg || 0}mg`} />
-            <NutritionItem label="Sat. Fat" value={`${nutrition.saturated_fat_g || 0}g`} />
+            <NutritionItem label="Calories" value={formatNutritionValue(nutrition.calories, 'kcal')} />
+            <NutritionItem label="Protein" value={formatNutritionValue(nutrition.protein_g, 'g')} />
+            <NutritionItem label="Carbs" value={formatNutritionValue(nutrition.carbohydrates_g, 'g')} />
+            <NutritionItem label="Fat" value={formatNutritionValue(nutrition.fat_g, 'g')} />
+            <NutritionItem label="Fiber" value={formatNutritionValue(nutrition.fiber_g, 'g')} />
+            <NutritionItem label="Sugar" value={formatNutritionValue(nutrition.sugar_g, 'g')} />
+            <NutritionItem label="Sodium" value={formatNutritionValue(nutrition.sodium_mg, 'mg')} />
+            <NutritionItem label="Sat. Fat" value={formatNutritionValue(nutrition.saturated_fat_g, 'g')} />
           </View>
         </Card.Content>
       </Card>
@@ -208,7 +214,24 @@ const NutritionItem = ({ label, value }) => (
   </View>
 );
 
+function formatNutritionValue(value, unit) {
+  if (value === null || value === undefined || value === '') {
+    return 'N/A';
+  }
+
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) {
+    return 'N/A';
+  }
+
+  return `${parsed}${unit ? ` ${unit}` : ''}`;
+}
+
 function getReferenceLabel(foodData) {
+  if (foodData.nutrition_source === 'usda_fooddata_central' && foodData.nutrition_estimation?.estimated_fields?.length) {
+    return 'USDA FoodData Central + Ingredient Blend Estimate';
+  }
+
   if (foodData.nutrition_source === 'open_food_facts') {
     return 'Open Food Facts';
   }
@@ -225,6 +248,23 @@ function getReferenceLabel(foodData) {
   }
 
   return foodData.source || 'unknown';
+}
+
+function formatEstimatedFields(fields) {
+  const labels = {
+    calories: 'Calories',
+    protein_g: 'Protein',
+    carbohydrates_g: 'Carbs',
+    fat_g: 'Fat',
+    fiber_g: 'Fiber',
+    sugar_g: 'Sugar',
+    sodium_mg: 'Sodium',
+    saturated_fat_g: 'Sat. Fat',
+  };
+
+  return fields
+    .map((field) => labels[field] || field)
+    .join(', ');
 }
 
 const styles = StyleSheet.create({
@@ -263,6 +303,11 @@ const styles = StyleSheet.create({
   },
   referenceText: {
     color: '#3c5a50',
+    marginTop: 4,
+    fontSize: 12,
+  },
+  estimationText: {
+    color: '#4f6d61',
     marginTop: 4,
     fontSize: 12,
   },

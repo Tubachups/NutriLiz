@@ -21,6 +21,8 @@ const NutriScoreBadge = ({ grade, score }) => {
   };
   
   const currentGrade = grade?.trim()?.toUpperCase();
+  const parsedScore = Number(score);
+  const hasValidScore = !Number.isNaN(parsedScore) && parsedScore >= 0;
   
   return (
     <View style={styles.nutriScoreBadge}>
@@ -57,8 +59,8 @@ const NutriScoreBadge = ({ grade, score }) => {
       {currentGrade && descriptions[currentGrade] && (
         <Text style={styles.descriptionText}>{descriptions[currentGrade]}</Text>
       )}
-      {score && score !== 'N/A' && typeof score !== 'object' && (
-        <Text style={styles.scoreText}>Score: {String(score)}</Text>
+      {hasValidScore && (
+        <Text style={styles.scoreText}>Score: {String(parsedScore)}</Text>
       )}
     </View>
   );

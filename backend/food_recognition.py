@@ -201,6 +201,12 @@ Return ONLY valid JSON, no additional text."""
                         'description': usda_nutrition['description'],
                         'data_type': usda_nutrition.get('data_type')
                     }
+                    if usda_nutrition.get('estimated_fields'):
+                        food_data['nutrition_estimation'] = {
+                            'basis': usda_nutrition.get('estimation_basis'),
+                            'estimated_fields': usda_nutrition.get('estimated_fields', []),
+                            'ingredient_matches': usda_nutrition.get('ingredient_matches', [])
+                        }
 
         food_data['source'] = 'gemini_vision'
         food_data['analysis_type'] = 'image_recognition'
@@ -265,6 +271,12 @@ def apply_user_confirmed_food_name(food_data: dict, confirmed_name: str) -> dict
             'description': usda_nutrition['description'],
             'data_type': usda_nutrition.get('data_type')
         }
+        if usda_nutrition.get('estimated_fields'):
+            updated['nutrition_estimation'] = {
+                'basis': usda_nutrition.get('estimation_basis'),
+                'estimated_fields': usda_nutrition.get('estimated_fields', []),
+                'ingredient_matches': usda_nutrition.get('ingredient_matches', [])
+            }
 
     return updated
 
