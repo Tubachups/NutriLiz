@@ -87,7 +87,6 @@ function HistoryPage() {
         to: '/product-detail',
         search: { 
           barcode: product.barcode,
-          productData: JSON.stringify(product.productData)
         }
       })
     }

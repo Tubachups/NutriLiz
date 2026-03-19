@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/auth-context';
 import * as Print from 'expo-print';
 
 
+// const API_BASE_URL = 'http://192.168.100.69:5000'
 const API_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/';
 
 export default function UserDetail() {
@@ -38,7 +39,7 @@ export default function UserDetail() {
     
     try {
       const response = await fetch(
-        `${API_URL}/api/admin/users/${userId}/scan-history`,
+        `${API_BASE_URL}/api/admin/users/${userId}/scan-history`,
         {
           headers: {
             'X-User-ID': user.$id,
