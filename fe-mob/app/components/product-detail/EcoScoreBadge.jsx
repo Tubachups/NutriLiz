@@ -29,6 +29,8 @@ const LeafBadge = ({ color, letter, isActive }) => {
 const EcoScoreBadge = ({ grade, score }) => {
   const grades = ['A', 'B', 'C', 'D', 'E'];
   const normalizedGrade = grade?.toUpperCase();
+  const parsedScore = Number(score);
+  const hasValidScore = !Number.isNaN(parsedScore) && parsedScore >= 0;
 
   const descriptions = {
     'A': 'Very low environmental impact',
@@ -68,8 +70,8 @@ const EcoScoreBadge = ({ grade, score }) => {
       {normalizedGrade && descriptions[normalizedGrade] && (
         <Text style={styles.descriptionText}>{descriptions[normalizedGrade]}</Text>
       )}
-      {score && score !== 'N/A' && (
-        <Text style={styles.scoreText}>Score: {score}/100</Text>
+      {hasValidScore && (
+        <Text style={styles.scoreText}>Score: {parsedScore}/100</Text>
       )}
     
     </View>
