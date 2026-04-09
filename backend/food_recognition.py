@@ -31,6 +31,64 @@ from food_recognition_sources import (
 )
 
 
+SPOILAGE_TERMS_PATTERN = re.compile(
+    r'\b(expired|spoil(?:ed|age)?|rotten|mold(?:y)?|mould(?:y)?|rancid|stale|contaminated|unsafe\s+to\s+eat|not\s+safe\s+to\s+eat|food\s+poisoning)\b',
+    re.IGNORECASE,
+)
+UNSAFE_STATUS_VALUES = {'unsafe', 'expired', 'spoiled', 'rotten'}
+
+
+def annotate_food_safety(food_data: dict) -> dict:
+    """Add a normalized expired/spoiled safety signal for frontend handling."""
+    if not isinstance(food_data, dict):
+        return food_data
+
+    status_value = str(
+        food_data.get('food_safety_status') or food_data.get('food_condition') or ''
+    ).strip().lower()
+    explicit_unsafe = any(
+        to_bool(food_data.get(key))
+        for key in (
+            'is_expired_or_spoiled',
+            'expired_or_spoiled',
+            'spoilage_detected',
+            'is_spoiled',
+            'is_expired',
+        )
+    ) or status_value in UNSAFE_STATUS_VALUES
+
+    potential_concerns = food_data.get('potential_concerns')
+    concerns_text = ''
+    if isinstance(potential_concerns, list):
+        concerns_text = ' '.join(str(item) for item in potential_concerns if item)
+
+    text_blob = ' '.join(
+        str(part)
+        for part in (
+            food_data.get('food_safety_note', ''),
+            food_data.get('description', ''),
+            food_data.get('preparation_notes', ''),
+            concerns_text,
+        )
+        if part
+    )
+    text_indicates_unsafe = bool(SPOILAGE_TERMS_PATTERN.search(text_blob))
+    is_expired_or_spoiled = explicit_unsafe or text_indicates_unsafe
+
+    if is_expired_or_spoiled:
+        default_reason = 'This food appears expired or spoiled and may be unsafe to consume.'
+        reason = str(food_data.get('food_safety_note') or '').strip() or default_reason
+        food_data['is_expired_or_spoiled'] = True
+        food_data['food_safety_status'] = 'unsafe'
+        food_data['food_safety_note'] = reason
+    else:
+        food_data.setdefault('is_expired_or_spoiled', False)
+        if not str(food_data.get('food_safety_status') or '').strip():
+            food_data['food_safety_status'] = 'safe'
+
+    return food_data
+
+
 def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
     """
     Analyze a food image using Gemini Vision API.
@@ -53,6 +111,9 @@ def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
     "food_name_local": "Local/regional name if applicable",
     "category": "Category (e.g., Fruit, Vegetable, Meat, Dairy, Grain, etc.)",
     "description": "Brief description of the food",
+    "food_safety_status": "safe/unsafe/uncertain",
+    "is_expired_or_spoiled": true/false,
+    "food_safety_note": "Brief note if unsafe or uncertain",
     "serving_size": "Estimated serving size shown",
     "nutrition_per_100g": {
         "calories": null,
@@ -93,6 +154,11 @@ In all other cases, keep "disambiguation_needed" as false and "alternatives" as 
 Set "has_visible_label_or_packaging" to true only when there are explicit visible cues of commercial packaging or labels
 (for example: branded wrappers, product labels, bottle/can labels, nutrition panel, barcodes, clear package text).
 For plated, home-cooked, unpacked, or unlabeled foods, set it to false.
+
+Set "is_expired_or_spoiled" to true only if there are clear visual signs that the food is likely spoiled or expired,
+such as mold growth, obvious rot, severe discoloration consistent with spoilage, or visibly decomposed texture.
+When true, set "food_safety_status" to "unsafe" and provide a short explanation in "food_safety_note".
+Otherwise set "is_expired_or_spoiled" to false and use "food_safety_status" as "safe" or "uncertain".
 
 Return ONLY valid JSON, no additional text."""
 
@@ -156,7 +222,9 @@ Return ONLY valid JSON, no additional text."""
 
         food_data = json.loads(response_text)
 
-        if food_data.get('identified'):
+        annotate_food_safety(food_data)
+
+        if food_data.get('identified') and not to_bool(food_data.get('is_expired_or_spoiled')):
             confirmation_required = requires_user_confirmation(food_data)
             has_visible_packaging = to_bool(food_data.get('has_visible_label_or_packaging'))
             heuristic_labeled_product = is_labeled_product(food_data)
