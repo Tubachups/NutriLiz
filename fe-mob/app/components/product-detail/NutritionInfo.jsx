@@ -1,10 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Text, Card } from 'react-native-paper';
+import { Text, Card, TextInput } from 'react-native-paper';
 
 
 const NutritionInfo = ({ productData, isAppwriteProduct }) => {
   const nutriments = productData?.nutriments || {};
+  const [servingSizeInput, setServingSizeInput] = useState('100');
+
+  const parsedServingSize = Number.parseFloat(String(servingSizeInput).replace(',', '.'));
+  const servingSize = Number.isFinite(parsedServingSize) && parsedServingSize > 0 ? parsedServingSize : 100;
+  const scaleFactor = servingSize / 100;
 
   const pickNutriment = (keys) => {
     for (const key of keys) {
@@ -77,13 +82,16 @@ const NutritionInfo = ({ productData, isAppwriteProduct }) => {
     return pickNutriment(keys);
   };
 
-  // Helper to safely display nutrition values with 2 decimal places
+  // Scale from per-100g values to the user-entered serving size.
   const formatValue = (value, unit = 'g') => {
     if (value === undefined || value === null || value === '') return 'N/A';
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return 'N/A';
-    return `${numValue.toFixed(2)}${unit} / 100g`;
+    const scaledValue = numValue * scaleFactor;
+    return `${scaledValue.toFixed(2)} ${unit}`;
   };
+
+  const servingSizeError = servingSizeInput.trim() !== '' && (!Number.isFinite(parsedServingSize) || parsedServingSize <= 0);
 
   return (
     <Card style={styles.card}>
@@ -105,10 +113,24 @@ const NutritionInfo = ({ productData, isAppwriteProduct }) => {
           </View>
         ) : (
           <View>
+            <TextInput
+              mode="outlined"
+              label="Serving size (g)"
+              value={servingSizeInput}
+              keyboardType="decimal-pad"
+              onChangeText={setServingSizeInput}
+              style={styles.servingInput}
+              error={servingSizeError}
+            />
+            <Text style={styles.servingHint}>
+              {servingSizeError
+                ? 'Enter a valid serving size. Showing values for 100g.'
+                : `Values shown for ${servingSize.toFixed(0)}g.`}
+            </Text>
             <View style={styles.nutritionRow}>
               <Text style={styles.nutritionLabel}>Energy:</Text>
               <Text style={styles.nutritionValue}>
-                {formatValue(getEnergyValue(), ' kcal')}
+                {formatValue(getEnergyValue(), 'kcal')}
               </Text>
             </View>
             <View style={styles.nutritionRow}>
@@ -172,5 +194,14 @@ const styles = StyleSheet.create({
   },
   nutritionValue: {
     color: '#6f7472ff',
+  },
+  servingInput: {
+    marginBottom: 8,
+    backgroundColor: 'white',
+  },
+  servingHint: {
+    marginBottom: 8,
+    color: '#4f6d61',
+    fontSize: 12,
   },
 });
