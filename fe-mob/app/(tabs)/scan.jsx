@@ -41,6 +41,54 @@ export default function Index() {
 
   const loading = productLoading || foodLoading;
   const normalizeBarcode = (value) => String(value || '').replace(/\D/g, '');
+  const truthy = (value) => {
+    if (typeof value === 'boolean') return value;
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes';
+  };
+
+  const isExpiredOrSpoiledFood = (foodData) => {
+    if (!foodData) return false;
+
+    const explicitUnsafe = [
+      foodData.is_expired_or_spoiled,
+      foodData.expired_or_spoiled,
+      foodData.spoilage_detected,
+      foodData.is_spoiled,
+      foodData.is_expired,
+    ].some(truthy);
+
+    const statusValue = String(
+      foodData.food_safety_status || foodData.food_condition || ''
+    ).toLowerCase();
+    const statusUnsafe = ['unsafe', 'expired', 'spoiled', 'rotten'].some((token) =>
+      statusValue.includes(token)
+    );
+
+    const concernText = Array.isArray(foodData.potential_concerns)
+      ? foodData.potential_concerns.join(' ')
+      : '';
+    const textBlob = [
+      foodData.food_safety_note,
+      foodData.description,
+      foodData.preparation_notes,
+      concernText,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    const textUnsafe = /(expired|spoil(?:ed|age)?|rotten|mold|mould|rancid|contaminated|unsafe\s+to\s+eat|not\s+safe\s+to\s+eat)/i.test(
+      textBlob
+    );
+
+    return explicitUnsafe || statusUnsafe || textUnsafe;
+  };
+
+  const getSpoilageMessage = (foodData) => {
+    const note = String(foodData?.food_safety_note || '').trim();
+    if (note) return note;
+    return 'This food appears expired or spoiled and may be unsafe to consume. Please scan a fresh item.';
+  };
 
   // Reset scan state every time screen is focused
   useFocusEffect(
@@ -194,6 +242,11 @@ export default function Index() {
 
     const foodData = await analyzeFoodImage(base64Image, userProfile);
 
+    if (foodData && isExpiredOrSpoiledFood(foodData)) {
+      showError('Food Safety Warning', getSpoilageMessage(foodData));
+      return;
+    }
+
     if (foodData && foodData.identified) {
       const confidence = String(foodData.confidence || '').toLowerCase();
       const requiresConfirmation =
@@ -249,6 +302,12 @@ export default function Index() {
     // Fetch USDA nutrition only after the user confirms the final dish name.
     const confirmedData = await confirmFoodName(foodData, resolvedName);
     const updatedFoodData = confirmedData || { ...foodData, food_name: resolvedName, user_corrected_name: true };
+
+    if (isExpiredOrSpoiledFood(updatedFoodData)) {
+      showError('Food Safety Warning', getSpoilageMessage(updatedFoodData));
+      return;
+    }
+
     await proceedAfterIdentification(updatedFoodData, imageUri, { skipReminderModal: true });
   };
 

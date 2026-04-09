@@ -13,24 +13,9 @@ import {
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 
-// const API_BASE_URL = 'http://192.168.100.69:5000'
-const API_BASE_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/';
+const API_BASE_URL = 'http://192.168.100.69:5000'
+// const API_BASE_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/';
 
-/**
- * FoodDisambiguationModal
- *
- * Shown when the AI is uncertain about a food's identity (unlabeled liquids,
- * or dishes obscured by sauces/dressings). Presents the AI's top alternatives
- * as radio-button choices plus a free-text "Other" option that is validated
- * against the image context before proceeding.
- *
- * Props:
- *   visible        – boolean
- *   alternatives   – string[]  (2-3 candidate names from the AI)
- *   foodContext    – { food_name, category, description }  (original AI result)
- *   onConfirm      – (resolvedName: string) => void
- *   onDismiss      – () => void  (user cancelled; scan should reset)
- */
 export default function FoodDisambiguationModal({
   visible,
   alternatives = [],

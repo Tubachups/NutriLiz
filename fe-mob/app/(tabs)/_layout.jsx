@@ -93,9 +93,6 @@ export default function TabsLayout() {
   const [showSignOutModal, setShowSignOutModal] = useState(false);
   const indicatorPosition = useRef(new Animated.Value(TAB_INDICES['index'] * TAB_WIDTH)).current;
 
-  // This state is only for animation, not for tracking the actual tab
-  // The actual tab index comes from the navigation state
-  // So we don't need activeTab state anymore
 
   // CustomTabBar will receive the navigation state and update the indicator accordingly
   const handleSignOut = async () => {
@@ -307,14 +304,6 @@ export default function TabsLayout() {
           }}
         />
 
-        <Tabs.Screen
-          name="food-scan"
-          options={{
-            title: 'Food Photo',
-            headerShown: true,
-            href: null,
-          }}
-        />
 
         <Tabs.Screen
           name="product-detail"
