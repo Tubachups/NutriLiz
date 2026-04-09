@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card, Text, Chip } from 'react-native-paper';
+import { Card, Text, Chip, TextInput } from 'react-native-paper';
 import { useLocalSearchParams } from 'expo-router';
 
 export default function FoodDetail() {
   const { foodData: foodDataString } = useLocalSearchParams();
   const foodData = JSON.parse(foodDataString);
   const [isAllergensExpanded, setIsAllergensExpanded] = useState(false);
+  const [servingSizeInput, setServingSizeInput] = useState('100');
 
+  const hasPer100gNutrition = Boolean(foodData.nutrition_per_100g);
   const nutrition = foodData.nutrition_per_100g || foodData.nutrition_per_serving || {};
+  const parsedServingSize = Number.parseFloat(String(servingSizeInput).replace(',', '.'));
+  const servingSize = Number.isFinite(parsedServingSize) && parsedServingSize > 0 ? parsedServingSize : 100;
+  const scaleFactor = hasPer100gNutrition ? servingSize / 100 : 1;
+  const servingSizeError = servingSizeInput.trim() !== '' && (!Number.isFinite(parsedServingSize) || parsedServingSize <= 0);
   const reference = getReferenceLabel(foodData);
   const estimatedFields = foodData?.nutrition_estimation?.estimated_fields || [];
 
@@ -62,8 +68,26 @@ export default function FoodDetail() {
       <Card style={styles.card}>
         <Card.Content>
           <Text variant="titleMedium" style={styles.sectionTitle}>
-            Nutrition per 100g
+            {hasPer100gNutrition ? `Nutrition for ${servingSize.toFixed(0)}g` : 'Nutrition Information'}
           </Text>
+          {hasPer100gNutrition && (
+            <>
+              <TextInput
+                mode="outlined"
+                label="Serving size (g)"
+                value={servingSizeInput}
+                keyboardType="decimal-pad"
+                onChangeText={setServingSizeInput}
+                style={styles.servingInput}
+                error={servingSizeError}
+              />
+              <Text variant="bodySmall" style={styles.servingHint}>
+                {servingSizeError
+                  ? 'Enter a valid serving size. Showing values for 100g.'
+                  : `Scaled from per 100g values.`}
+              </Text>
+            </>
+          )}
           <Text variant="bodySmall" style={styles.referenceText}>
             Reference: {reference}
           </Text>
@@ -73,14 +97,14 @@ export default function FoodDetail() {
             </Text>
           )}
           <View style={styles.nutritionGrid}>
-            <NutritionItem label="Calories" value={formatNutritionValue(nutrition.calories, 'kcal')} />
-            <NutritionItem label="Protein" value={formatNutritionValue(nutrition.protein_g, 'g')} />
-            <NutritionItem label="Carbs" value={formatNutritionValue(nutrition.carbohydrates_g, 'g')} />
-            <NutritionItem label="Fat" value={formatNutritionValue(nutrition.fat_g, 'g')} />
-            <NutritionItem label="Fiber" value={formatNutritionValue(nutrition.fiber_g, 'g')} />
-            <NutritionItem label="Sugar" value={formatNutritionValue(nutrition.sugar_g, 'g')} />
-            <NutritionItem label="Sodium" value={formatNutritionValue(nutrition.sodium_mg, 'mg')} />
-            <NutritionItem label="Sat. Fat" value={formatNutritionValue(nutrition.saturated_fat_g, 'g')} />
+            <NutritionItem label="Calories" value={formatNutritionValue(nutrition.calories, 'kcal', scaleFactor)} />
+            <NutritionItem label="Protein" value={formatNutritionValue(nutrition.protein_g, 'g', scaleFactor)} />
+            <NutritionItem label="Carbs" value={formatNutritionValue(nutrition.carbohydrates_g, 'g', scaleFactor)} />
+            <NutritionItem label="Fat" value={formatNutritionValue(nutrition.fat_g, 'g', scaleFactor)} />
+            <NutritionItem label="Fiber" value={formatNutritionValue(nutrition.fiber_g, 'g', scaleFactor)} />
+            <NutritionItem label="Sugar" value={formatNutritionValue(nutrition.sugar_g, 'g', scaleFactor)} />
+            <NutritionItem label="Sodium" value={formatNutritionValue(nutrition.sodium_mg, 'mg', scaleFactor)} />
+            <NutritionItem label="Sat. Fat" value={formatNutritionValue(nutrition.saturated_fat_g, 'g', scaleFactor)} />
           </View>
         </Card.Content>
       </Card>
@@ -214,7 +238,7 @@ const NutritionItem = ({ label, value }) => (
   </View>
 );
 
-function formatNutritionValue(value, unit) {
+function formatNutritionValue(value, unit, scaleFactor = 1) {
   if (value === null || value === undefined || value === '') {
     return 'N/A';
   }
@@ -224,7 +248,8 @@ function formatNutritionValue(value, unit) {
     return 'N/A';
   }
 
-  return `${parsed}${unit ? ` ${unit}` : ''}`;
+  const scaledValue = parsed * scaleFactor;
+  return `${scaledValue.toFixed(2)}${unit ? ` ${unit}` : ''}`;
 }
 
 function getReferenceLabel(foodData) {
@@ -309,6 +334,16 @@ const styles = StyleSheet.create({
   estimationText: {
     color: '#4f6d61',
     marginTop: 4,
+    fontSize: 12,
+  },
+  servingInput: {
+    marginTop: 2,
+    marginBottom: 6,
+    backgroundColor: 'white',
+  },
+  servingHint: {
+    color: '#4f6d61',
+    marginBottom: 4,
     fontSize: 12,
   },
   description: { 
