@@ -6,7 +6,6 @@ from recommend import get_recommendations
 from risk_assessment import analyze_product
 from food_recognition import (
     analyze_food_image,
-    get_food_recommendations,
     validate_food_input,
     apply_user_confirmed_food_name,
 )
@@ -17,7 +16,6 @@ import cv2
 app = Flask(__name__)
 CORS(app)
 
-# Register admin blueprint
 app.register_blueprint(admin_bp)
 
 camera = None
@@ -181,11 +179,6 @@ def analyze_food():
         result = analyze_food_image(image_data, user_profile)
         
         if result['success']:
-            # Optionally get recommendations
-            if data.get('includeRecommendations', False):
-                recommendations = get_food_recommendations(result['data'])
-                result['data']['recommendations'] = recommendations
-            
             return jsonify(result)
         else:
             return jsonify(result), 400
@@ -239,21 +232,6 @@ def confirm_food_name_endpoint():
         print(f"Error in confirm_food_name_endpoint: {e}")
         return jsonify({'error': str(e)}), 500
 
-
-@app.route('/api/food-alternatives', methods=['POST'])
-def food_alternatives():
-    """Get healthier alternatives for a food."""
-    try:
-        data = request.get_json()
-        
-        if not data or 'food_name' not in data:
-            return jsonify({'error': 'Food name required'}), 400
-        
-        recommendations = get_food_recommendations(data)
-        return jsonify({'recommendations': recommendations})
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)

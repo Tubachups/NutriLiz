@@ -9,7 +9,6 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 USDA_API_KEY = os.getenv('USDA_API_KEY')
 USDA_BASE_URL = os.getenv('USDA_BASE_URL', 'https://api.nal.usda.gov/fdc/v1')
-OPENFOODFACTS_BASE_URL = os.getenv('OPENFOODFACTS_BASE_URL', 'https://world.openfoodfacts.org')
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -70,23 +69,6 @@ USDA_DISH_KEYWORDS = (
     'salad', 'adobo', 'lomi', 'pancit', 'mami', 'curry', 'omelet'
 )
 
-OPENFOODFACTS_PACKAGED_HINTS = (
-    'biscuit', 'cookies', 'cookie', 'cracker', 'chips', 'choco', 'chocolate',
-    'instant', 'noodles', 'cereal', 'drink', 'beverage', 'soda', 'juice',
-    'pack', 'packet', 'pouch', 'bottle', 'can', 'bar', 'snack', 'flavor',
-    'flavour', 'label', 'labeled', 'labelled', 'brand', 'processed'
-)
-
-FRESH_FOOD_CATEGORY_HINTS = (
-    'vegetable', 'fruit', 'meat', 'fish', 'seafood', 'egg',
-    'legume', 'bean', 'grain', 'rice', 'root'
-)
-
-FRESH_FOOD_TEXT_HINTS = (
-    'fresh', 'raw', 'whole', 'unprocessed', 'leafy', 'home-cooked',
-    'steamed', 'boiled', 'grilled'
-)
-
 NOODLE_DISH_HINTS = (
     'noodle', 'noodles', 'pancit', 'pansit', 'canton', 'lomi', 'mami',
     'batchoy', 'ramen', 'udon', 'soba', 'sotanghon', 'misua'
@@ -134,6 +116,31 @@ FILIPINO_LOCAL_DISHES = {
 }
 
 
+NUTRITION_FIELDS = (
+    'calories',
+    'protein_g',
+    'carbohydrates_g',
+    'fat_g',
+    'fiber_g',
+    'sugar_g',
+    'sodium_mg',
+    'saturated_fat_g',
+)
+
+CARB_DENSE_HINTS = (
+    'rice', 'noodle', 'pasta', 'bread', 'potato', 'corn', 'yam',
+    'cassava', 'sweet potato', 'taro', 'flour', 'grain'
+)
+
+PROTEIN_DENSE_HINTS = (
+    'fish', 'chicken', 'beef', 'pork', 'meat', 'egg', 'tofu', 'shrimp',
+    'tuna', 'salmon', 'mackerel', 'sardine'
+)
+
+LOW_DENSITY_HINTS = (
+    'sauce', 'broth', 'gravy', 'dressing', 'oil', 'butter', 'water'
+)
+
 def env_flag(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
     if value is None:
@@ -152,7 +159,6 @@ CACHE_TTL_SECONDS = int(os.getenv('FOOD_ANALYSIS_CACHE_TTL_SECONDS', '300'))
 CACHE_MAX_ITEMS = int(os.getenv('FOOD_ANALYSIS_CACHE_MAX_ITEMS', '500'))
 
 ANALYSIS_CACHE = {}
-OFF_SEARCH_CACHE = {}
 USDA_SEARCH_CACHE = {}
 
 
