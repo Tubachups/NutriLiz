@@ -1,228 +1,24 @@
 import re
-
 import requests
-
 from food_recognition_config import (
     NUTRIENT_MATCHERS,
-    OFF_SEARCH_CACHE,
-    OPENFOODFACTS_BASE_URL,
     USDA_ALLOWED_DATA_TYPES,
     USDA_API_KEY,
     USDA_BASE_URL,
     USDA_DISH_KEYWORDS,
     USDA_PROCESSED_KEYWORDS,
     USDA_SEARCH_CACHE,
+    NUTRITION_FIELDS,
+    CARB_DENSE_HINTS,
+    PROTEIN_DENSE_HINTS,
+    LOW_DENSITY_HINTS,
     cache_get,
     cache_set,
 )
 from food_recognition_helpers import (
-    extract_quantity_value,
     normalize_food_text,
     resolve_local_dish_mapping,
 )
-
-
-NUTRITION_FIELDS = (
-    'calories',
-    'protein_g',
-    'carbohydrates_g',
-    'fat_g',
-    'fiber_g',
-    'sugar_g',
-    'sodium_mg',
-    'saturated_fat_g',
-)
-
-CARB_DENSE_HINTS = (
-    'rice', 'noodle', 'pasta', 'bread', 'potato', 'corn', 'yam',
-    'cassava', 'sweet potato', 'taro', 'flour', 'grain'
-)
-
-PROTEIN_DENSE_HINTS = (
-    'fish', 'chicken', 'beef', 'pork', 'meat', 'egg', 'tofu', 'shrimp',
-    'tuna', 'salmon', 'mackerel', 'sardine'
-)
-
-LOW_DENSITY_HINTS = (
-    'sauce', 'broth', 'gravy', 'dressing', 'oil', 'butter', 'water'
-)
-
-
-def get_openfoodfacts_nutrition(food_data: dict, fast_mode: bool = False) -> dict:
-    """Try Open Food Facts first for labeled products and normalize output to app schema."""
-    queries = build_openfoodfacts_queries(food_data, fast_mode=fast_mode)
-    target_quantity = extract_quantity_value(' '.join([
-        str(food_data.get('food_name', '')),
-        str(food_data.get('serving_size', '')),
-        str(food_data.get('description', ''))
-    ]))
-
-    for query in queries:
-        product = search_openfoodfacts_product(query, target_quantity=target_quantity)
-        if not product:
-            continue
-
-        nutrition_per_100g = extract_openfoodfacts_nutrition(product)
-        if not nutrition_per_100g:
-            continue
-
-        nutri_score = str(product.get('nutriscore_grade', '')).strip().upper()
-        if nutri_score not in {'A', 'B', 'C', 'D', 'E'}:
-            nutri_score = None
-
-        return {
-            'code': product.get('code'),
-            'product_name': product.get('product_name') or product.get('product_name_en') or query,
-            'brands': product.get('brands'),
-            'quantity': product.get('quantity'),
-            'nutri_score': nutri_score,
-            'nutrition_per_100g': nutrition_per_100g
-        }
-
-    return {}
-
-
-def build_openfoodfacts_queries(food_data: dict, fast_mode: bool = False) -> list:
-    """Generate deduplicated OFF search queries from recognized food fields."""
-    raw_queries = [
-        str(food_data.get('food_name', '')).strip(),
-        str(food_data.get('food_name_local', '')).strip(),
-    ]
-
-    if fast_mode:
-        primary = raw_queries[0] or raw_queries[1]
-        return [primary.strip()] if primary and primary.strip() else []
-
-    serving_size = str(food_data.get('serving_size', '')).strip()
-    if raw_queries[0] and serving_size and re.search(r'\d', serving_size):
-        raw_queries.append(f"{raw_queries[0]} {serving_size}")
-
-    if isinstance(food_data.get('ingredients_if_dish'), list):
-        for ingredient in food_data.get('ingredients_if_dish', [])[:2]:
-            if ingredient:
-                raw_queries.append(str(ingredient).strip())
-
-    deduped = []
-    seen = set()
-    for query in raw_queries:
-        cleaned = re.sub(r'\s+', ' ', query).strip()
-        if not cleaned:
-            continue
-        lowered = cleaned.lower()
-        if lowered in seen:
-            continue
-        seen.add(lowered)
-        deduped.append(cleaned)
-
-    return deduped
-
-
-def search_openfoodfacts_product(query: str, target_quantity: float = None) -> dict:
-    """Search Open Food Facts and return the best ranked product for the query."""
-    if not query:
-        return {}
-
-    cache_key = f"{normalize_food_text(query)}:{round(target_quantity, 2) if target_quantity is not None else 'none'}"
-    cache_hit, cached = cache_get(OFF_SEARCH_CACHE, cache_key)
-    if cache_hit:
-        return cached
-
-    try:
-        response = requests.get(
-            f"{OPENFOODFACTS_BASE_URL}/cgi/search.pl",
-            params={
-                'search_terms': query,
-                'search_simple': 1,
-                'action': 'process',
-                'json': 1,
-                'page_size': 20,
-                'fields': 'code,product_name,product_name_en,brands,quantity,nutriments,nutriscore_grade'
-            },
-            timeout=10
-        )
-        response.raise_for_status()
-        payload = response.json()
-        products = payload.get('products', [])
-        if not products:
-            return {}
-
-        query_lower = query.lower().strip()
-        query_tokens = re.findall(r'[a-z0-9]+', query_lower)
-
-        def rank(product):
-            name = (product.get('product_name') or product.get('product_name_en') or '').lower()
-            name_tokens = re.findall(r'[a-z0-9]+', name)
-            starts_with = name.startswith(query_lower)
-
-            overlap = 0
-            for token in query_tokens:
-                if token in name_tokens or any(nt.startswith(token) for nt in name_tokens):
-                    overlap += 1
-
-            quantity_penalty = 0
-            if target_quantity is not None:
-                product_quantity = extract_quantity_value(str(product.get('quantity', '')))
-                quantity_penalty = abs(product_quantity - target_quantity) if product_quantity is not None else 999
-
-            return (
-                not starts_with,
-                quantity_penalty,
-                -overlap,
-                len(name)
-            )
-
-        products_sorted = sorted(products, key=rank)
-        best = products_sorted[0]
-        cache_set(OFF_SEARCH_CACHE, cache_key, best)
-        return best
-    except Exception as e:
-        print(f"Error searching Open Food Facts for '{query}': {e}")
-        return {}
-
-
-def extract_openfoodfacts_nutrition(product: dict) -> dict:
-    """Extract macro nutrition from Open Food Facts product data as per-100g values."""
-    nutriments = product.get('nutriments', {}) if isinstance(product, dict) else {}
-    if not nutriments:
-        return {}
-
-    def to_float(value):
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return None
-
-    calories = to_float(nutriments.get('energy-kcal_100g'))
-    if calories is None:
-        calories = to_float(nutriments.get('energy-kcal'))
-
-    sodium_mg = to_float(nutriments.get('sodium_100g'))
-    if sodium_mg is not None:
-        sodium_mg = sodium_mg * 1000
-    else:
-        salt_g = to_float(nutriments.get('salt_100g'))
-        if salt_g is not None:
-            sodium_mg = salt_g * 393.4
-
-    result = {
-        'calories': calories,
-        'protein_g': to_float(nutriments.get('proteins_100g')),
-        'carbohydrates_g': to_float(nutriments.get('carbohydrates_100g')),
-        'fat_g': to_float(nutriments.get('fat_100g')),
-        'fiber_g': to_float(nutriments.get('fiber_100g')),
-        'sugar_g': to_float(nutriments.get('sugars_100g')),
-        'sodium_mg': sodium_mg,
-        'saturated_fat_g': to_float(nutriments.get('saturated-fat_100g')),
-    }
-
-    if all(value is None for value in result.values()):
-        return {}
-
-    return {
-        key: (round(value, 2) if value is not None else None)
-        for key, value in result.items()
-    }
-
 
 def ingredient_weight(ingredient_name: str) -> float:
     """Roughly weight ingredient impact when estimating mixed-dish nutrition."""

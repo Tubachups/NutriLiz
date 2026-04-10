@@ -14,20 +14,15 @@ from food_recognition_config import (
 from food_recognition_helpers import (
     build_health_context,
     ensure_disambiguation_alternatives,
-    is_labeled_product,
     normalize_food_text,
     requires_user_confirmation,
+    extract_quantity_value,
     resolve_local_dish_mapping,
 )
-from food_recognition_sources import (
-    build_openfoodfacts_queries,
+from food_recognition_usda import (
     extract_nutrition_per_100g,
-    extract_openfoodfacts_nutrition,
-    extract_quantity_value,
-    get_openfoodfacts_nutrition,
     get_usda_nutrition,
     search_fooddata_central,
-    search_openfoodfacts_product,
 )
 
 
@@ -399,42 +394,6 @@ Return ONLY valid JSON, no additional text."""
     except Exception as e:
         print(f"Error validating food input: {e}")
         return {"valid": False, "reason": "Validation service unavailable.", "sanitized_name": ""}
-
-
-def get_food_recommendations(food_data: dict) -> list:
-    """Get healthier alternatives or similar foods."""
-    try:
-        food_name = food_data.get('food_name', '')
-        category = food_data.get('category', '')
-
-        prompt = f"""Based on the food "{food_name}" in category "{category}", suggest 3-5 healthier alternatives or complementary foods.
-
-Return as JSON array:
-[
-    {{
-        "name": "Food name",
-        "reason": "Why it's a good alternative/complement",
-        "nutrition_comparison": "Brief nutritional comparison"
-    }}
-]
-
-Return ONLY valid JSON array."""
-
-        response = client.models.generate_content(
-            model="gemini-3.1-flash-lite-preview",
-            contents=prompt
-        )
-
-        response_text = response.text.strip()
-        if response_text.startswith("```"):
-            response_text = re.sub(r'^```json?\n?', '', response_text)
-            response_text = re.sub(r'\n?```$', '', response_text)
-
-        return json.loads(response_text)
-
-    except Exception as e:
-        print(f"Error getting food recommendations: {e}")
-        return []
 
 
 __all__ = [

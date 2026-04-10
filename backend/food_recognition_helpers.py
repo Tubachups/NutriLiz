@@ -4,10 +4,7 @@ import re
 from food_recognition_config import (
     BROTH_SAUCE_HINTS,
     FILIPINO_LOCAL_DISHES,
-    FRESH_FOOD_CATEGORY_HINTS,
-    FRESH_FOOD_TEXT_HINTS,
     NOODLE_DISH_HINTS,
-    OPENFOODFACTS_PACKAGED_HINTS,
 )
 
 
@@ -169,40 +166,6 @@ def build_health_context(user_profile: dict) -> str:
         return ""
 
     return '\n'.join(context_parts)
-
-
-def is_labeled_product(food_data: dict) -> bool:
-    """Heuristic check for packaged/labeled food where Open Food Facts is usually stronger."""
-    category_text = str(food_data.get('category', '')).lower()
-    name_text = str(food_data.get('food_name', '')).lower()
-    description_text = str(food_data.get('description', '')).lower()
-    serving_size_text = str(food_data.get('serving_size', '')).lower()
-
-    text = ' '.join([
-        name_text,
-        str(food_data.get('food_name_local', '')).lower(),
-        category_text,
-        description_text,
-        str(food_data.get('preparation_notes', '')).lower(),
-        serving_size_text
-    ]).lower()
-
-    has_packaged_hint = any(hint in text for hint in OPENFOODFACTS_PACKAGED_HINTS)
-    if has_packaged_hint:
-        return True
-
-    has_fresh_category = any(hint in category_text for hint in FRESH_FOOD_CATEGORY_HINTS)
-    has_fresh_text_hint = any(hint in f"{name_text} {description_text}" for hint in FRESH_FOOD_TEXT_HINTS)
-
-    has_quantity = bool(re.search(r'\b\d+(?:[\.,]\d+)?\s?(g|kg|ml|l|oz)\b', text))
-    has_packaging_context = bool(
-        re.search(r'\b(pack|packet|pouch|bottle|can|box|bar|label|labeled|labelled|brand|flavo[u]?r)\b', text)
-    )
-
-    if has_fresh_category or has_fresh_text_hint:
-        return has_packaging_context
-
-    return has_quantity and has_packaging_context
 
 
 def extract_quantity_value(text: str):
