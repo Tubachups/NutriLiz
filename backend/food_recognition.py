@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import logging
 import re
 
 from food_recognition_config import (
@@ -24,7 +25,14 @@ from food_recognition_usda import (
     get_usda_nutrition,
     search_fooddata_central,
 )
+from food_recognition_fnri import get_fnri_nutrition
+from food_recognition_prompts import (
+    build_food_image_analysis_prompt,
+    build_food_validation_prompt,
+)
 
+
+logger = logging.getLogger(__name__)
 
 SPOILAGE_TERMS_PATTERN = re.compile(
     r'\b(expired|spoil(?:ed|age)?|rotten|mold(?:y)?|mould(?:y)?|rancid|stale|contaminated|unsafe\s+to\s+eat|not\s+safe\s+to\s+eat|food\s+poisoning)\b',
@@ -96,66 +104,7 @@ def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
         Dictionary with food identification and nutritional info
     """
     try:
-        prompt = """Analyze this food image and provide detailed information in the following JSON format:
-
-{
-    "identified": true/false,
-    "confidence": "high/medium/low",
-    "has_visible_label_or_packaging": true/false,
-    "food_name": "Name of the food",
-    "food_name_local": "Local/regional name if applicable",
-    "category": "Category (e.g., Fruit, Vegetable, Meat, Dairy, Grain, etc.)",
-    "description": "Brief description of the food",
-    "food_safety_status": "safe/unsafe/uncertain",
-    "is_expired_or_spoiled": true/false,
-    "food_safety_note": "Brief note if unsafe or uncertain",
-    "serving_size": "Estimated serving size shown",
-    "nutrition_per_100g": {
-        "calories": null,
-        "protein_g": null,
-        "carbohydrates_g": null,
-        "fat_g": null,
-        "fiber_g": null,
-        "sugar_g": null,
-        "sodium_mg": null,
-        "saturated_fat_g": null
-    },
-    "health_benefits": ["benefit1", "benefit2"],
-    "potential_concerns": ["concern1", "concern2"],
-    "allergens": ["allergen1", "allergen2"],
-    "dietary_info": {
-        "is_vegetarian": true/false,
-        "is_vegan": true/false,
-        "is_gluten_free": true/false,
-        "is_dairy_free": true/false
-    },
-    "nutri_score_estimate": "A/B/C/D/E",
-    "ingredients_if_dish": ["ingredient1", "ingredient2"],
-    "preparation_notes": "How the food appears to be prepared",
-    "disambiguation_needed": false,
-    "alternatives": []
-}
-
-If you cannot identify the food or it's not a food item, set "identified" to false and explain in the description.
-Do not estimate nutrition values. Keep nutrition fields null, they will be populated from an external nutrition database.
-
-Set "disambiguation_needed" to true only when the exact food identity is genuinely ambiguous due to:
-1. The food appears to be an unlabeled liquid (e.g., tea, juice, smoothie, soup, broth, coffee, unknown drink) where the specific variety cannot be reliably determined from the image alone.
-2. The dish has heavy sauces, dressings, gravies, or toppings that significantly obscure the identity of the underlying main food item (e.g., pasta completely submerged in sauce, a salad fully drenched in thick dressing).
-3. The dish appears to be a regional noodle dish with broth/sauce where lookalike noodle dishes are common (e.g., Lomi vs Pancit Canton vs Mami).
-When "disambiguation_needed" is true, populate "alternatives" with 2-3 of the most plausible food names as candidates for what is shown.
-In all other cases, keep "disambiguation_needed" as false and "alternatives" as an empty array.
-
-Set "has_visible_label_or_packaging" to true only when there are explicit visible cues of commercial packaging or labels
-(for example: branded wrappers, product labels, bottle/can labels, nutrition panel, barcodes, clear package text).
-For plated, home-cooked, unpacked, or unlabeled foods, set it to false.
-
-Set "is_expired_or_spoiled" to true only if there are clear visual signs that the food is likely spoiled or expired,
-such as mold growth, obvious rot, severe discoloration consistent with spoilage, or visibly decomposed texture.
-When true, set "food_safety_status" to "unsafe" and provide a short explanation in "food_safety_note".
-Otherwise set "is_expired_or_spoiled" to false and use "food_safety_status" as "safe" or "uncertain".
-
-Return ONLY valid JSON, no additional text."""
+        prompt = build_food_image_analysis_prompt()
 
         profile_payload = ''
         if user_profile:
@@ -170,6 +119,7 @@ Return ONLY valid JSON, no additional text."""
 
         cache_hit, cached_food_data = cache_get(ANALYSIS_CACHE, analysis_cache_key)
         if cache_hit:
+            logger.debug('Food analysis cache hit; skipping FNRI/USDA lookup')
             return {
                 'success': True,
                 'data': cached_food_data
@@ -177,7 +127,10 @@ Return ONLY valid JSON, no additional text."""
 
         if user_profile:
             health_context = build_health_context(user_profile)
-            prompt += f"\n\nUser Health Context:\n{health_context}\n\nAlso include a 'personalized_advice' field with specific recommendations for this user."
+            prompt = build_food_image_analysis_prompt(
+                user_profile=user_profile,
+                health_context=health_context,
+            )
 
         mime_type = "image/jpeg"
         try:
@@ -221,35 +174,34 @@ Return ONLY valid JSON, no additional text."""
 
         if food_data.get('identified') and not to_bool(food_data.get('is_expired_or_spoiled')):
             confirmation_required = requires_user_confirmation(food_data)
-            has_visible_packaging = to_bool(food_data.get('has_visible_label_or_packaging'))
-            heuristic_labeled_product = is_labeled_product(food_data)
-            off_lookup_allowed = has_visible_packaging or heuristic_labeled_product
             if confirmation_required:
                 food_data['disambiguation_needed'] = True
                 food_data['alternatives'] = ensure_disambiguation_alternatives(food_data)
                 food_data['nutrition_pending_confirmation'] = True
 
-            if off_lookup_allowed:
-                off_nutrition = get_openfoodfacts_nutrition(food_data, fast_mode=FOOD_ANALYSIS_FAST_MODE)
-                if off_nutrition:
-                    food_data['nutrition_per_100g'] = off_nutrition['nutrition_per_100g']
-                    food_data['nutrition_source'] = 'open_food_facts'
-                    food_data['openfoodfacts_match'] = {
-                        'code': off_nutrition.get('code'),
-                        'product_name': off_nutrition.get('product_name'),
-                        'brands': off_nutrition.get('brands'),
-                        'quantity': off_nutrition.get('quantity')
-                    }
-                    if off_nutrition.get('nutri_score'):
-                        food_data['nutri_score_estimate'] = off_nutrition['nutri_score']
-                    if not food_data.get('serving_size') and off_nutrition.get('quantity'):
-                        food_data['serving_size'] = off_nutrition['quantity']
-                    food_data['label_detection'] = {
-                        'has_visible_label_or_packaging': has_visible_packaging,
-                        'heuristic_labeled_product': heuristic_labeled_product,
-                        'off_lookup_allowed': off_lookup_allowed
-                    }
+            if not food_data.get('nutrition_source') and not confirmation_required:
+                fnri_nutrition = get_fnri_nutrition(
+                    food_name=food_data.get('food_name', ''),
+                    ingredients=food_data.get('ingredients_if_dish', []),
+                    fast_mode=FOOD_ANALYSIS_FAST_MODE
+                )
+                if fnri_nutrition:
+                    food_data['nutrition_per_100g'] = fnri_nutrition['nutrition_per_100g']
+                    food_data['nutrition_source'] = 'fnri_table'
+                    food_data['fnri_match'] = fnri_nutrition.get('fnri_match', {})
+                    logger.info(
+                        "Nutrition source selected: FNRI for food='%s'",
+                        food_data.get('food_name', ''),
+                    )
+                    print(f"[FOOD_RECOGNITION] nutrition source=FNRI food='{food_data.get('food_name', '')}'")
+                else:
+                    logger.info(
+                        "FNRI returned no nutrition for food='%s'; falling back to USDA",
+                        food_data.get('food_name', ''),
+                    )
+                    print(f"[FOOD_RECOGNITION] FNRI miss, fallback to USDA food='{food_data.get('food_name', '')}'")
 
+            # COMMENT THIS TO CHECK FNRI
             if not food_data.get('nutrition_source') and not confirmation_required:
                 usda_nutrition = get_usda_nutrition(
                     food_name=food_data.get('food_name', ''),
@@ -318,7 +270,16 @@ def apply_user_confirmed_food_name(food_data: dict, confirmed_name: str) -> dict
             'canonical_name': canonical_name
         }
 
-    if updated.get('nutrition_source') == 'open_food_facts':
+
+    fnri_nutrition = get_fnri_nutrition(
+        food_name=canonical_name,
+        ingredients=updated.get('ingredients_if_dish', []),
+        fast_mode=FOOD_ANALYSIS_FAST_MODE
+    )
+    if fnri_nutrition:
+        updated['nutrition_per_100g'] = fnri_nutrition['nutrition_per_100g']
+        updated['nutrition_source'] = 'fnri_table'
+        updated['fnri_match'] = fnri_nutrition.get('fnri_match', {})
         return updated
 
     usda_nutrition = get_usda_nutrition(
@@ -350,35 +311,7 @@ def validate_food_input(food_name: str, context: dict = None) -> dict:
     contextually plausible given what was detected in the image.
     """
     try:
-        context_str = ""
-        if context:
-            ctx_name = context.get('food_name', '')
-            ctx_category = context.get('category', '')
-            ctx_desc = context.get('description', '')
-            if ctx_name or ctx_category:
-                context_str = (
-                    f"\nThe image was previously analysed and appears to show: "
-                    f"{ctx_name} ({ctx_category})."
-                )
-                if ctx_desc:
-                    context_str += f" Description: {ctx_desc}"
-
-        prompt = f"""You are a food validation assistant.
-A user manually typed "{food_name}" as the name of a food item they just photographed.{context_str}
-
-Respond ONLY with valid JSON in this exact format:
-{{
-  "valid": true,
-  "reason": "brief explanation",
-  "sanitized_name": "Properly capitalised, clean version of the food name"
-}}
-
-Rules:
-1. "valid" is true ONLY if the input is a real, recognisable food or beverage name (including regional, brand, or colloquial names).
-2. "valid" is false if the input is not food/beverage (e.g. household objects, people, random text, offensive language, nonsense) OR if it is obviously impossible given the image context (e.g. typing "raw carrot" when tea/liquid was detected).
-3. Do NOT be overly strict - regional dishes, brand names, and informal names are all acceptable as long as they refer to something edible.
-4. "sanitized_name" must be filled when valid is true; leave it as an empty string when valid is false.
-Return ONLY valid JSON, no additional text."""
+        prompt = build_food_validation_prompt(food_name=food_name, context=context)
 
         response = client.models.generate_content(
             model="gemini-3.1-flash-lite-preview",
@@ -400,19 +333,14 @@ __all__ = [
     'analyze_food_image',
     'apply_user_confirmed_food_name',
     'validate_food_input',
-    'get_food_recommendations',
+    'get_fnri_nutrition',
     'build_health_context',
-    'build_openfoodfacts_queries',
     'ensure_disambiguation_alternatives',
     'extract_nutrition_per_100g',
-    'extract_openfoodfacts_nutrition',
     'extract_quantity_value',
-    'get_openfoodfacts_nutrition',
     'get_usda_nutrition',
-    'is_labeled_product',
     'normalize_food_text',
     'requires_user_confirmation',
     'resolve_local_dish_mapping',
     'search_fooddata_central',
-    'search_openfoodfacts_product',
 ]

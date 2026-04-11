@@ -52,16 +52,25 @@ def get_db_ids() -> tuple[str, str]:
 
 
 def print_results(rows: list[dict]) -> None:
+	import json
 	if not rows:
 		print("No matching documents found.")
 		return
 
 	for idx, row in enumerate(rows, start=1):
 		nutrition = row.get("nutrition_breakdown")
-		nutrition_type = type(nutrition).__name__ if nutrition is not None else "None"
+		if nutrition is not None:
+			# Print as compact JSON, ensure keys are strings and values are strings
+			if isinstance(nutrition, dict):
+				formatted = {str(k): str(v) for k, v in nutrition.items()}
+				nutrition_str = json.dumps(formatted, ensure_ascii=False, separators=(",", ":"))
+			else:
+				nutrition_str = str(nutrition)
+		else:
+			nutrition_str = "None"
 		print(
 			f"{idx}. id={row.get('$id')} | food_id={row.get('food_id')}"
-			f" | food_name={row.get('food_name')} | nutrition_breakdown={nutrition_type}"
+			f" | food_name={row.get('food_name')} | nutrition_breakdown={nutrition_str}"
 		)
 
 
@@ -88,8 +97,8 @@ def run_exact(tabledb: TablesDB, database_id: str, collection_id: str, value: st
 
 
 def run_search_local(tabledb: TablesDB, database_id: str, collection_id: str, value: str, limit: int) -> None:
-	needle = value.lower().strip()
-	if not needle:
+	query = value.lower().strip()
+	if not query:
 		print("Search term is empty.")
 		return
 
@@ -109,7 +118,7 @@ def run_search_local(tabledb: TablesDB, database_id: str, collection_id: str, va
 
 		for row in rows:
 			food_name = str(row.get("food_name") or "")
-			if food_name.lower().startswith(needle):
+			if food_name.lower().startswith(query):
 				matches.append(row)
 				if len(matches) >= limit:
 					break
@@ -122,22 +131,6 @@ def run_search_local(tabledb: TablesDB, database_id: str, collection_id: str, va
 	print_results(matches)
 
 
-def run_search(tabledb: TablesDB, database_id: str, collection_id: str, value: str, limit: int) -> None:
-	try:
-		response = tabledb.list_rows(
-			database_id,
-			collection_id,
-			queries=[Query.search("food_name", value), Query.limit(limit)],
-		)
-		rows = response.get("rows", [])
-		print(f"Search matches for food_name containing '{value}': {len(rows)}")
-		print_results(rows)
-	except AppwriteException as exc:
-		if "requires a fulltext index" in str(exc):
-			print("No full-text index on food_name. Falling back to local contains() scan...")
-			run_search_local(tabledb, database_id, collection_id, value, limit)
-		else:
-			raise
 
 
 def parse_args() -> argparse.Namespace:
@@ -185,7 +178,7 @@ def main() -> int:
 		elif args.exact:
 			run_exact(tabledb, database_id, collection_id, args.exact, args.limit)
 		else:
-			run_search(tabledb, database_id, collection_id, args.search, args.limit)
+			run_search_local(tabledb, database_id, collection_id, args.search, args.limit)
 
 		return 0
 

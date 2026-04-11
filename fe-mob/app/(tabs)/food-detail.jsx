@@ -80,6 +80,9 @@ export default function FoodDetail() {
                 onChangeText={setServingSizeInput}
                 style={styles.servingInput}
                 error={servingSizeError}
+                textColor="black"
+                outlineColor="#1e7d5dff"
+                activeOutlineColor='#1e7d5dff'
               />
               <Text variant="bodySmall" style={styles.servingHint}>
                 {servingSizeError
@@ -266,6 +269,13 @@ function getReferenceLabel(foodData) {
       return `USDA FoodData Central (${foodData.usda_match.fdc_id})`;
     }
     return 'USDA FoodData Central';
+  }
+
+  if (foodData.nutrition_source === 'fnri_table') {
+    if (foodData.fnri_match?.food_id) {
+      return `FNRI Table (${foodData.fnri_match.food_id})`;
+    }
+    return 'FNRI Table';
   }
 
   if (foodData.source === 'gemini_vision') {
