@@ -16,6 +16,22 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
+## API Environment Setup
+
+NutriLiz mobile now uses environment variables for backend API routing, with automatic fallback.
+
+Set these in `.env`:
+
+```env
+EXPO_PUBLIC_API_BASE_URL=https://nutriliz-be-a8351183c68f.herokuapp.com
+EXPO_PUBLIC_API_FALLBACK_URL=http://192.168.100.69:5000
+```
+
+How it works:
+- Primary requests go to `EXPO_PUBLIC_API_BASE_URL`.
+- If the primary endpoint returns a retryable server/network failure, the app retries against `EXPO_PUBLIC_API_FALLBACK_URL`.
+- If either variable is missing, built-in defaults are used.
+
 In the output, you'll find options to open the app in a
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)

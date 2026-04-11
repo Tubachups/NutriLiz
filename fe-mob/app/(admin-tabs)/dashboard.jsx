@@ -5,8 +5,8 @@ import { useAuth } from '@/hooks/auth-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
+import { apiFetch } from '@/lib/api';
 
-const API_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/';
 const USERS_PER_PAGE = 10;
 
 export default function AdminDashboard() {
@@ -69,14 +69,11 @@ export default function AdminDashboard() {
     try {
       const offset = (currentPage - 1) * USERS_PER_PAGE;
       
-      const response = await fetch(
-        `${API_URL}/api/admin/users?limit=${USERS_PER_PAGE}&offset=${offset}`,
-        {
-          headers: {
-            'X-User-ID': user.$id,
-          }
+      const response = await apiFetch(`/api/admin/users?limit=${USERS_PER_PAGE}&offset=${offset}`, {
+        headers: {
+          'X-User-ID': user.$id,
         }
-      );
+      });
       
       const data = await response.json();
       
@@ -105,14 +102,11 @@ export default function AdminDashboard() {
   // Fetch all users for PDF generation
   const fetchAllUsersForPdf = async () => {
     try {
-      const response = await fetch(
-        `${API_URL}/api/admin/users?limit=1000&offset=0`,
-        {
-          headers: {
-            'X-User-ID': user.$id,
-          }
+      const response = await apiFetch('/api/admin/users?limit=1000&offset=0', {
+        headers: {
+          'X-User-ID': user.$id,
         }
-      );
+      });
       
       const data = await response.json();
       

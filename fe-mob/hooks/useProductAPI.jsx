@@ -1,7 +1,5 @@
 import { useState } from 'react';
-
-// const API_BASE_URL =  'https://nutriliz-be-a8351183c68f.herokuapp.com';
-const API_BASE_URL = 'http://192.168.100.69:5000'
+import { apiFetch } from '@/lib/api';
 
 const normalizeBarcode = (barcode) => String(barcode || '').replace(/\D/g, '');
 
@@ -108,7 +106,7 @@ export const useProductAPI = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/product/${encodeURIComponent(normalizedBarcode)}`);
+      const response = await apiFetch(`/api/product/${encodeURIComponent(normalizedBarcode)}`);
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
@@ -143,7 +141,7 @@ export const useProductAPI = () => {
           }
         : { method: 'GET' };
 
-      const response = await fetch(`${API_BASE_URL}/api/assess/${barcode}`, options);
+      const response = await apiFetch(`/api/assess/${barcode}`, options);
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
