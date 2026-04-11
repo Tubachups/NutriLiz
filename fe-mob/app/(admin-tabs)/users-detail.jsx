@@ -11,10 +11,8 @@ import {
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { useAuth } from '@/hooks/auth-context';
 import * as Print from 'expo-print';
+import { apiFetch } from '@/lib/api';
 
-
-// const API_BASE_URL = 'http://192.168.100.69:5000'
-const API_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/';
 
 export default function UserDetail() {
   const { userId, userName } = useLocalSearchParams();
@@ -38,14 +36,11 @@ export default function UserDetail() {
     setError(null);
     
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/admin/users/${userId}/scan-history`,
-        {
-          headers: {
-            'X-User-ID': user.$id,
-          }
+      const response = await apiFetch(`/api/admin/users/${userId}/scan-history`, {
+        headers: {
+          'X-User-ID': user.$id,
         }
-      );
+      });
       
       const data = await response.json();
       

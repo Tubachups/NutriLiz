@@ -4,6 +4,7 @@ NutriLiz is an intelligent nutrition analysis system that combines barcode scann
 
 ## 📋 Table of Contents
 
+- [Recent Feature Updates](#-recent-feature-updates)
 - [Features](#features)
 - [System Architecture](#system-architecture)
 - [API Endpoints](#api-endpoints)
@@ -19,11 +20,12 @@ NutriLiz is an intelligent nutrition analysis system that combines barcode scann
 - Automatic fallback mechanism between data sources
 
 ### 🤖 AI-Powered Health Analysis
-- **Google Gemini AI Integration**: Advanced nutritional risk assessment (Gemini 2.5 Flash)
+- **Google Gemini AI Integration**: Advanced nutritional risk assessment (Gemini 3.1 Flash-Lite)
 - **Comorbidity-Aware Recommendations**: Tailored advice for users with specific health conditions
 - **Allergen Detection**: Comprehensive allergen and trace detection
 - **Processing Level Assessment**: NOVA group classification
 - **Food Image Recognition**: Identify fresh foods from photos and get instant nutritional info
+- **FNRI + USDA Nutrition Enrichment**: Image-recognized foods are enriched using FNRI first, then USDA fallback when needed
 
 ### 📊 Comprehensive Nutritional Data
 - Macronutrients (carbs, proteins, fats, fiber, sugars)
@@ -50,6 +52,8 @@ NutriLiz is an intelligent nutrition analysis system that combines barcode scann
 - **Live Camera Feed**: MJPEG video stream from hardware camera (`/video`)
 - **Real-time Barcode Detection**: Hardware barcode scanner integration via serial port
 - **Food Image Analysis**: Upload or capture images of fresh food for AI-powered identification and nutrition lookup
+- **Food Safety Guardrails**: Spoilage/expired-food signals to warn users before proceeding
+- **Disambiguation Workflow**: User confirmation flow for ambiguous foods and sauce-heavy dishes before nutrition finalization
 
 ### 🛡️ Admin Panel
 - **User Management**: List and view all registered users (`/api/admin/users`)
@@ -60,6 +64,16 @@ NutriLiz is an intelligent nutrition analysis system that combines barcode scann
 - **Web Frontend**: React 19 + TailwindCSS 4 responsive web application with TanStack Router
 - **Mobile App**: React Native/Expo mobile application with camera and barcode scanning
 - **Hardware Integration**: USB barcode scanner + Raspberry Pi camera support
+
+## 🆕 Recent Feature Updates
+
+- Added **food disambiguation flow** with confirmation support for medium/low confidence image results and ambiguous dishes.
+- Added **food safety classification** for expired/spoiled detection with frontend-safe flags and warning messages.
+- Added **nutrition-source cascade** for image-recognized foods: FNRI nutrition lookup first, then USDA FoodData Central fallback.
+- Added **food validation + confirmation APIs** for safer and more accurate image-recognition finalization:
+  - `POST /api/validate-food-input`
+  - `POST /api/confirm-food-name`
+- Improved mobile scan flow with stronger handling for duplicate barcode events and scan finalization states.
 
 ## 🏗️ System Architecture
 
@@ -118,6 +132,8 @@ NutriLiz is an intelligent nutrition analysis system that combines barcode scann
 | GET | `/api/recommendations/<barcode>` | Get similar product recommendations (`?limit=1-10`) |
 | GET/POST | `/api/assess/<barcode>` | AI risk assessment; POST with user profile for personalized results |
 | POST | `/api/analyze-food-image` | Analyze a food image (base64); returns identification + nutrition |
+| POST | `/api/validate-food-input` | Validate user-typed food name for disambiguation confirmation |
+| POST | `/api/confirm-food-name` | Apply confirmed food name and return updated nutrition data |
 | POST | `/api/food-alternatives` | Get healthier food alternatives by food name |
 | GET | `/api/admin/users` | *(Admin)* List all users |
 | GET | `/api/admin/users/<user_id>` | *(Admin)* Get a specific user's details |
@@ -131,7 +147,7 @@ NutriLiz is an intelligent nutrition analysis system that combines barcode scann
 - **OpenCV** (`opencv-python-headless`): Camera capture and MJPEG streaming
 - **OpenFoodFacts SDK**: Product data retrieval
 - **scikit-learn + NumPy**: ML-based product recommendations (cosine similarity)
-- **Google GenAI**: AI-powered health analysis and food image recognition (Gemini 2.5 Flash)
+- **Google GenAI**: AI-powered health analysis and food image recognition (Gemini 3.1 Flash-Lite)
 - **Appwrite SDK**: Custom database and user management
 
 ### Frontend (Web) — `fe-web/`
@@ -150,7 +166,7 @@ NutriLiz is an intelligent nutrition analysis system that combines barcode scann
 - **expo-camera** + **expo-image-picker**: Camera and image capture
 - **react-native-appwrite v0.18**: Auth, database, and storage
 - **expo-print**: PDF/print support
-- Screens: Home, Scan, Food Scan, Product Detail, Food Detail, List, Profile, Admin Dashboard, User Details
+- Screens: Home, Scan, Food Scan, Product Detail, Food Detail, List, Profile, Auth, Forgot Password, Reset Password, Admin Dashboard, User Details
 
 ### Database & Services
 - **Appwrite Cloud**: Database, file storage, user auth, and real-time sync

@@ -12,9 +12,7 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-
-const API_BASE_URL = 'http://192.168.100.69:5000'
-// const API_BASE_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/';
+import { apiFetch } from '@/lib/api';
 
 export default function FoodDisambiguationModal({
   visible,
@@ -59,7 +57,7 @@ export default function FoodDisambiguationModal({
       setValidating(true);
       setValidationError('');
       try {
-        const response = await fetch(`${API_BASE_URL}/api/validate-food-input`, {
+        const response = await apiFetch('/api/validate-food-input', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

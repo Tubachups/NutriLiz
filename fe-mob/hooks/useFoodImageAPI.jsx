@@ -1,7 +1,5 @@
 import { useState } from 'react';
-
-const API_BASE_URL = 'http://192.168.100.69:5000'
-// const API_BASE_URL = 'https://nutriliz-be-a8351183c68f.herokuapp.com/';
+import { apiFetch } from '@/lib/api';
 
 export const useFoodImageAPI = () => {
   const [loading, setLoading] = useState(false);
@@ -12,7 +10,7 @@ export const useFoodImageAPI = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/analyze-food-image`, {
+      const response = await apiFetch('/api/analyze-food-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -46,7 +44,7 @@ export const useFoodImageAPI = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/confirm-food-name`, {
+      const response = await apiFetch('/api/confirm-food-name', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
