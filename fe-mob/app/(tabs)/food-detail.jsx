@@ -212,6 +212,17 @@ export default function FoodDetail() {
         </Card>
       )}
 
+      <Card style={[styles.card, styles.medicalDisclaimerCard]}>
+        <Card.Content>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Medical Reminder
+          </Text>
+          <Text style={styles.medicalDisclaimerText}>
+            Nutrition information and suggestions in this app are for guidance only and are not a replacement for medical advice, diagnosis, or treatment. Please consult a licensed healthcare professional for medical decisions.
+          </Text>
+        </Card.Content>
+      </Card>
+
       {/* Ingredients if dish */}
       {foodData.ingredients_if_dish && foodData.ingredients_if_dish.length > 0 && (
         <Card style={styles.card}>
@@ -466,6 +477,15 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
     lineHeight: 18,
+  },
+  medicalDisclaimerCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#e67e22',
+  },
+  medicalDisclaimerText: {
+    marginTop: 4,
+    lineHeight: 20,
+    color: '#4a3b2a',
   },
 
   // Nutri-Score Badge
