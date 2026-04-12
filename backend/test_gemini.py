@@ -12,7 +12,7 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 start_time = time.time()
 
 response = client.models.generate_content(
-    model="gemini-2.5-flash", 
+    model="gemini-3.1-flash-lite-preview",
     contents="Do you know about OpenFoodFacts website?"
 )
 
