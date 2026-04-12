@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, View, StyleSheet } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
+import { ActivityIndicator, Card, Text } from 'react-native-paper';
 import { useLocalSearchParams } from 'expo-router';
 import { useProductAPI } from '@/hooks/useProductAPI';
 import { useAuth } from '@/hooks/auth-context';
@@ -48,6 +48,15 @@ export default function ProductDetail() {
       {!isAppwriteProduct && <ScoresCard productData={productData} />}
       
       <AIAssessment loading={loading} assessment={assessment} />
+
+      <Card style={[styles.card, styles.disclaimerCard]}>
+        <Card.Content>
+          <Text style={styles.disclaimerTitle}>Medical Reminder</Text>
+          <Text style={styles.disclaimerText}>
+            This app provides nutrition guidance only and is not a substitute for medical advice, diagnosis, or treatment. Consult a licensed healthcare professional for personal medical concerns.
+          </Text>
+        </Card.Content>
+      </Card>
       
       {!isAppwriteProduct && (
         <IngredientsCard ingredientsText={productData.ingredients_text} />
@@ -74,6 +83,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#c6e9daff',
+  },
+  card: {
+    marginHorizontal: 10,
+    marginBottom: 10,
+    backgroundColor: 'white',
+  },
+  disclaimerCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#e67e22',
+  },
+  disclaimerTitle: {
+    fontWeight: '700',
+    color: '#8a4b08',
+    marginBottom: 6,
+  },
+  disclaimerText: {
+    color: '#3f2f1f',
+    lineHeight: 20,
   },
   centerContainer: {
     flex: 1,
