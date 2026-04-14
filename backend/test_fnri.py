@@ -1,12 +1,33 @@
 import argparse
 import os
 import sys
-
+import time
 from dotenv import load_dotenv
 from appwrite.client import Client
 from appwrite.services.tables_db import TablesDB
+from appwrite.models import RowList
 from appwrite.query import Query
 from appwrite.exception import AppwriteException
+
+
+def rows_to_plain_dicts(result: RowList) -> list[dict]:
+	"""Convert SDK Row objects to plain dicts that include user-defined columns."""
+	return [row.to_dict() for row in result.rows]
+
+
+def print_results(rows: list[dict]) -> None:
+	if not rows:
+		print("No rows found.")
+		return
+
+	for index, row in enumerate(rows, 1):
+		data = row.get("data", {})
+		food_name = data.get("food_name")
+		food_id = data.get("food_id")
+		nutrition = data.get("nutrition_breakdown")
+		print(f"[{index}] food_name={food_name!r} food_id={food_id!r}")
+		if nutrition is not None:
+			print(f"    nutrition_breakdown={nutrition}")
 
 
 def build_client() -> TablesDB:
@@ -37,100 +58,66 @@ def build_client() -> TablesDB:
 
 def get_db_ids() -> tuple[str, str]:
 	database_id = os.getenv("APPWRITE_DATABASE_ID")
-	collection_id = os.getenv("APPWRITE_FNRI_FOOD_COLLECTION_ID")
+	table_id = os.getenv("APPWRITE_FNRI_FOOD_COLLECTION_ID")
 
 	missing = []
 	if not database_id:
 		missing.append("APPWRITE_DATABASE_ID")
-	if not collection_id:
+	if not table_id:
 		missing.append("APPWRITE_FNRI_FOOD_COLLECTION_ID")
 
 	if missing:
 		raise RuntimeError(f"Missing required env vars: {', '.join(missing)}")
 
-	return database_id, collection_id
+	return database_id, table_id
 
 
-def print_results(rows: list[dict]) -> None:
-	import json
-	if not rows:
-		print("No matching documents found.")
-		return
 
-	for idx, row in enumerate(rows, start=1):
-		nutrition = row.get("nutrition_breakdown")
-		if nutrition is not None:
-			# Print as compact JSON, ensure keys are strings and values are strings
-			if isinstance(nutrition, dict):
-				formatted = {str(k): str(v) for k, v in nutrition.items()}
-				nutrition_str = json.dumps(formatted, ensure_ascii=False, separators=(",", ":"))
-			else:
-				nutrition_str = str(nutrition)
-		else:
-			nutrition_str = "None"
-		print(
-			f"{idx}. id={row.get('$id')} | food_id={row.get('food_id')}"
-			f" | food_name={row.get('food_name')} | nutrition_breakdown={nutrition_str}"
-		)
-
-
-def run_sample(tabledb: TablesDB, database_id: str, collection_id: str, limit: int) -> None:
-	response = tabledb.list_rows(
-		database_id,
-		collection_id,
-		queries=[Query.limit(limit)],
+def run_sample(tabledb: TablesDB, database_id: str, table_id: str) -> None:
+	result: RowList = tabledb.list_rows(
+		database_id=database_id,
+		table_id=table_id,
+		queries=[Query.limit(5)]
 	)
-	rows = response.get("rows", [])
-	print(f"Fetched {len(rows)} rows (sample limit={limit}).")
-	print_results(rows)
+	print({"total": result.total, "rows": rows_to_plain_dicts(result)})
 
 
-def run_exact(tabledb: TablesDB, database_id: str, collection_id: str, value: str, limit: int) -> None:
-	response = tabledb.list_rows(
-		database_id,
-		collection_id,
+def run_exact(tabledb: TablesDB, database_id: str, table_id: str, value: str, limit: int) -> None:
+	result: RowList = tabledb.list_rows(
+		database_id=database_id,
+		table_id=table_id,
 		queries=[Query.equal("food_name", [value]), Query.limit(limit)],
 	)
-	rows = response.get("rows", [])
+	rows = rows_to_plain_dicts(result)
 	print(f"Exact matches for food_name='{value}': {len(rows)}")
 	print_results(rows)
 
+def run_search_server(tabledb: TablesDB, database_id: str, table_id: str, value: str, limit: int) -> None:
+    query = value.strip()
+    if not query:
+        print("Search term is empty.")
+        return
 
-def run_search_local(tabledb: TablesDB, database_id: str, collection_id: str, value: str, limit: int) -> None:
-	query = value.lower().strip()
-	if not query:
-		print("Search term is empty.")
-		return
+    start_time = time.perf_counter()
 
-	offset = 0
-	page_size = 100
-	matches = []
+    result: RowList = tabledb.list_rows(
+        database_id=database_id,
+        table_id=table_id,
+        queries=[
+            Query.starts_with("food_name", query), 
+            Query.limit(limit)
+        ],
+    )
+    
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
 
-	while len(matches) < limit:
-		response = tabledb.list_rows(
-			database_id,
-			collection_id,
-			queries=[Query.limit(page_size), Query.offset(offset)],
-		)
-		rows = response.get("rows", [])
-		if not rows:
-			break
-
-		for row in rows:
-			food_name = str(row.get("food_name") or "")
-			if food_name.lower().startswith(query):
-				matches.append(row)
-				if len(matches) >= limit:
-					break
-
-		offset += page_size
-		if len(rows) < page_size:
-			break
-
-	print(f"Prefix matches for food_name starting with '{value}': {len(matches)}")
-	print_results(matches)
-
-
+    rows = rows_to_plain_dicts(result)
+    print(f"Prefix matches for food_name starting with '{value}': {len(rows)}")
+    print_results(rows)
+    
+    # 4. Print the final speed result
+    print(f"\n⏱️ Search completed in {elapsed_time:.4f} seconds")
 
 
 def parse_args() -> argparse.Namespace:
@@ -162,32 +149,32 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-	args = parse_args()
+    args = parse_args()
 
-	selected = sum([bool(args.sample), bool(args.exact), bool(args.search)])
-	if selected != 1:
-		print("Choose exactly one: --sample, --exact, or --search")
-		return 2
+    selected = sum([bool(args.sample), bool(args.exact), bool(args.search)])
+    if selected != 1:
+        print("Choose exactly one: --sample, --exact, or --search")
+        return 2
 
-	try:
-		tabledb = build_client()
-		database_id, collection_id = get_db_ids()
+    try:
+        tabledb = build_client()
+        database_id, table_id = get_db_ids()
 
-		if args.sample:
-			run_sample(tabledb, database_id, collection_id, args.limit)
-		elif args.exact:
-			run_exact(tabledb, database_id, collection_id, args.exact, args.limit)
-		else:
-			run_search_local(tabledb, database_id, collection_id, args.search, args.limit)
+        if args.sample:
+            run_sample(tabledb, database_id, table_id)
+        elif args.exact:
+            run_exact(tabledb, database_id, table_id, args.exact, args.limit)
+        else:
+            run_search_server(tabledb, database_id, table_id, args.search, args.limit)
 
-		return 0
+        return 0
 
-	except AppwriteException as exc:
-		print(f"Appwrite error: {exc}")
-		return 1
-	except Exception as exc:
-		print(f"Error: {exc}")
-		return 1
+    except AppwriteException as exc:
+        print(f"Appwrite error: {exc}")
+        return 1
+    except Exception as exc:
+        print(f"Error: {exc}")
+        return 1
 
 
 if __name__ == "__main__":
