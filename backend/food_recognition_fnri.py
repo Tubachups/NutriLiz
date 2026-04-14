@@ -3,8 +3,8 @@ import re
 import json
 import logging
 from difflib import SequenceMatcher
-from typing import Optional
-
+from dotenv import load_dotenv
+from appwrite.models import RowList
 from appwrite.client import Client
 from appwrite.query import Query
 from appwrite.services.tables_db import TablesDB
@@ -13,7 +13,6 @@ from food_recognition_config import NUTRITION_FIELDS
 from food_recognition_helpers import normalize_food_text, resolve_local_dish_mapping
 
 
-_FNRI_TABLE_DB: Optional[TablesDB] = None
 logger = logging.getLogger(__name__)
 
 FNRI_TO_APP_NUTRIENT_MAP = {
@@ -34,9 +33,7 @@ FNRI_TO_APP_NUTRIENT_MAP_NORMALIZED = {
 
 
 def _build_tabledb() -> TablesDB:
-    global _FNRI_TABLE_DB
-    if _FNRI_TABLE_DB is not None:
-        return _FNRI_TABLE_DB
+    load_dotenv()
 
     endpoint = os.getenv('APPWRITE_ENDPOINT')
     project_id = os.getenv('APPWRITE_PROJECT_ID')
@@ -58,19 +55,18 @@ def _build_tabledb() -> TablesDB:
     client.set_project(project_id)
     client.set_key(api_key)
 
-    _FNRI_TABLE_DB = TablesDB(client)
-    return _FNRI_TABLE_DB
+    return TablesDB(client)
 
 
 def _get_fnri_ids() -> tuple[str, str]:
     database_id = os.getenv('APPWRITE_DATABASE_ID')
-    table_id = os.getenv('APPWRITE_FNRI_FOOD_TABLE_ID') or os.getenv('APPWRITE_FNRI_FOOD_COLLECTION_ID')
+    table_id = os.getenv('APPWRITE_FNRI_FOOD_COLLECTION_ID')
 
     missing = []
     if not database_id:
         missing.append('APPWRITE_DATABASE_ID')
     if not table_id:
-        missing.append('APPWRITE_FNRI_FOOD_TABLE_ID or APPWRITE_FNRI_FOOD_COLLECTION_ID')
+        missing.append('APPWRITE_FNRI_FOOD_COLLECTION_ID')
 
     if missing:
         raise RuntimeError(f"Missing required env vars: {', '.join(missing)}")
@@ -100,6 +96,43 @@ def _tokenize(text: str) -> set[str]:
     {'apple,', 'red'}, so they correctly match queries like 'red apple'.
     """
     return {re.sub(r'[^\w]', '', t) for t in text.split() if re.sub(r'[^\w]', '', t)}
+
+
+def _row_to_payload(row_obj) -> dict:
+    """Convert Appwrite row models/dicts into one flat payload dict."""
+    if hasattr(row_obj, 'to_dict'):
+        row = row_obj.to_dict()
+    elif isinstance(row_obj, dict):
+        row = row_obj
+    else:
+        return {}
+
+    data = row.get('data')
+    if isinstance(data, dict):
+        merged = dict(data)
+        for key, value in row.items():
+            if key not in merged:
+                merged[key] = value
+        return merged
+
+    return row
+
+
+def _rows_to_plain_dicts(result :RowList) -> list[dict]:
+    """Normalize Appwrite list_rows response across SDK return shapes."""
+    if hasattr(result, 'rows'):
+        raw_rows = getattr(result, 'rows') or []
+    elif isinstance(result, dict):
+        raw_rows = result.get('rows', []) or []
+    else:
+        raw_rows = []
+
+    rows = []
+    for raw in raw_rows:
+        payload = _row_to_payload(raw)
+        if payload:
+            rows.append(payload)
+    return rows
 
 
 def _extract_nutrition_per_100g(row: dict) -> dict:
@@ -156,7 +189,8 @@ def _score_match(query: str, candidate: str) -> tuple:
 
 
 def _search_rows_startswith(food_name: str, limit: int = 8, page_size: int = 100, max_scan: int = 1200) -> list[dict]:
-    query = normalize_food_text(food_name)
+    raw_query = str(food_name or '').strip()
+    query = normalize_food_text(raw_query)
     if not query:
         return []
 
@@ -171,13 +205,17 @@ def _search_rows_startswith(food_name: str, limit: int = 8, page_size: int = 100
     matches = []
 
     while scanned < max_scan and len(matches) < limit:
-        response = tabledb.list_rows(
-            database_id,
-            table_id,
-            queries=[Query.limit(page_size), Query.offset(offset)],
+        result = tabledb.list_rows(
+            database_id=database_id,
+            table_id=table_id,
+            queries=[
+                Query.starts_with('food_name', raw_query),
+                Query.limit(page_size),
+                Query.offset(offset),
+            ],
         )
 
-        rows = response.get('rows', [])
+        rows = _rows_to_plain_dicts(result)
         if not rows:
             break
 
