@@ -133,16 +133,12 @@ def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
             )
 
         mime_type = "image/jpeg"
-        try:
-            image_bytes = base64.b64decode(image_data)
-            if image_bytes[:8] == b'\x89PNG\r\n\x1a\n':
-                mime_type = "image/png"
-            elif image_bytes[:2] == b'\xff\xd8':
-                mime_type = "image/jpeg"
-            elif image_bytes[:4] == b'RIFF' and image_bytes[8:12] == b'WEBP':
-                mime_type = "image/webp"
-        except Exception:
-            pass
+        if image_data.startswith("iVBORw0K"):
+            mime_type = "image/png"
+        elif image_data.startswith("/9j/"):
+            mime_type = "image/jpeg"
+        elif image_data.startswith("UklGR"):
+            mime_type = "image/webp"
 
         response = client.models.generate_content(
             model="gemini-3.1-flash-lite-preview",
@@ -159,7 +155,8 @@ def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
                         }
                     ]
                 }
-            ]
+            ],
+            config={"response_mime_type": "application/json"}
         )
 
         response_text = response.text.strip()
@@ -315,7 +312,8 @@ def validate_food_input(food_name: str, context: dict = None) -> dict:
 
         response = client.models.generate_content(
             model="gemini-3.1-flash-lite-preview",
-            contents=prompt
+            contents=prompt,
+            config={"response_mime_type": "application/json"}
         )
 
         response_text = response.text.strip()
