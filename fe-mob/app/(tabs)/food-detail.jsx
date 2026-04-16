@@ -1,52 +1,117 @@
-import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Dimensions, View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text, Chip, TextInput } from 'react-native-paper';
 import { useLocalSearchParams } from 'expo-router';
+import { useSharedValue } from 'react-native-reanimated';
+import Carousel from 'react-native-reanimated-carousel';
+
+const windowWidth = Dimensions.get('window').width;
+const CAROUSEL_HORIZONTAL_PADDING = 56;
+const CAROUSEL_CARD_GAP = 12;
+const CAROUSEL_ITEM_WIDTH = windowWidth - CAROUSEL_HORIZONTAL_PADDING - CAROUSEL_CARD_GAP * 2;
 
 export default function FoodDetail() {
   const { foodData: foodDataString } = useLocalSearchParams();
-  const foodData = JSON.parse(foodDataString);
+  const foodData = parseFoodDataParam(foodDataString);
+  const carouselFoods = useMemo(() => extractFoodItems(foodData), [foodData]);
+  const hasMultipleFoods = carouselFoods.length > 1;
+  const [activeFoodIndex, setActiveFoodIndex] = useState(0);
+  const progress = useSharedValue(0);
   const [isAllergensExpanded, setIsAllergensExpanded] = useState(false);
   const [servingSizeInput, setServingSizeInput] = useState('100');
+  const activeFood = hasMultipleFoods
+    ? carouselFoods[Math.min(activeFoodIndex, carouselFoods.length - 1)]
+    : foodData;
 
-  const hasPer100gNutrition = Boolean(foodData.nutrition_per_100g);
-  const nutrition = foodData.nutrition_per_100g || foodData.nutrition_per_serving || {};
+  const hasPer100gNutrition = Boolean(activeFood?.nutrition_per_100g);
+  const nutrition = activeFood?.nutrition_per_100g || activeFood?.nutrition_per_serving || {};
   const parsedServingSize = Number.parseFloat(String(servingSizeInput).replace(',', '.'));
   const servingSize = Number.isFinite(parsedServingSize) && parsedServingSize > 0 ? parsedServingSize : 100;
-  const scaleFactor = hasPer100gNutrition ? servingSize / 100 : 1;
+  const scaleFactor = hasMultipleFoods ? 1 : (hasPer100gNutrition ? servingSize / 100 : 1);
   const servingSizeError = servingSizeInput.trim() !== '' && (!Number.isFinite(parsedServingSize) || parsedServingSize <= 0);
-  const reference = getReferenceLabel(foodData);
-  const estimatedFields = foodData?.nutrition_estimation?.estimated_fields || [];
+  const reference = getReferenceLabel(activeFood);
+  const estimatedFields = activeFood?.nutrition_estimation?.estimated_fields || [];
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text variant="headlineMedium" style={styles.title}>
-            {foodData.food_name}
-          </Text>
-        
-          {foodData.food_name_local && (
-            <Text variant="bodyMedium" style={styles.subtitle}>
-              {foodData.food_name_local}
+      {hasMultipleFoods ? (
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.sectionTitle}>Detected Foods</Text>
+            <Carousel
+              autoPlayInterval={2000}
+              data={carouselFoods}
+              width={CAROUSEL_ITEM_WIDTH}
+              height={220}
+              loop={false}
+              pagingEnabled
+              snapEnabled
+              style={styles.carousel}
+              mode="parallax"
+              modeConfig={{
+                parallaxScrollingScale: 0.92,
+                parallaxScrollingOffset: 50,
+              }}
+              onProgressChange={(offsetProgress, absoluteProgress) => {
+                progress.value = absoluteProgress;
+
+              }}
+              onSnapToItem={(index) => {
+                setActiveFoodIndex(index);
+                setIsAllergensExpanded(false);
+              }}
+              renderItem={({ item }) => (
+                <View style={styles.carouselItem}>
+                  <Text variant="headlineSmall" style={styles.title}>{item.food_name || 'Unknown Food'}</Text>
+                  {item.food_name_local && (
+                    <Text variant="bodyMedium" style={styles.subtitle}>{item.food_name_local}</Text>
+                  )}
+                  {!!item.category && (
+                    <Chip style={styles.categoryChip} textStyle={styles.categoryChipText}>{item.category}</Chip>
+                  )}
+                  {!!item.description && (
+                    <Text variant="bodySmall" style={styles.description}>{item.description}</Text>
+                  )}
+                </View>
+              )}
+            />
+            <Text style={styles.carouselCounterText}>
+              Food {Math.min(activeFoodIndex + 1, carouselFoods.length)} of {carouselFoods.length}
             </Text>
-          )}
-          <Chip style={styles.categoryChip} textStyle={styles.categoryChipText}>{foodData.category}</Chip>
-          <Text variant="bodyMedium" style={styles.description}>
-            {foodData.description}
-          </Text>
-        </Card.Content>
-      </Card>
+          </Card.Content>
+        </Card>
+      ) : (
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="headlineMedium" style={styles.title}>
+              {activeFood?.food_name}
+            </Text>
+
+            {activeFood?.food_name_local && (
+              <Text variant="bodyMedium" style={styles.subtitle}>
+                {activeFood.food_name_local}
+              </Text>
+            )}
+            {!!activeFood?.category && (
+              <Chip style={styles.categoryChip} textStyle={styles.categoryChipText}>{activeFood.category}</Chip>
+            )}
+            {!!activeFood?.description && (
+              <Text variant="bodyMedium" style={styles.description}>
+                {activeFood.description}
+              </Text>
+            )}
+          </Card.Content>
+        </Card>
+      )}
 
       {/* Nutri-Score Estimate */}
-      {foodData.nutri_score_estimate && (
+      {activeFood?.nutri_score_estimate && (
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>Nutri-Score Estimate</Text>
             <View style={styles.nutriScoreContainer}>
-              <Text style={[styles.nutriScore, styles[`nutriScore${foodData.nutri_score_estimate}`]]}>
-                {foodData.nutri_score_estimate}
+              <Text style={[styles.nutriScore, styles[`nutriScore${activeFood.nutri_score_estimate}`]]}>
+                {activeFood.nutri_score_estimate}
               </Text>
               <Text style={styles.nutriScoreDescription}>
                 {
@@ -56,7 +121,7 @@ export default function FoodDetail() {
                     'C': 'Moderate',
                     'D': 'Less healthy',
                     'E': 'Unhealthy'
-                  }[foodData.nutri_score_estimate]
+                  }[activeFood.nutri_score_estimate]
                 }
               </Text>
             </View>
@@ -67,70 +132,132 @@ export default function FoodDetail() {
       {/* Nutrition Info */}
       <Card style={styles.card}>
         <Card.Content>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            {hasPer100gNutrition ? `Nutrition for ${servingSize.toFixed(0)}g` : 'Nutrition Information'}
-          </Text>
-          {hasPer100gNutrition && (
+          {hasMultipleFoods ? (
             <>
-              <TextInput
-                mode="outlined"
-                label="Serving size (g)"
-                value={servingSizeInput}
-                keyboardType="decimal-pad"
-                onChangeText={setServingSizeInput}
-                style={styles.servingInput}
-                error={servingSizeError}
-                textColor="black"
-                outlineColor="#1e7d5dff"
-                activeOutlineColor='#1e7d5dff'
+              <Text variant="titleMedium" style={styles.sectionTitle}>Nutrition per 100g by food</Text>
+              <Carousel
+                data={carouselFoods}
+                width={CAROUSEL_ITEM_WIDTH}
+                height={310}
+                loop={false}
+                pagingEnabled
+                snapEnabled
+                style={styles.carousel}
+                mode="parallax"
+                modeConfig={{
+                  parallaxScrollingScale: 0.94,
+                  parallaxScrollingOffset: 48,
+                }}
+                onProgressChange={(offsetProgress, absoluteProgress) => {
+                  const nextIndex = Math.min(
+                    Math.max(Math.round(absoluteProgress), 0),
+                    Math.max(carouselFoods.length - 1, 0)
+                  );
+                  setActiveFoodIndex((prev) => (prev === nextIndex ? prev : nextIndex));
+                }}
+                onSnapToItem={(index) => {
+                  setActiveFoodIndex(index);
+                }}
+                renderItem={({ item }) => {
+                  const itemNutrition = item?.nutrition_per_100g || item?.nutrition_per_serving || {};
+                  const itemReference = getReferenceLabel(item);
+                  const itemEstimatedFields = item?.nutrition_estimation?.estimated_fields || [];
+
+                  return (
+                    <View style={styles.carouselItem}>
+                      <Text variant="titleMedium" style={styles.title}>{item.food_name || 'Unknown Food'}</Text>
+                      <Text variant="bodySmall" style={styles.referenceText}>Reference: {itemReference}</Text>
+                      {itemEstimatedFields.length > 0 && (
+                        <Text variant="bodySmall" style={styles.estimationText}>
+                          Estimated from ingredients for: {formatEstimatedFields(itemEstimatedFields)}
+                        </Text>
+                      )}
+                      <View style={styles.nutritionGrid}>
+                        <NutritionItem label="Calories" value={formatNutritionValue(itemNutrition.calories, 'kcal', 1)} />
+                        <NutritionItem label="Protein" value={formatNutritionValue(itemNutrition.protein_g, 'g', 1)} />
+                        <NutritionItem label="Carbs" value={formatNutritionValue(itemNutrition.carbohydrates_g, 'g', 1)} />
+                        <NutritionItem label="Fat" value={formatNutritionValue(itemNutrition.fat_g, 'g', 1)} />
+                        <NutritionItem label="Fiber" value={formatNutritionValue(itemNutrition.fiber_g, 'g', 1)} />
+                        <NutritionItem label="Sugar" value={formatNutritionValue(itemNutrition.sugar_g, 'g', 1)} />
+                        <NutritionItem label="Sodium" value={formatNutritionValue(itemNutrition.sodium_mg, 'mg', 1)} />
+                        <NutritionItem label="Sat. Fat" value={formatNutritionValue(itemNutrition.saturated_fat_g, 'g', 1)} />
+                      </View>
+                    </View>
+                  );
+                }}
               />
-              <Text variant="bodySmall" style={styles.servingHint}>
-                {servingSizeError
-                  ? 'Enter a valid serving size. Showing values for 100g.'
-                  : `Scaled from per 100g values.`}
+              <Text style={styles.carouselCounterText}>
+                Nutrition card {Math.min(activeFoodIndex + 1, carouselFoods.length)} of {carouselFoods.length}
               </Text>
             </>
+          ) : (
+            <>
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                {hasPer100gNutrition ? `Nutrition for ${servingSize.toFixed(0)}g` : 'Nutrition Information'}
+              </Text>
+              {hasPer100gNutrition && (
+                <>
+                  <TextInput
+                    mode="outlined"
+                    label="Serving size (g)"
+                    value={servingSizeInput}
+                    keyboardType="decimal-pad"
+                    onChangeText={setServingSizeInput}
+                    style={styles.servingInput}
+                    error={servingSizeError}
+                    textColor="black"
+                    outlineColor="#1e7d5dff"
+                    activeOutlineColor='#1e7d5dff'
+                  />
+                  <Text variant="bodySmall" style={styles.servingHint}>
+                    {servingSizeError
+                      ? 'Enter a valid serving size. Showing values for 100g.'
+                      : 'Scaled from per 100g values.'}
+                  </Text>
+                </>
+              )}
+              <Text variant="bodySmall" style={styles.referenceText}>
+                Reference: {reference}
+              </Text>
+              {estimatedFields.length > 0 && (
+                <Text variant="bodySmall" style={styles.estimationText}>
+                  Estimated from ingredients for: {formatEstimatedFields(estimatedFields)}
+                </Text>
+              )}
+              <View style={styles.nutritionGrid}>
+                <NutritionItem label="Calories" value={formatNutritionValue(nutrition.calories, 'kcal', scaleFactor)} />
+                <NutritionItem label="Protein" value={formatNutritionValue(nutrition.protein_g, 'g', scaleFactor)} />
+                <NutritionItem label="Carbs" value={formatNutritionValue(nutrition.carbohydrates_g, 'g', scaleFactor)} />
+                <NutritionItem label="Fat" value={formatNutritionValue(nutrition.fat_g, 'g', scaleFactor)} />
+                <NutritionItem label="Fiber" value={formatNutritionValue(nutrition.fiber_g, 'g', scaleFactor)} />
+                <NutritionItem label="Sugar" value={formatNutritionValue(nutrition.sugar_g, 'g', scaleFactor)} />
+                <NutritionItem label="Sodium" value={formatNutritionValue(nutrition.sodium_mg, 'mg', scaleFactor)} />
+                <NutritionItem label="Sat. Fat" value={formatNutritionValue(nutrition.saturated_fat_g, 'g', scaleFactor)} />
+              </View>
+            </>
           )}
-          <Text variant="bodySmall" style={styles.referenceText}>
-            Reference: {reference}
-          </Text>
-          {estimatedFields.length > 0 && (
-            <Text variant="bodySmall" style={styles.estimationText}>
-              Estimated from ingredients for: {formatEstimatedFields(estimatedFields)}
-            </Text>
-          )}
-          <View style={styles.nutritionGrid}>
-            <NutritionItem label="Calories" value={formatNutritionValue(nutrition.calories, 'kcal', scaleFactor)} />
-            <NutritionItem label="Protein" value={formatNutritionValue(nutrition.protein_g, 'g', scaleFactor)} />
-            <NutritionItem label="Carbs" value={formatNutritionValue(nutrition.carbohydrates_g, 'g', scaleFactor)} />
-            <NutritionItem label="Fat" value={formatNutritionValue(nutrition.fat_g, 'g', scaleFactor)} />
-            <NutritionItem label="Fiber" value={formatNutritionValue(nutrition.fiber_g, 'g', scaleFactor)} />
-            <NutritionItem label="Sugar" value={formatNutritionValue(nutrition.sugar_g, 'g', scaleFactor)} />
-            <NutritionItem label="Sodium" value={formatNutritionValue(nutrition.sodium_mg, 'mg', scaleFactor)} />
-            <NutritionItem label="Sat. Fat" value={formatNutritionValue(nutrition.saturated_fat_g, 'g', scaleFactor)} />
-          </View>
         </Card.Content>
       </Card>
 
       {/* Dietary Info */}
-      {foodData.dietary_info && (
+      {activeFood?.dietary_info && (
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
               Dietary Information
             </Text>
             <View style={styles.chipContainer}>
-              {foodData.dietary_info.is_vegetarian && <Chip icon="leaf" style={styles.dietaryChip} textStyle={styles.dietaryChipText} selectedColor={styles.dietaryChipIconColor.color}>Vegetarian</Chip>}
-              {foodData.dietary_info.is_vegan && <Chip icon="sprout" style={styles.dietaryChip} textStyle={styles.dietaryChipText} selectedColor={styles.dietaryChipIconColor.color}>Vegan</Chip>}
-              {foodData.dietary_info.is_gluten_free && <Chip icon="barley-off" style={styles.dietaryChip} textStyle={styles.dietaryChipText} selectedColor={styles.dietaryChipIconColor.color}>Gluten-Free</Chip>}
-              {foodData.dietary_info.is_dairy_free && <Chip icon="cow-off" style={styles.dietaryChip} textStyle={styles.dietaryChipText} selectedColor={styles.dietaryChipIconColor.color}>Dairy-Free</Chip>}
+              {activeFood.dietary_info.is_vegetarian && <Chip icon="leaf" style={styles.dietaryChip} textStyle={styles.dietaryChipText} selectedColor={styles.dietaryChipIconColor.color}>Vegetarian</Chip>}
+              {activeFood.dietary_info.is_vegan && <Chip icon="sprout" style={styles.dietaryChip} textStyle={styles.dietaryChipText} selectedColor={styles.dietaryChipIconColor.color}>Vegan</Chip>}
+              {activeFood.dietary_info.is_gluten_free && <Chip icon="barley-off" style={styles.dietaryChip} textStyle={styles.dietaryChipText} selectedColor={styles.dietaryChipIconColor.color}>Gluten-Free</Chip>}
+              {activeFood.dietary_info.is_dairy_free && <Chip icon="cow-off" style={styles.dietaryChip} textStyle={styles.dietaryChipText} selectedColor={styles.dietaryChipIconColor.color}>Dairy-Free</Chip>}
             </View>
           </Card.Content>
         </Card>
       )}
 
       {/* Allergens */}
-      {foodData.allergens && foodData.allergens.length > 0 && (
+      {activeFood?.allergens && activeFood.allergens.length > 0 && (
         <Card style={[styles.card, styles.warningCard]}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
@@ -138,7 +265,7 @@ export default function FoodDetail() {
             </Text>
             <TouchableOpacity onPress={() => setIsAllergensExpanded(!isAllergensExpanded)}>
               <View style={styles.chipContainer}>
-                {foodData.allergens.map((allergen, index) => (
+                {activeFood.allergens.map((allergen, index) => (
                   <Chip 
                     key={index} 
                     style={styles.allergenChip} 
@@ -151,13 +278,13 @@ export default function FoodDetail() {
                   </Chip>
                 ))}
               </View>
-              {!isAllergensExpanded && foodData.allergens.some(a => a.length > 45) && (
+              {!isAllergensExpanded && activeFood.allergens.some(a => a.length > 45) && (
                 <Text style={styles.tapHint}>Tap to expand</Text>
               )}
             </TouchableOpacity>
             {isAllergensExpanded && (
               <View style={styles.expandedAllergens}>
-                {foodData.allergens.map((allergen, index) => (
+                {activeFood.allergens.map((allergen, index) => (
                   <Text key={index} style={styles.expandedAllergenItem}>
                     {allergen}
                   </Text>
@@ -169,13 +296,13 @@ export default function FoodDetail() {
       )}
 
       {/* Health Benefits */}
-      {foodData.health_benefits && foodData.health_benefits.length > 0 && (
+      {activeFood?.health_benefits && activeFood.health_benefits.length > 0 && (
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
               ✅ Health Benefits
             </Text>
-            {foodData.health_benefits.map((benefit, index) => (
+            {activeFood.health_benefits.map((benefit, index) => (
               <Text key={index} style={styles.listItem}>
                 • {benefit}
               </Text>
@@ -185,13 +312,13 @@ export default function FoodDetail() {
       )}
 
       {/* Potential Concerns */}
-      {foodData.potential_concerns && foodData.potential_concerns.length > 0 && (
+      {activeFood?.potential_concerns && activeFood.potential_concerns.length > 0 && (
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
               ⚠️ Potential Concerns
             </Text>
-            {foodData.potential_concerns.map((concern, index) => (
+            {activeFood.potential_concerns.map((concern, index) => (
               <Text key={index} style={styles.listItem}>
                 • {concern}
               </Text>
@@ -201,13 +328,13 @@ export default function FoodDetail() {
       )}
 
       {/* Personalized Advice */}
-      {foodData.personalized_advice && (
+      {activeFood?.personalized_advice && (
         <Card style={[styles.card, styles.personalizedCard]}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
               🎯 Personalized Advice
             </Text>
-            <Text style={styles.advice}>{foodData.personalized_advice}</Text>
+            <Text style={styles.advice}>{activeFood.personalized_advice}</Text>
           </Card.Content>
         </Card>
       )}
@@ -224,14 +351,14 @@ export default function FoodDetail() {
       </Card>
 
       {/* Ingredients if dish */}
-      {foodData.ingredients_if_dish && foodData.ingredients_if_dish.length > 0 && (
+      {activeFood?.ingredients_if_dish && activeFood.ingredients_if_dish.length > 0 && (
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.sectionTitle}>
               🍳 Ingredients
             </Text>
             <Text style={styles.ingredients}>
-              {foodData.ingredients_if_dish.join(', ')}
+              {activeFood.ingredients_if_dish.join(', ')}
             </Text>
             <Text style={styles.ingredientDisclaimer}>
               ⚠️ Note: This list is based on image recognition and may not include all ingredients. Some ingredients may not be visible or identifiable from the captured image.
@@ -252,6 +379,38 @@ const NutritionItem = ({ label, value }) => (
   </View>
 );
 
+function parseFoodDataParam(foodDataString) {
+  if (!foodDataString) {
+    return {};
+  }
+
+  const payload = Array.isArray(foodDataString) ? foodDataString[0] : foodDataString;
+  try {
+    return JSON.parse(payload);
+  } catch {
+    return {};
+  }
+}
+
+function extractFoodItems(foodData) {
+  if (Array.isArray(foodData)) {
+    return foodData.filter((item) => item && typeof item === 'object');
+  }
+
+  if (!foodData || typeof foodData !== 'object') {
+    return [];
+  }
+
+  const listKeys = ['food_items', 'foods', 'detected_foods', 'identified_foods', 'items'];
+  for (const key of listKeys) {
+    if (Array.isArray(foodData[key]) && foodData[key].length > 0) {
+      return foodData[key].filter((item) => item && typeof item === 'object');
+    }
+  }
+
+  return [foodData];
+}
+
 function formatNutritionValue(value, unit, scaleFactor = 1) {
   if (value === null || value === undefined || value === '') {
     return 'N/A';
@@ -267,6 +426,10 @@ function formatNutritionValue(value, unit, scaleFactor = 1) {
 }
 
 function getReferenceLabel(foodData) {
+  if (!foodData || typeof foodData !== 'object') {
+    return 'unknown';
+  }
+
   if (foodData.nutrition_source === 'usda_fooddata_central' && foodData.nutrition_estimation?.estimated_fields?.length) {
     return 'USDA FoodData Central + Ingredient Blend Estimate';
   }
@@ -319,6 +482,25 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: '#c6e9daff', 
     padding: 16 
+  },
+  carouselItem: {
+    backgroundColor: '#f2fbf6',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginHorizontal: CAROUSEL_CARD_GAP,
+    minHeight: 200,
+    justifyContent: 'center',
+  },
+  carousel: {
+    alignSelf: 'center',
+  },
+  carouselCounterText: {
+    marginTop: 8,
+    color: '#3c5a50',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   bottomSpacer: { 
     height: 40 
