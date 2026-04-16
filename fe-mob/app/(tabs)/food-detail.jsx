@@ -6,9 +6,11 @@ import { useSharedValue } from 'react-native-reanimated';
 import Carousel from 'react-native-reanimated-carousel';
 
 const windowWidth = Dimensions.get('window').width;
-const CAROUSEL_HORIZONTAL_PADDING = 56;
+const SCREEN_HORIZONTAL_PADDING = 32;
+const CARD_CONTENT_HORIZONTAL_PADDING = 32;
 const CAROUSEL_CARD_GAP = 12;
-const CAROUSEL_ITEM_WIDTH = windowWidth - CAROUSEL_HORIZONTAL_PADDING - CAROUSEL_CARD_GAP * 2;
+const CAROUSEL_VIEWPORT_WIDTH = windowWidth - SCREEN_HORIZONTAL_PADDING - CARD_CONTENT_HORIZONTAL_PADDING;
+const CAROUSEL_ITEM_WIDTH = CAROUSEL_VIEWPORT_WIDTH - CAROUSEL_CARD_GAP * 2;
 
 export default function FoodDetail() {
   const { foodData: foodDataString } = useLocalSearchParams();
@@ -494,6 +496,7 @@ const styles = StyleSheet.create({
   },
   carousel: {
     alignSelf: 'center',
+    width: CAROUSEL_VIEWPORT_WIDTH,
   },
   carouselCounterText: {
     marginTop: 8,
