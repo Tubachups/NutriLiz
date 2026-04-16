@@ -167,67 +167,78 @@ def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
 
         food_data = json.loads(response_text)
 
-        annotate_food_safety(food_data)
+        # Normalize to list of items to match the prompt/frontend expectation
+        if isinstance(food_data, dict) and "items" not in food_data:
+            food_items = [food_data]
+        elif isinstance(food_data, list):
+            food_items = food_data
+        else:
+            food_items = food_data.get('items', [])
 
-        if food_data.get('identified') and not to_bool(food_data.get('is_expired_or_spoiled')):
-            confirmation_required = requires_user_confirmation(food_data)
-            if confirmation_required:
-                food_data['disambiguation_needed'] = True
-                food_data['alternatives'] = ensure_disambiguation_alternatives(food_data)
-                food_data['nutrition_pending_confirmation'] = True
+        for item in food_items:
+            annotate_food_safety(item)
 
-            if not food_data.get('nutrition_source') and not confirmation_required:
-                fnri_nutrition = get_fnri_nutrition(
-                    food_name=food_data.get('food_name', ''),
-                    ingredients=food_data.get('ingredients_if_dish', []),
-                    fast_mode=FOOD_ANALYSIS_FAST_MODE
-                )
-                if fnri_nutrition:
-                    food_data['nutrition_per_100g'] = fnri_nutrition['nutrition_per_100g']
-                    food_data['nutrition_source'] = 'fnri_table'
-                    food_data['fnri_match'] = fnri_nutrition.get('fnri_match', {})
-                    logger.info(
-                        "Nutrition source selected: FNRI for food='%s'",
-                        food_data.get('food_name', ''),
+            if item.get('identified') and not to_bool(item.get('is_expired_or_spoiled')):
+                confirmation_required = requires_user_confirmation(item)
+                if confirmation_required:
+                    item['disambiguation_needed'] = True
+                    item['alternatives'] = ensure_disambiguation_alternatives(item)
+                    item['nutrition_pending_confirmation'] = True
+
+                if not item.get('nutrition_source') and not confirmation_required:
+                    fnri_nutrition = get_fnri_nutrition(
+                        food_name=item.get('food_name', ''),
+                        ingredients=item.get('ingredients_if_dish', []),
+                        fast_mode=FOOD_ANALYSIS_FAST_MODE
                     )
-                    print(f"[FOOD_RECOGNITION] nutrition source=FNRI food='{food_data.get('food_name', '')}'")
-                else:
-                    logger.info(
-                        "FNRI returned no nutrition for food='%s'; falling back to USDA",
-                        food_data.get('food_name', ''),
-                    )
-                    print(f"[FOOD_RECOGNITION] FNRI miss, fallback to USDA food='{food_data.get('food_name', '')}'")
+                    if fnri_nutrition:
+                        item['nutrition_per_100g'] = fnri_nutrition['nutrition_per_100g']
+                        item['nutrition_source'] = 'fnri_table'
+                        item['fnri_match'] = fnri_nutrition.get('fnri_match', {})
+                        logger.info(
+                            "Nutrition source selected: FNRI for food='%s'",
+                            item.get('food_name', ''),
+                        )
+                        print(f"[FOOD_RECOGNITION] nutrition source=FNRI food='{item.get('food_name', '')}'")
+                    else:
+                        logger.info(
+                            "FNRI returned no nutrition for food='%s'; falling back to USDA",
+                            item.get('food_name', ''),
+                        )
+                        print(f"[FOOD_RECOGNITION] FNRI miss, fallback to USDA food='{item.get('food_name', '')}'")
 
-            # COMMENT THIS TO CHECK FNRI
-            if not food_data.get('nutrition_source') and not confirmation_required:
-                usda_nutrition = get_usda_nutrition(
-                    food_name=food_data.get('food_name', ''),
-                    ingredients=food_data.get('ingredients_if_dish', []),
-                    fast_mode=FOOD_ANALYSIS_FAST_MODE
-                )
-                if usda_nutrition:
-                    food_data['nutrition_per_100g'] = usda_nutrition['nutrition_per_100g']
-                    food_data['nutrition_source'] = 'usda_fooddata_central'
-                    food_data['usda_match'] = {
-                        'fdc_id': usda_nutrition['fdc_id'],
-                        'description': usda_nutrition['description'],
-                        'data_type': usda_nutrition.get('data_type')
-                    }
-                    if usda_nutrition.get('estimated_fields'):
-                        food_data['nutrition_estimation'] = {
-                            'basis': usda_nutrition.get('estimation_basis'),
-                            'estimated_fields': usda_nutrition.get('estimated_fields', []),
-                            'ingredient_matches': usda_nutrition.get('ingredient_matches', [])
+                if not item.get('nutrition_source') and not confirmation_required:
+                    usda_nutrition = get_usda_nutrition(
+                        food_name=item.get('food_name', ''),
+                        ingredients=item.get('ingredients_if_dish', []),
+                        fast_mode=FOOD_ANALYSIS_FAST_MODE
+                    )
+                    if usda_nutrition:
+                        item['nutrition_per_100g'] = usda_nutrition['nutrition_per_100g']
+                        item['nutrition_source'] = 'usda_fooddata_central'
+                        item['usda_match'] = {
+                            'fdc_id': usda_nutrition['fdc_id'],
+                            'description': usda_nutrition['description'],
+                            'data_type': usda_nutrition.get('data_type')
                         }
+                        if usda_nutrition.get('estimated_fields'):
+                            item['nutrition_estimation'] = {
+                                'basis': usda_nutrition.get('estimation_basis'),
+                                'estimated_fields': usda_nutrition.get('estimated_fields', []),
+                                'ingredient_matches': usda_nutrition.get('ingredient_matches', [])
+                            }
 
-        food_data['source'] = 'gemini_vision'
-        food_data['analysis_type'] = 'image_recognition'
+            item['source'] = 'gemini_vision'
+            item['analysis_type'] = 'image_recognition'
 
-        cache_set(ANALYSIS_CACHE, analysis_cache_key, food_data)
+        # the response payload back to the app is wrapped in items array for consistency
+        response_data = {"items": food_items}
+
+        cache_set(ANALYSIS_CACHE, analysis_cache_key, response_data)
 
         return {
             'success': True,
-            'data': food_data
+            'data': response_data
         }
 
     except json.JSONDecodeError:

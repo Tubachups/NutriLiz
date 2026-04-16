@@ -60,6 +60,25 @@ const getSpoilageMessage = (foodData) => {
 	return 'This food appears expired or spoiled and may be unsafe to consume. Please scan a fresh item.';
 };
 
+const extractFoodItems = (foodData) => {
+	if (Array.isArray(foodData)) {
+		return foodData.filter((item) => item && typeof item === 'object');
+	}
+
+	if (!foodData || typeof foodData !== 'object') {
+		return [];
+	}
+
+	const listKeys = ['food_items', 'foods', 'detected_foods', 'identified_foods', 'items'];
+	for (const key of listKeys) {
+		if (Array.isArray(foodData[key])) {
+			return foodData[key].filter((item) => item && typeof item === 'object');
+		}
+	}
+
+	return [foodData];
+};
+
 export const useScan = () => {
 	const [permission, requestPermission] = useCameraPermissions();
 	const [scanned, setScanned] = useState(false);
@@ -166,31 +185,47 @@ export const useScan = () => {
 			}
 
 			const foodData = await analyzeFoodImage(base64Image, userProfile);
+			const foodItems = extractFoodItems(foodData);
 
-			if (foodData && isExpiredOrSpoiledFood(foodData)) {
-				showError('Food Safety Warning', getSpoilageMessage(foodData));
-				return;
-			}
-
-			if (foodData && foodData.identified) {
-				const confidence = String(foodData.confidence || '').toLowerCase();
-				const requiresConfirmation =
-					foodData.disambiguation_needed || confidence === 'medium' || confidence === 'low';
-
-				if (requiresConfirmation) {
-					setDisambiguationData({ foodData, imageUri });
-					setShowDisambiguationModal(true);
+			if (foodItems.length > 0) {
+				const unsafeItem = foodItems.find((item) => isExpiredOrSpoiledFood(item));
+				if (unsafeItem) {
+					showError('Food Safety Warning', getSpoilageMessage(unsafeItem));
 					return;
 				}
 
-				await proceedAfterIdentification(foodData, imageUri);
-				return;
-			}
+				const identifiedItems = foodItems.filter((item) => item && item.identified !== false);
 
-			if (foodData && !foodData.identified) {
+				if (identifiedItems.length > 1) {
+					const multiFoodPayload = {
+						...(foodData && typeof foodData === 'object' ? foodData : {}),
+						items: identifiedItems,
+						food_name: `${identifiedItems.length} foods detected`,
+						name: `${identifiedItems.length} foods detected`,
+					};
+					await proceedAfterIdentification(multiFoodPayload, imageUri);
+					return;
+				}
+
+				if (identifiedItems.length === 1) {
+					const singleItem = identifiedItems[0];
+					const confidence = String(singleItem.confidence || '').toLowerCase();
+					const requiresConfirmation =
+						singleItem.disambiguation_needed || confidence === 'medium' || confidence === 'low';
+
+					if (requiresConfirmation) {
+						setDisambiguationData({ foodData: singleItem, imageUri });
+						setShowDisambiguationModal(true);
+						return;
+					}
+
+					await proceedAfterIdentification(singleItem, imageUri);
+					return;
+				}
+
 				showError(
 					'Food Not Recognized',
-					foodData.description ||
+					foodItems[0]?.description ||
 						"We couldn't identify the food in this image. Please try taking a clearer photo."
 				);
 				return;
