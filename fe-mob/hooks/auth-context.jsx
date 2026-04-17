@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { account ,sendPasswordRecovery } from '../lib/appwrite.js';
+import { account ,sendPasswordRecovery, signInWithGoogleOAuth } from '../lib/appwrite.js';
 import { ID } from "react-native-appwrite";
 import {Alert } from 'react-native';
 import { saveUserProfile, getUserProfile } from '../lib/appwriteDb.js';
@@ -90,13 +90,35 @@ export function AuthProvider({ children }) {
       setIsAdmin(adminStatus);
       // Fetch user profile data
       await fetchUserProfile(session.$id);
-      return { success: true, isAdmin: adminStatus };
+      return null;
     }
     catch (error) {
       if (error instanceof Error) {
         console.log("Error message: ", error.message);
         return error.message;
       }
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    const oauthResult = await signInWithGoogleOAuth();
+
+    if (!oauthResult.success) {
+      return oauthResult.error || 'Google login failed.';
+    }
+
+    try {
+      const session = await account.get();
+      setUser(session);
+      const adminStatus = ADMIN_EMAILS.includes(session.email) || session.labels?.includes('admin');
+      setIsAdmin(adminStatus);
+      await fetchUserProfile(session.$id);
+      return null;
+    } catch (error) {
+      if (error instanceof Error) {
+        return error.message;
+      }
+      return 'Failed to load account after Google login.';
     }
   };
 
@@ -121,7 +143,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, isLoadingUser, userProfile, signUp, signIn, signOut, updateUserProfile, forgotPassword}}>
+    <AuthContext.Provider value={{ user, isAdmin, isLoadingUser, userProfile, signUp, signIn, signInWithGoogle, signOut, updateUserProfile, forgotPassword}}>
       {children}
     </AuthContext.Provider>
   );

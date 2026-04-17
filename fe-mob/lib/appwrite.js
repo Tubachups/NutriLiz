@@ -1,13 +1,16 @@
 import { Client, Account, Storage, ID } from 'react-native-appwrite';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
 
 export const client = new Client()
   .setEndpoint(process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT) // Your Appwrite Endpoint
   .setProject(process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID)   // Your Project ID
-  .setPlatform(process.env.EXPO_PUBLIC_APPWRITE_PLATFORM);   // Your package name / bundle identifier
 
 export const account = new Account(client);
 export const storage = new Storage(client);
+
+WebBrowser.maybeCompleteAuthSession();
 
 // Storage bucket ID for food images
 const FOOD_IMAGES_BUCKET_ID = process.env.EXPO_PUBLIC_APPWRITE_FOOD_IMAGES_BUCKET_ID || 'food-images';
@@ -87,5 +90,49 @@ export async function sendPasswordRecovery(email) {
   } catch (error) {
     console.error("Recovery Error:", error);
     throw new Error(error.message);
+  }
+}
+
+/**
+ * Sign in with Google OAuth using Appwrite + Expo auth session.
+ * Requires Expo scheme in app.json and matching Appwrite OAuth redirect settings.
+ */
+
+
+export async function signInWithGoogleOAuth() {
+  try {
+    const projectId = process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID;
+    if (!projectId) {
+      return { success: false, error: 'Missing EXPO_PUBLIC_APPWRITE_PROJECT_ID.' };
+    }
+
+    const deepLink = new URL(makeRedirectUri({ preferLocalhost: true }));
+    const scheme = `appwrite-callback-${projectId}`;
+
+    const loginUrl = await account.createOAuth2Token({
+      provider: 'google',
+      success: `${deepLink}`,
+      failure: `${deepLink}`,
+    });
+
+    const authResult = await WebBrowser.openAuthSessionAsync(`${loginUrl}`, scheme);
+
+    if (authResult.type !== 'success' || !authResult.url) {
+      return { success: false, error: 'Google login was cancelled.' };
+    }
+
+    const url = new URL(authResult.url);
+    const secret = url.searchParams.get('secret');
+    const userId = url.searchParams.get('userId');
+
+    if (!secret || !userId) {
+      return { success: false, error: 'OAuth callback is missing session credentials.' };
+    }
+
+    await account.createSession({ userId, secret });
+    return { success: true };
+  } catch (error) {
+    console.error('Google OAuth sign-in failed:', error);
+    return { success: false, error: error?.message || 'Google login failed.' };
   }
 }

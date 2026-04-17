@@ -72,10 +72,11 @@ export default function AuthScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [securePassword, setSecurePassword] = useState(true);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const theme = useTheme();
   const router = useRouter();
-  const { signUp, signIn } = useAuth();
+  const { signUp, signIn, signInWithGoogle } = useAuth();
 
   const translateX = useSharedValue(0);
   const opacity = useSharedValue(1);
@@ -140,6 +141,22 @@ export default function AuthScreen() {
       }
     }
     router.replace("/");
+  };
+
+  const handleGoogleAuth = async () => {
+    setIsGoogleLoading(true);
+    setError(null);
+
+    try {
+      const oauthError = await signInWithGoogle();
+      if (oauthError) {
+        setError(oauthError);
+        return;
+      }
+      router.replace('/');
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
 
   return (
@@ -228,6 +245,20 @@ export default function AuthScreen() {
             {isSignUp ? "Sign Up" : "Login"}
           </Button>
 
+          {!isSignUp && (
+            <Button
+              mode="outlined"
+              onPress={handleGoogleAuth}
+              style={styles.googleButton}
+              textColor="#2b2b2b"
+              loading={isGoogleLoading}
+              disabled={isGoogleLoading}
+              icon="google"
+            >
+              Continue with Google
+            </Button>
+          )}
+
           <Button 
             mode="text" 
             onPress={() => {
@@ -280,8 +311,13 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 16,
-    marginBottom: 16,
+    marginBottom: 10,
     borderRadius: 25,
     paddingVertical: 4,
+  },
+  googleButton: {
+    marginBottom: 14,
+    borderRadius: 25,
+    borderColor: '#9cb6acff',
   },
 });
