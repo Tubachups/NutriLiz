@@ -1,4 +1,4 @@
-# AGENTS.md
+w# AGENTS.md
 
 Purpose: provide agents with a reliable project map before making code changes.
 
