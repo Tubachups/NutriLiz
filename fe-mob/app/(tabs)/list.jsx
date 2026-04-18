@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, StyleSheet, FlatList, Image, Dimensions, RefreshControl, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
 import {
   Text,
   Card,
@@ -18,111 +17,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useProductHistory } from '@/hooks/useProductHistory';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
+import TopographicHeader from '../components/TopographicHead';
 
 const { width, height } = Dimensions.get('window');
-
-const TopographicBackground = () => (
-  <Svg
-    style={StyleSheet.absoluteFill}
-    width={width}
-    height={height}
-    viewBox={`0 0 ${width} ${height}`}
-    preserveAspectRatio="xMidYMid slice"
-  >
-    {/* Base color */}
-    <Path d={`M0,0 L${width},0 L${width},${height} L0,${height} Z`} fill="#e6fdf6ff" />
-
-    {/* Topographic contour lines */}
-    {[...Array(20)].map((_, i) => (
-      <Path
-        key={i}
-        d={`M${-50},${50 + i * 40} 
-            Q${width * 0.25},${30 + i * 40} ${width * 0.5},${60 + i * 40}
-            Q${width * 0.75},${90 + i * 40} ${width + 50},${50 + i * 40}`}
-        stroke="rgba(171, 231, 198, 0.4)"
-        strokeWidth="1.5"
-        fill="none"
-      />
-    ))}
-
-    {[...Array(15)].map((_, i) => (
-      <Path
-        key={`c2-${i}`}
-        d={`M${-30},${80 + i * 50} 
-            Q${width * 0.3},${100 + i * 50} ${width * 0.6},${70 + i * 50}
-            Q${width * 0.85},${40 + i * 50} ${width + 30},${90 + i * 50}`}
-        stroke="rgba(203, 243, 187, 0.35)"
-        strokeWidth="1"
-        fill="none"
-      />
-    ))}
-  </Svg>
-);
-
-const TopographicHeader = ({ insetTop }) => (
-  <Svg
-    width={width}
-    height={90 + insetTop}
-    viewBox={`0 0 ${width} ${90 + insetTop}`}
-  >
-    {/* Base green background */}
-    <Path d={`M0,0 L${width},0 L${width},${70 + insetTop} L0,${70 + insetTop} Z`} fill="#77dfbcff" />
-
-    {/* Topographic contour lines */}
-    {[...Array(10)].map((_, i) => (
-      <Path
-        key={i}
-        d={`M${-50},${insetTop + 5 + i * 8} 
-            Q${width * 0.25},${insetTop - 5 + i * 8} ${width * 0.5},${insetTop + 10 + i * 8}
-            Q${width * 0.75},${insetTop + 25 + i * 8} ${width + 50},${insetTop + 5 + i * 8}`}
-        stroke="rgba(255, 255, 255, 0.3)"
-        strokeWidth="1.5"
-        fill="none"
-      />
-    ))}
-
-    {[...Array(8)].map((_, i) => (
-      <Path
-        key={`c2-${i}`}
-        d={`M${-30},${insetTop + 8 + i * 10} 
-            Q${width * 0.3},${insetTop + 20 + i * 10} ${width * 0.6},${insetTop + i * 10}
-            Q${width * 0.85},${insetTop - 10 + i * 10} ${width + 30},${insetTop + 15 + i * 10}`}
-        stroke="rgba(200, 255, 233, 0.25)"
-        strokeWidth="1"
-        fill="none"
-      />
-    ))}
-
-    {/* Green wavy area at the bottom */}
-    <Path
-      d={`M0,${65 + insetTop} 
-          Q${width * 0.15},${72 + insetTop} ${width * 0.3},${68 + insetTop}
-          Q${width * 0.5},${62 + insetTop} ${width * 0.7},${72 + insetTop}
-          Q${width * 0.85},${78 + insetTop} ${width},${68 + insetTop}
-          L${width},${90 + insetTop} L0,${90 + insetTop} Z`}
-      fill="#67caa9ff"
-    />
-
-    {/* Dark wavy border line at top of green area */}
-    <Path
-      d={`M0,${65 + insetTop} 
-          Q${width * 0.15},${72 + insetTop} ${width * 0.3},${68 + insetTop}
-          Q${width * 0.5},${62 + insetTop} ${width * 0.7},${72 + insetTop}
-          Q${width * 0.85},${78 + insetTop} ${width},${68 + insetTop}`}
-      stroke="#45a787ff"
-      strokeWidth="2"
-      fill="none"
-    />
-
-    {/* Dark green border at bottom */}
-    <Path
-      d={`M0,${90 + insetTop} L${width},${90 + insetTop}`}
-      stroke="#3d8a6e"
-      strokeWidth="3"
-      fill="none"
-    />
-  </Svg>
-);
 
 export default function ProductList() {
   const router = useRouter();
@@ -341,9 +238,7 @@ export default function ProductList() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <TopographicBackground />
 
-        {/* Header with Topographic Background */}
         <View style={styles.headerWrapper}>
           <TopographicHeader insetTop={insets.top} />
           <View style={[styles.headerContent, { top: insets.top + 15 }]}>
@@ -364,7 +259,6 @@ export default function ProductList() {
 
   return (
     <View style={styles.container}>
-      <TopographicBackground />
 
       <Portal>
         {/* Delete Single Product Modal */}
@@ -519,7 +413,6 @@ export default function ProductList() {
       </Portal>
 
 
-      {/* Header with Topographic Background */}
       <View style={styles.headerWrapper}>
         <TopographicHeader insetTop={insets.top} />
         <View style={[styles.headerContent, { top: insets.top + 15 }]}>

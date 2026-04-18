@@ -4,19 +4,22 @@ import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 
 export const client = new Client()
-  .setEndpoint(process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT) // Your Appwrite Endpoint
-  .setProject(process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID)   // Your Project ID
+  .setEndpoint(process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT) 
+  .setProject(process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID)  
 
 export const account = new Account(client);
 export const storage = new Storage(client);
 
 WebBrowser.maybeCompleteAuthSession();
 
-// Storage bucket ID for food images
+const OAUTH_PROVIDERS = {
+  google: 'google',
+  facebook: 'facebook',
+}
+
 const FOOD_IMAGES_BUCKET_ID = process.env.EXPO_PUBLIC_APPWRITE_FOOD_IMAGES_BUCKET_ID || 'food-images';
 
 /**
- * Upload a food image to Appwrite Storage and return the public URL
  * @param {string} imageUri - Local file URI (file:///...)
  * @returns {Promise<string|null>} - Public URL of the uploaded image or null if failed
  */
@@ -40,7 +43,6 @@ export async function uploadFoodImage(imageUri) {
       return null;
     }
 
-    // The SDK expects a file object with uri, name, type, and size properties
     const file = {
       uri: imageUri,
       name: newFileName,
@@ -50,7 +52,6 @@ export async function uploadFoodImage(imageUri) {
 
     console.log('Uploading file:', { name: file.name, type: file.type, size: file.size });
 
-    // Upload to Appwrite Storage using object-style parameters
     const response = await storage.createFile({
       bucketId: FOOD_IMAGES_BUCKET_ID,
       fileId: ID.unique(),
@@ -64,7 +65,6 @@ export async function uploadFoodImage(imageUri) {
       return null;
     }
 
-    // Construct the file view URL manually to ensure correct format
     const endpoint = process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT;
     const projectId = process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID;
     const fileUrl = `${endpoint}/storage/buckets/${FOOD_IMAGES_BUCKET_ID}/files/${response.$id}/view?project=${projectId}`;
@@ -79,7 +79,6 @@ export async function uploadFoodImage(imageUri) {
 
 export async function sendPasswordRecovery(email) {
   try {
-    // This generates the deep link to your resetPass page
     const redirectUrl = 'https://nutri-liz.vercel.app/'; // Adjust according to your app's URL scheme
     
     await account.createRecovery({
@@ -93,13 +92,8 @@ export async function sendPasswordRecovery(email) {
   }
 }
 
-/**
- * Sign in with Google OAuth using Appwrite + Expo auth session.
- * Requires Expo scheme in app.json and matching Appwrite OAuth redirect settings.
- */
 
-
-export async function signInWithGoogleOAuth() {
+export async function oauthLogin(provider) {
   try {
     const projectId = process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID;
     if (!projectId) {
@@ -110,7 +104,7 @@ export async function signInWithGoogleOAuth() {
     const scheme = `appwrite-callback-${projectId}`;
 
     const loginUrl = await account.createOAuth2Token({
-      provider: 'google',
+      provider: OAUTH_PROVIDERS[provider],
       success: `${deepLink}`,
       failure: `${deepLink}`,
     });
@@ -136,3 +130,6 @@ export async function signInWithGoogleOAuth() {
     return { success: false, error: error?.message || 'Google login failed.' };
   }
 }
+
+export const signInWithGoogleOauth = () => oauthLogin('google');
+export const signInWithFacebookOauth = () => oauthLogin('facebook');
