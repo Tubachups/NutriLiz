@@ -10,60 +10,9 @@ import Animated, {
   withTiming, 
   Easing 
 } from "react-native-reanimated";
+import TopographicBackground from "./components/TopographicBg";
 
 const { width, height } = Dimensions.get("window");
-
-const TopographicBackground = () => (
-  <Svg
-    style={StyleSheet.absoluteFill}
-    width={width}
-    height={height}
-    viewBox={`0 0 ${width} ${height}`}
-  >
-    <Path d={`M0,0 L${width},0 L${width},${height} L0,${height} Z`} fill="#79e0beff" />
-    
-    {[...Array(15)].map((_, i) => (
-      <Path
-        key={i}
-        d={`M${-50 + i * 30},${50 + i * 25} 
-            Q${width * 0.3},${40 + i * 22} ${width * 0.5},${60 + i * 28}
-            T${width + 50},${45 + i * 25}`}
-        stroke="rgba(255, 255, 255, 0.2)"
-        strokeWidth="1.5"
-        fill="none"
-      />
-    ))}
-    
-    {[...Array(12)].map((_, i) => (
-      <Path
-        key={`c2-${i}`}
-        d={`M${-30},${80 + i * 30} 
-            Q${width * 0.25},${100 + i * 28} ${width * 0.6},${70 + i * 32}
-            T${width + 30},${90 + i * 30}`}
-        stroke="rgba(200, 255, 233, 0.18)"
-        strokeWidth="1"
-        fill="none"
-      />
-    ))}
-
-    <Path
-      d={`M${width * 0.7},${height * 0.08} 
-          Q${width * 0.85},${height * 0.12} ${width * 0.8},${height * 0.22}
-          Q${width * 0.75},${height * 0.28} ${width * 0.9},${height * 0.25}`}
-      stroke="rgba(255, 255, 255, 0.29)"
-      strokeWidth="2"
-      fill="none"
-    />
-
-    <Path
-      d={`M0,${height * 0.22} 
-          Q${width * 0.3},${height * 0.18} ${width * 0.5},${height * 0.24}
-          Q${width * 0.7},${height * 0.30} ${width},${height * 0.20}
-          L${width},${height} L0,${height} Z`}
-      fill="#FFFFFF"
-    />
-  </Svg>
-);
 
 export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -72,11 +21,10 @@ export default function AuthScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [securePassword, setSecurePassword] = useState(true);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-
+  const [oauthLoadingProvider, setOauthLoadingProvider] = useState(null);
   const theme = useTheme();
   const router = useRouter();
-  const { signUp, signIn, signInWithGoogle } = useAuth();
+  const { signUp, signIn, signInWithGoogle, signInWithFacebook } = useAuth();
 
   const translateX = useSharedValue(0);
   const opacity = useSharedValue(1);
@@ -140,24 +88,25 @@ export default function AuthScreen() {
         return;
       }
     }
-    router.replace("/");
   };
 
-  const handleGoogleAuth = async () => {
-    setIsGoogleLoading(true);
+  const handleProviderAuth = async (provider, signInFn) => {
+    setOauthLoadingProvider(provider);
     setError(null);
 
-    try {
-      const oauthError = await signInWithGoogle();
-      if (oauthError) {
-        setError(oauthError);
+    try{
+      const oauthResult = await signInFn();
+      if (!oauthResult.success) {
+        setError(oauthResult.error);
         return;
       }
-      router.replace('/');
+    } catch (error) {
+      setError('An unexpected error occurred during OAuth login.');
     } finally {
-      setIsGoogleLoading(false);
+      setOauthLoadingProvider(null);
     }
   };
+  
 
   return (
     <View style={styles.container}>
@@ -246,17 +195,33 @@ export default function AuthScreen() {
           </Button>
 
           {!isSignUp && (
+            <>
+            
             <Button
               mode="outlined"
-              onPress={handleGoogleAuth}
+              onPress={() => handleProviderAuth('google', signInWithGoogle)}
               style={styles.googleButton}
               textColor="#2b2b2b"
-              loading={isGoogleLoading}
-              disabled={isGoogleLoading}
+              loading={oauthLoadingProvider === 'google'}
+              disabled={oauthLoadingProvider === 'google'}
               icon="google"
             >
               Continue with Google
             </Button>
+
+            <Button
+              mode="outlined"
+              onPress={() => handleProviderAuth('facebook', signInWithFacebook)}
+              style={styles.facebookButton}
+              textColor="#2b2b2b"
+              loading={oauthLoadingProvider === 'facebook'}
+              disabled={oauthLoadingProvider === 'facebook'}
+              icon="facebook"
+            >
+              Continue with Facebook
+            </Button>
+            </>
+
           )}
 
           <Button 
@@ -283,8 +248,8 @@ export default function AuthScreen() {
       </KeyboardAvoidingView>
     </View>
   );
-}
 
+}
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -316,6 +281,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   googleButton: {
+    marginBottom: 14,
+    borderRadius: 25,
+    borderColor: '#9cb6acff',
+  },
+  facebookButton: {
     marginBottom: 14,
     borderRadius: 25,
     borderColor: '#9cb6acff',

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { account ,sendPasswordRecovery, signInWithGoogleOAuth } from '../lib/appwrite.js';
+import { account ,sendPasswordRecovery, signInWithGoogleOauth, signInWithFacebookOauth } from '../lib/appwrite.js';
 import { ID } from "react-native-appwrite";
 import {Alert } from 'react-native';
 import { saveUserProfile, getUserProfile } from '../lib/appwriteDb.js';
@@ -100,11 +100,11 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signInWithGoogle = async () => {
-    const oauthResult = await signInWithGoogleOAuth();
+  const completeOauthSignIn = async (oauthFn) => {
+    const oauthResult = await oauthFn();
 
     if (!oauthResult.success) {
-      return oauthResult.error || 'Google login failed.';
+      return oauthResult.error || '${oauthProvider} login failed.';
     }
 
     try {
@@ -118,9 +118,12 @@ export function AuthProvider({ children }) {
       if (error instanceof Error) {
         return error.message;
       }
-      return 'Failed to load account after Google login.';
+      return 'Failed to load account after ${oauthProvider} login.';
     }
   };
+
+  const signInWithGoogle = () => completeOauthSignIn(signInWithGoogleOauth)
+  const signInWithFacebook = () => completeOauthSignIn(signInWithFacebookOauth)
 
   const signOut = async () => {
     try {
@@ -143,7 +146,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, isLoadingUser, userProfile, signUp, signIn, signInWithGoogle, signOut, updateUserProfile, forgotPassword}}>
+    <AuthContext.Provider value={{ user, isAdmin, isLoadingUser, userProfile, signUp, signIn, signInWithGoogle, signInWithFacebook, signOut, updateUserProfile, forgotPassword}}>
       {children}
     </AuthContext.Provider>
   );
