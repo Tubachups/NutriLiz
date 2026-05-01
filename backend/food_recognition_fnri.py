@@ -3,8 +3,8 @@ import re
 import json
 import logging
 from difflib import SequenceMatcher
-from dotenv import load_dotenv
-from appwrite.models import RowList
+from typing import Optional
+
 from appwrite.client import Client
 from appwrite.query import Query
 from appwrite.services.tables_db import TablesDB
@@ -13,6 +13,7 @@ from food_recognition_config import NUTRITION_FIELDS
 from food_recognition_helpers import normalize_food_text, resolve_local_dish_mapping
 
 
+_FNRI_TABLE_DB: Optional[TablesDB] = None
 logger = logging.getLogger(__name__)
 
 FNRI_TO_APP_NUTRIENT_MAP = {
@@ -32,8 +33,17 @@ FNRI_TO_APP_NUTRIENT_MAP_NORMALIZED = {
 }
 
 
+def _row_get(row, key: str, default=None):
+    """Safely get a field from either a dict or an Appwrite Row/Document object."""
+    if isinstance(row, dict):
+        return row.get(key, default)
+    return getattr(row, key, default)
+
+
 def _build_tabledb() -> TablesDB:
-    load_dotenv()
+    global _FNRI_TABLE_DB
+    if _FNRI_TABLE_DB is not None:
+        return _FNRI_TABLE_DB
 
     endpoint = os.getenv('APPWRITE_ENDPOINT')
     project_id = os.getenv('APPWRITE_PROJECT_ID')
@@ -55,18 +65,19 @@ def _build_tabledb() -> TablesDB:
     client.set_project(project_id)
     client.set_key(api_key)
 
-    return TablesDB(client)
+    _FNRI_TABLE_DB = TablesDB(client)
+    return _FNRI_TABLE_DB
 
 
 def _get_fnri_ids() -> tuple[str, str]:
     database_id = os.getenv('APPWRITE_DATABASE_ID')
-    table_id = os.getenv('APPWRITE_FNRI_FOOD_COLLECTION_ID')
+    table_id = os.getenv('APPWRITE_FNRI_FOOD_TABLE_ID') or os.getenv('APPWRITE_FNRI_FOOD_COLLECTION_ID')
 
     missing = []
     if not database_id:
         missing.append('APPWRITE_DATABASE_ID')
     if not table_id:
-        missing.append('APPWRITE_FNRI_FOOD_COLLECTION_ID')
+        missing.append('APPWRITE_FNRI_FOOD_TABLE_ID or APPWRITE_FNRI_FOOD_COLLECTION_ID')
 
     if missing:
         raise RuntimeError(f"Missing required env vars: {', '.join(missing)}")
@@ -98,52 +109,15 @@ def _tokenize(text: str) -> set[str]:
     return {re.sub(r'[^\w]', '', t) for t in text.split() if re.sub(r'[^\w]', '', t)}
 
 
-def _row_to_payload(row_obj) -> dict:
-    """Convert Appwrite row models/dicts into one flat payload dict."""
-    if hasattr(row_obj, 'to_dict'):
-        row = row_obj.to_dict()
-    elif isinstance(row_obj, dict):
-        row = row_obj
-    else:
-        return {}
-
-    data = row.get('data')
-    if isinstance(data, dict):
-        merged = dict(data)
-        for key, value in row.items():
-            if key not in merged:
-                merged[key] = value
-        return merged
-
-    return row
-
-
-def _rows_to_plain_dicts(result :RowList) -> list[dict]:
-    """Normalize Appwrite list_rows response across SDK return shapes."""
-    if hasattr(result, 'rows'):
-        raw_rows = getattr(result, 'rows') or []
-    elif isinstance(result, dict):
-        raw_rows = result.get('rows', []) or []
-    else:
-        raw_rows = []
-
-    rows = []
-    for raw in raw_rows:
-        payload = _row_to_payload(raw)
-        if payload:
-            rows.append(payload)
-    return rows
-
-
-def _extract_nutrition_per_100g(row: dict) -> dict:
-    breakdown = row.get('nutrition_breakdown')
+def _extract_nutrition_per_100g(row) -> dict:
+    breakdown = _row_get(row, 'nutrition_breakdown')
     result = {field: None for field in NUTRITION_FIELDS}
 
     if isinstance(breakdown, str):
         try:
             breakdown = json.loads(breakdown)
         except (TypeError, ValueError):
-            logger.debug("FNRI nutrition_breakdown is not valid JSON for row_id=%s", row.get('$id'))
+            logger.debug("FNRI nutrition_breakdown is not valid JSON for row_id=%s", _row_get(row, '$id'))
             return result
 
     if not isinstance(breakdown, dict):
@@ -188,9 +162,8 @@ def _score_match(query: str, candidate: str) -> tuple:
     return (5, -ratio, len(cand_norm))
 
 
-def _search_rows_startswith(food_name: str, limit: int = 8, page_size: int = 100, max_scan: int = 1200) -> list[dict]:
-    raw_query = str(food_name or '').strip()
-    query = normalize_food_text(raw_query)
+def _search_rows_startswith(food_name: str, limit: int = 8, page_size: int = 100, max_scan: int = 1200) -> list:
+    query = normalize_food_text(food_name)
     if not query:
         return []
 
@@ -205,23 +178,20 @@ def _search_rows_startswith(food_name: str, limit: int = 8, page_size: int = 100
     matches = []
 
     while scanned < max_scan and len(matches) < limit:
-        result = tabledb.list_rows(
-            database_id=database_id,
-            table_id=table_id,
-            queries=[
-                Query.starts_with('food_name', raw_query),
-                Query.limit(page_size),
-                Query.offset(offset),
-            ],
+        response = tabledb.list_rows(
+            database_id,
+            table_id,
+            queries=[Query.limit(page_size), Query.offset(offset)],
         )
 
-        rows = _rows_to_plain_dicts(result)
+        # Appwrite SDK returns a RowList object — access .rows, not .get('rows')
+        rows = response.rows if hasattr(response, 'rows') else []
         if not rows:
             break
 
         for row in rows:
             scanned += 1
-            candidate_name = normalize_food_text(row.get('food_name', ''))
+            candidate_name = normalize_food_text(_row_get(row, 'food_name', '') or '')
 
             # Punctuation-safe token set — strips commas from tokens like "apple,"
             candidate_tokens = _tokenize(candidate_name)
@@ -310,7 +280,7 @@ def get_fnri_nutrition(food_name: str, ingredients=None, fast_mode: bool = False
         rows = _search_rows_startswith(query, limit=8 if not fast_mode else 3)
         logger.debug("FNRI query='%s' returned %s prefix matches", query, len(rows))
         for row in rows:
-            score = _score_match(query, row.get('food_name', ''))
+            score = _score_match(query, _row_get(row, 'food_name', '') or '')
             if score < best_score:
                 best_score = score
                 best_row = row
@@ -329,32 +299,32 @@ def get_fnri_nutrition(food_name: str, ingredients=None, fast_mode: bool = False
         logger.info(
             "FNRI lookup miss: row found but nutrition empty for food='%s' matched='%s'",
             cleaned_name,
-            best_row.get('food_name', ''),
+            _row_get(best_row, 'food_name', ''),
         )
         print(
-            f"[FNRI] lookup miss: row found but nutrition empty for food='{cleaned_name}' matched='{best_row.get('food_name', '')}'"
+            f"[FNRI] lookup miss: row found but nutrition empty for food='{cleaned_name}' matched='{_row_get(best_row, 'food_name', '')}'"
         )
         return {}
 
     logger.info(
         "FNRI lookup hit: food='%s' matched='%s' query='%s' match_type=%s",
         cleaned_name,
-        best_row.get('food_name', ''),
+        _row_get(best_row, 'food_name', ''),
         best_query,
         'exact' if best_score[0] == 0 else 'prefix',
     )
     print(
-        f"[FNRI] lookup hit: food='{cleaned_name}' matched='{best_row.get('food_name', '')}' query='{best_query}' match_type={'exact' if best_score[0] == 0 else 'prefix'}"
+        f"[FNRI] lookup hit: food='{cleaned_name}' matched='{_row_get(best_row, 'food_name', '')}' query='{best_query}' match_type={'exact' if best_score[0] == 0 else 'prefix'}"
     )
 
     return {
-        'fdc_id': best_row.get('$id') or best_row.get('food_id'),
-        'description': best_row.get('food_name') or best_query,
+        'fdc_id': _row_get(best_row, '$id') or _row_get(best_row, 'food_id'),
+        'description': _row_get(best_row, 'food_name') or best_query,
         'data_type': 'FNRI',
         'nutrition_per_100g': nutrition_per_100g,
         'fnri_match': {
-            'food_id': best_row.get('food_id'),
-            'food_name': best_row.get('food_name'),
+            'food_id': _row_get(best_row, 'food_id'),
+            'food_name': _row_get(best_row, 'food_name'),
             'query': best_query,
             'match_type': 'exact' if best_score[0] == 0 else 'prefix',
         },
