@@ -49,14 +49,7 @@ export default function ProductDetail() {
       
       <AIAssessment loading={loading} assessment={assessment} />
 
-      <Card style={[styles.card, styles.disclaimerCard]}>
-        <Card.Content>
-          <Text style={styles.disclaimerTitle}>Medical Reminder</Text>
-          <Text style={styles.disclaimerText}>
-            This app provides nutrition guidance only and is not a substitute for medical advice, diagnosis, or treatment. Consult a licensed healthcare professional for personal medical concerns.
-          </Text>
-        </Card.Content>
-      </Card>
+      
       
       {!isAppwriteProduct && (
         <IngredientsCard ingredientsText={productData.ingredients_text} />
@@ -75,6 +68,15 @@ export default function ProductDetail() {
           recommendationsCount={productData.recommendations_count}
         />
       )}
+
+      <Card style={[styles.card, styles.disclaimerCard]}>
+        <Card.Content>
+          <Text style={styles.disclaimerTitle}>Medical Reminder</Text>
+          <Text style={styles.disclaimerText}>
+            This app provides nutrition guidance only and is not a substitute for medical advice, diagnosis, or treatment. Consult a licensed healthcare professional for personal medical concerns.
+          </Text>
+        </Card.Content>
+      </Card>
     </ScrollView>
   );
 }

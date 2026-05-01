@@ -121,6 +121,9 @@ const NutritionInfo = ({ productData, isAppwriteProduct }) => {
               onChangeText={setServingSizeInput}
               style={styles.servingInput}
               error={servingSizeError}
+              textColor="black"
+              outlineColor="#1e7d5dff"
+              activeOutlineColor='#1e7d5dff'
             />
             <Text style={styles.servingHint}>
               {servingSizeError
