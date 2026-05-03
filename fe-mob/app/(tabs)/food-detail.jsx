@@ -53,7 +53,7 @@ export default function FoodDetail() {
   return (
     <ScrollView style={styles.container}>
       <FoodHeaderCard
-        activeFood={activeFood}d
+        activeFood={activeFood}
         hasMultipleFoods={hasMultipleFoods}
         carouselFoods={carouselFoods}
         activeFoodIndex={activeFoodIndex}

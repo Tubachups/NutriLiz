@@ -1,39 +1,68 @@
 import { useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet, RefreshControl, Alert } from 'react-native';
+import { View, FlatList, StyleSheet, RefreshControl, Alert, Image } from 'react-native';
 import { 
   Card, 
   Text, 
   ActivityIndicator, 
   Surface,
   Divider,
-  FAB
+  FAB,
+  Chip
 } from 'react-native-paper';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { useAuth } from '@/hooks/auth-context';
 import * as Print from 'expo-print';
 import { apiFetch } from '@/lib/api';
 
+const getSingleParam = (value) => Array.isArray(value) ? value[0] : value;
+const formatDateTime = (value) => value ? new Date(value).toLocaleString() : 'N/A';
+const normalizeHistoryItem = (item) => ({
+  $id: item?.$id ?? '',
+  barcode: item?.barcode ?? '',
+  brand: item?.brand ?? '',
+  image: item?.image ?? '',
+  nutriscore: item?.nutriscore ?? '',
+  productName: item?.productName ?? 'Unknown Product',
+  scannedAt: item?.scannedAt ?? '',
+});
 
 export default function UserDetail() {
-  const { userId, userName } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const userId = getSingleParam(params.userId);
+  const userName = getSingleParam(params.userName);
   const { user } = useAuth();
   
   const [scanHistory, setScanHistory] = useState([]);
+  const [totalScans, setTotalScans] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
-    if (userId) {
+    console.log('[UserDetail] Params resolved:', { params, userId, userName, authUserId: user?.$id });
+
+    if (userId && user?.$id) {
       fetchUserScanHistory();
+      return;
     }
-  }, [userId]);
+
+    if (!userId) {
+      setIsLoading(false);
+      setError('Missing user ID from navigation params.');
+    }
+  }, [userId, user?.$id]);
 
   const fetchUserScanHistory = async (refreshing = false) => {
     if (refreshing) setIsRefreshing(true);
     else setIsLoading(true);
     setError(null);
+
+    console.log('[UserDetail] Fetching scan history:', {
+      userId,
+      authUserId: user?.$id,
+      refreshing,
+    });
     
     try {
       const response = await apiFetch(`/api/admin/users/${userId}/scan-history`, {
@@ -41,17 +70,27 @@ export default function UserDetail() {
           'X-User-ID': user.$id,
         }
       });
+
+      console.log('[UserDetail] Scan history response status:', response.status);
       
       const data = await response.json();
+      console.log('[UserDetail] Scan history response payload:', data);
       
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch scan history');
       }
-      
-      setScanHistory(data.history || []);
+
+      const normalizedHistory = Array.isArray(data.history)
+        ? data.history.map(normalizeHistoryItem)
+        : [];
+
+      setScanHistory(normalizedHistory);
+      setTotalScans(Number(data.total) || normalizedHistory.length);
     } catch (err) {
       console.error('Error fetching scan history:', err);
       setError(err.message);
+      setScanHistory([]);
+      setTotalScans(0);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -72,7 +111,7 @@ export default function UserDetail() {
         <td>${index + 1}</td>
         <td>${item.productName || 'Unknown Product'}</td>
         <td>${item.barcode || 'N/A'}</td>
-        <td>${item.scannedAt ? new Date(item.scannedAt).toLocaleString() : 'N/A'}</td>
+        <td>${formatDateTime(item.scannedAt)}</td>
       </tr>
     `).join('');
 
@@ -213,7 +252,7 @@ export default function UserDetail() {
 
           <div class="summary">
             <div class="summary-box">
-              <div class="value">${scanHistory.length}</div>
+              <div class="value">${totalScans}</div>
               <div class="label">Total Scans</div>
             </div>
           </div>
@@ -270,15 +309,47 @@ export default function UserDetail() {
   const renderScanItem = ({ item }) => (
     <Card style={styles.scanCard} mode="elevated">
       <Card.Content>
-        <Text variant="titleMedium" style={styles.productName}>
-          {item.productName || 'Unknown Product'}
-        </Text>
-        <Text variant="bodyMedium" style={styles.barcode}>
-          Barcode: {item.barcode || 'N/A'}
-        </Text>
-        <Text variant="bodySmall" style={styles.scanDate}>
-          Scanned: {item.scannedAt ? new Date(item.scannedAt).toLocaleString() : 'N/A'}
-        </Text>
+        <View style={styles.scanRow}>
+          {item.image ? (
+            <Image
+              source={{ uri: item.image }}
+              style={styles.productImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Text variant="labelSmall" style={styles.imagePlaceholderText}>
+                No Image
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.scanInfo}>
+            <View style={styles.productHeaderRow}>
+              <Text variant="titleMedium" style={styles.productName}>
+                {item.productName}
+              </Text>
+              {!!item.nutriscore && (
+                <Chip compact style={styles.nutriscoreChip} textStyle={styles.nutriscoreChipText}>
+                  {String(item.nutriscore).toUpperCase()}
+                </Chip>
+              )}
+            </View>
+
+            {!!item.brand && (
+              <Text variant="bodySmall" style={styles.brandText}>
+                Brand: {item.brand}
+              </Text>
+            )}
+
+            <Text variant="bodyMedium" style={styles.barcode}>
+              Barcode: {item.barcode || 'N/A'}
+            </Text>
+            <Text variant="bodySmall" style={styles.scanDate}>
+              Scanned: {formatDateTime(item.scannedAt)}
+            </Text>
+          </View>
+        </View>
       </Card.Content>
     </Card>
   );
@@ -299,13 +370,22 @@ export default function UserDetail() {
             {userName || 'User'}
           </Text>
           <Text variant="bodySmall" style={styles.userId}>
-            ID: {userId}
+            ID: {userId || 'Unavailable'}
           </Text>
         </Surface>
 
         <Text variant="titleMedium" style={styles.sectionTitle}>
           Scan History
         </Text>
+
+        <Surface style={styles.summaryCard} elevation={1}>
+          <Text variant="titleLarge" style={styles.summaryValue}>
+            {totalScans}
+          </Text>
+          <Text variant="bodySmall" style={styles.summaryLabel}>
+            Total recorded scans
+          </Text>
+        </Surface>
 
         {error && (
           <Surface style={styles.errorContainer} elevation={1}>
@@ -376,6 +456,22 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 4,
   },
+  summaryCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 16,
+  },
+  summaryValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#93BFC7',
+  },
+  summaryLabel: {
+    marginTop: 4,
+    color: '#666',
+  },
   sectionTitle: {
     fontSize: 15,
     fontWeight: '600',
@@ -390,11 +486,49 @@ const styles = StyleSheet.create({
   scanCard: {
     marginBottom: 8,
     backgroundColor: '#fff',
+    borderRadius: 14,
+  },
+  scanRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  productImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    backgroundColor: '#eef2f3',
+  },
+  imagePlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    backgroundColor: '#e8edf0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  imagePlaceholderText: {
+    color: '#718096',
+    textAlign: 'center',
+  },
+  scanInfo: {
+    flex: 1,
+  },
+  productHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
   },
   productName: {
     fontSize: 15,
     fontWeight: '600',
     color: '#333',
+    flex: 1,
+  },
+  brandText: {
+    color: '#6b7280',
+    marginTop: 4,
   },
   barcode: {
     fontSize: 13,
@@ -405,6 +539,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#888',
     marginTop: 4,
+  },
+  nutriscoreChip: {
+    backgroundColor: '#e8f5e9',
+    minHeight: 28,
+  },
+  nutriscoreChipText: {
+    color: '#2e7d32',
+    fontWeight: '700',
+    fontSize: 12,
   },
   divider: {
     marginVertical: 4,
