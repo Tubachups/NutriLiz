@@ -2,7 +2,6 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from appwrite.client import Client
-from appwrite.services.databases import Databases
 from appwrite.services.storage import Storage
 from appwrite.services.tables_db import TablesDB
 from appwrite.query import Query
@@ -30,7 +29,6 @@ client.set_endpoint(os.getenv('APPWRITE_ENDPOINT'))
 client.set_project(os.getenv('APPWRITE_PROJECT_ID'))
 client.set_key(os.getenv('APPWRITE_API_KEY'))
 
-databases = Databases(client)
 tabledb = TablesDB(client)
 storage = Storage(client)
 
@@ -131,15 +129,17 @@ def get_product_name_from_fresh_prod(document_id):
         return None
     
     try:
-        # Get the document directly using its ID from fresh_prod collection
-        doc = databases.get_document(
+        # Get the row directly using its ID from fresh_prod collection
+        row = tabledb.get_row(
             DATABASE_ID,
             FRESH_PROD_COLLECTION_ID,
             document_id
         )
-        
-        if doc:
-            name = doc.get('name')
+
+        if row:
+            row_dict = row.to_dict() if hasattr(row, "to_dict") else {}
+            data = row_dict.get("data", {}) if isinstance(row_dict, dict) else {}
+            name = data.get("name") or row_dict.get("name")
             if name and name != '' and name != 'N/A':
                 print(f"[Appwrite] Found name in fresh_prod: {name}")
                 return name
@@ -174,6 +174,10 @@ def get_product_data_appwrite(barcode_value):
         log_appwrite(f"Searching barcode: {barcode_str}")
 
         # ───────────── PARALLEL QUERY FUNCTION ─────────────
+        def rows_to_plain_dicts(row_list):
+            """Convert SDK Row objects to plain dicts with user-defined columns."""
+            return [row.to_dict() for row in (row_list.rows or [])]
+
         def query_column(col, value):
             """Query a single column, return (col, result) tuple"""
             try:
@@ -182,8 +186,9 @@ def get_product_data_appwrite(barcode_value):
                     COLLECTION_ID,
                     queries=[Query.equal(col, [value])]
                 )
-                if result.get('rows'):
-                    return (col, {'documents': result['rows']})
+                rows = rows_to_plain_dicts(result)
+                if rows:
+                    return (col, {'documents': rows})
             except Exception as e:
                 # Direct barcode columns are optional fallbacks; avoid noisy logs unless
                 # we hit an unexpected failure on the grouping columns.
@@ -239,9 +244,10 @@ def get_product_data_appwrite(barcode_value):
 
         # Rest of your existing code to format the document...
         doc = result['documents'][0]
+        row_data = doc.get('data', {}) if isinstance(doc, dict) else {}
         document_id = doc.get('$id')
         
-        product_name = doc.get('name')
+        product_name = row_data.get('name') or doc.get('name')
         if not product_name or product_name == '' or product_name == 'N/A' or product_name.lower() == 'unknown product':
             fresh_prod_name = get_product_name_from_fresh_prod(document_id)
             if fresh_prod_name:
@@ -249,7 +255,13 @@ def get_product_data_appwrite(barcode_value):
             else:
                 product_name = 'N/A'
         
-        file_id = doc.get('image_id') or doc.get('imageId') or doc.get('$id')
+        file_id = (
+            row_data.get('image_id')
+            or row_data.get('imageId')
+            or doc.get('image_id')
+            or doc.get('imageId')
+            or doc.get('$id')
+        )
         image_url = None
         if file_id:
             image_url = (
@@ -257,36 +269,36 @@ def get_product_data_appwrite(barcode_value):
                 f"{BUCKET_ID}/files/{file_id}/preview?project={os.getenv('APPWRITE_PROJECT_ID')}"
             )
         
-        group_data = extract_group_data(doc)
+        group_data = extract_group_data(row_data or doc)
         
         product_data = {
             'source': 'appwrite',
             'barcode': barcode_value,
             'matched_column': matched_column,
             'document_id': document_id,
-            'sm_bar': doc.get('sm_bar'),
-            'rs_bar': doc.get('rs_bar'),
+            'sm_bar': row_data.get('sm_bar') or doc.get('sm_bar'),
+            'rs_bar': row_data.get('rs_bar') or doc.get('rs_bar'),
             'product': {
                 'name': product_name,
-                'category': doc.get('category', 'N/A'),
+                'category': row_data.get('category') or doc.get('category', 'N/A'),
             },
             'image_url': image_url,
             'nutrition': {
-                'carbohydrates': doc.get('carbohydrates', 'N/A'),
-                'protein': doc.get('protein', 'N/A'),
-                'fat': doc.get('fat', 'N/A'),
-                'fiber': doc.get('fiber', 'N/A'),
-                'sugar': doc.get('sugar', 'N/A'),
-                'calcium': doc.get('calcium', 'N/A'),
-                'iron': doc.get('iron', 'N/A'),
-                'water': doc.get('water', 'N/A'),
-                'potassium': doc.get('potassium', 'N/A'),
-                'magnesium': doc.get('magnesium', 'N/A'),
-                'sodium': doc.get('sodium', 'N/A'),
-                'phosphorus': doc.get('phosphorus', 'N/A'),
-                'vitamin_c': doc.get('vitamin_c', 'N/A'),
-                'vitamin_a': doc.get('vitamin_a', 'N/A'),
-                'vitamin_e': doc.get('vitamin_e', 'N/A'),
+                'carbohydrates': row_data.get('carbohydrates', doc.get('carbohydrates', 'N/A')),
+                'protein': row_data.get('protein', doc.get('protein', 'N/A')),
+                'fat': row_data.get('fat', doc.get('fat', 'N/A')),
+                'fiber': row_data.get('fiber', doc.get('fiber', 'N/A')),
+                'sugar': row_data.get('sugar', doc.get('sugar', 'N/A')),
+                'calcium': row_data.get('calcium', doc.get('calcium', 'N/A')),
+                'iron': row_data.get('iron', doc.get('iron', 'N/A')),
+                'water': row_data.get('water', doc.get('water', 'N/A')),
+                'potassium': row_data.get('potassium', doc.get('potassium', 'N/A')),
+                'magnesium': row_data.get('magnesium', doc.get('magnesium', 'N/A')),
+                'sodium': row_data.get('sodium', doc.get('sodium', 'N/A')),
+                'phosphorus': row_data.get('phosphorus', doc.get('phosphorus', 'N/A')),
+                'vitamin_c': row_data.get('vitamin_c', doc.get('vitamin_c', 'N/A')),
+                'vitamin_a': row_data.get('vitamin_a', doc.get('vitamin_a', 'N/A')),
+                'vitamin_e': row_data.get('vitamin_e', doc.get('vitamin_e', 'N/A')),
             },
             'groups': group_data,
         }
@@ -413,10 +425,6 @@ def get_product_data(barcode):
     
     return None
 
-
-# ...existing code for barcode_scanner_thread, start_barcode_scanner, get_latest_barcode...
-
-
 def barcode_scanner_thread():
     global latest_barcode
     try:
@@ -439,12 +447,10 @@ def barcode_scanner_thread():
     except Exception as e:
         print(f"Serial error: {e}")
 
-
 def start_barcode_scanner():
     scanner_thread = threading.Thread(target=barcode_scanner_thread, daemon=True)
     scanner_thread.start()
     print("Barcode scanner thread started")
-
 
 def get_latest_barcode():
     global latest_barcode
