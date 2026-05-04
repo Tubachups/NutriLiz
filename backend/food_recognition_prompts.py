@@ -9,6 +9,7 @@ def build_food_image_analysis_prompt(user_profile: dict = None, health_context: 
     {
         "identified": true/false,
         "confidence": "high/medium/low",
+        "confidence_score": 0,
         "has_visible_label_or_packaging": true/false,
         "food_name": "Name of the food",
         "food_name_local": "Local/regional name if applicable",
@@ -65,7 +66,10 @@ such as mold growth, obvious rot, severe discoloration consistent with spoilage,
 When true, set "food_safety_status" to "unsafe" and provide a short explanation in "food_safety_note".
 Otherwise set "is_expired_or_spoiled" to false and use "food_safety_status" as "safe" or "uncertain".
 
-Return ONLY valid JSON, no additional text."""
+Return ONLY valid JSON, no additional text.
+
+Set "confidence_score" as an integer from 0-100 representing the AI certainty for the identified food.
+Keep "confidence" aligned with the numeric score (high: 75-100, medium: 45-74, low: 0-44)."""
 
     if user_profile:
         prompt += (
