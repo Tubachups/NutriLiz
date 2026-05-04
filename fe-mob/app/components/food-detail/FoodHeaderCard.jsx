@@ -4,6 +4,31 @@ import { Card, Text, Chip } from 'react-native-paper';
 import Carousel, { Pagination } from 'react-native-reanimated-carousel';
 import { useSharedValue } from 'react-native-reanimated';
 
+const formatConfidence = (item) => {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  const labelRaw = typeof item.confidence === 'string' ? item.confidence.trim() : '';
+  const label = labelRaw ? `${labelRaw.charAt(0).toUpperCase()}${labelRaw.slice(1)}` : '';
+  const scoreValue = Number(item.confidence_score);
+  const hasScore = Number.isFinite(scoreValue);
+
+  if (!label && !hasScore) {
+    return null;
+  }
+
+  if (label && hasScore) {
+    return `${Math.round(scoreValue)}% (${label})`;
+  }
+
+  if (hasScore) {
+    return `${Math.round(scoreValue)}%`;
+  }
+
+  return label;
+};
+
 const FoodHeaderCard = ({
   activeFood,
   hasMultipleFoods,
@@ -18,6 +43,7 @@ const FoodHeaderCard = ({
   const CARD_HORIZONTAL_PADDING = 16;
   const carouselRef = useRef(null);
   const lastSyncedIndex = useRef(activeFoodIndex);
+  const activeConfidenceText = formatConfidence(activeFood);
   
   // Shared value required for the Reanimated Pagination component
   const progress = useSharedValue(0);
@@ -73,20 +99,29 @@ const FoodHeaderCard = ({
             }}
             onProgressChange={handleProgressChange}
             onSnapToItem={onHeaderSnap}
-            renderItem={({ item }) => (
-              <View style={styles.carouselItem}>
-                <Text variant="headlineSmall" style={styles.title}>{item.food_name || 'Unknown Food'}</Text>
-                {item.food_name_local && (
-                  <Text variant="bodyMedium" style={styles.subtitle}>{item.food_name_local}</Text>
-                )}
-                {!!item.category && (
-                  <Chip style={styles.categoryChip} textStyle={styles.categoryChipText}>{item.category}</Chip>
-                )}
-                {!!item.description && (
-                  <Text variant="bodySmall" style={styles.description}>{item.description}</Text>
-                )}
-              </View>
-            )}
+            renderItem={({ item }) => {
+              const confidenceText = formatConfidence(item);
+              return (
+                <View style={styles.carouselItem}>
+                  <Text variant="headlineSmall" style={styles.title}>{item.food_name || 'Unknown Food'}</Text>
+                  {item.food_name_local && (
+                    <Text variant="bodyMedium" style={styles.subtitle}>{item.food_name_local}</Text>
+                  )}
+                  {!!item.category && (
+                    <Chip style={styles.categoryChip} textStyle={styles.categoryChipText}>{item.category}</Chip>
+                  )}
+                  {confidenceText && (
+                    <View style={styles.confidenceRow}>
+                      <Text variant="bodySmall" style={styles.confidenceLabel}>AI Confidence</Text>
+                      <Text variant="bodySmall" style={styles.confidenceValue}>{confidenceText}</Text>
+                    </View>
+                  )}
+                  {!!item.description && (
+                    <Text variant="bodySmall" style={styles.description}>{item.description}</Text>
+                  )}
+                </View>
+              );
+            }}
           />
           
           <Pagination.Basic
@@ -129,6 +164,12 @@ const FoodHeaderCard = ({
         )}
         {!!activeFood?.category && (
           <Chip style={styles.categoryChip} textStyle={styles.categoryChipText}>{activeFood.category}</Chip>
+        )}
+        {activeConfidenceText && (
+          <View style={styles.confidenceRow}>
+            <Text variant="bodySmall" style={styles.confidenceLabel}>AI Confidence</Text>
+            <Text variant="bodySmall" style={styles.confidenceValue}>{activeConfidenceText}</Text>
+          </View>
         )}
         {!!activeFood?.description && (
           <Text variant="bodyMedium" style={styles.description}>

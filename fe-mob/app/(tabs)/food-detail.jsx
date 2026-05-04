@@ -225,6 +225,22 @@ const styles = StyleSheet.create({
     color: '#000000ff', 
     marginTop: 8 
   },
+  confidenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  confidenceLabel: {
+    color: '#3c5a50',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  confidenceValue: {
+    color: '#1e7d5d',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
   sectionTitle: { 
     color: '#1e7d5dff', 
     marginBottom: 12, 
