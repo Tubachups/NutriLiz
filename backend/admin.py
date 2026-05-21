@@ -2,7 +2,7 @@
 from flask import Blueprint, jsonify, request
 from appwrite.client import Client
 from appwrite.services.users import Users
-from appwrite.services.databases import Databases
+from appwrite.services.tables_db import TablesDB
 from appwrite.query import Query
 import os
 
@@ -19,6 +19,48 @@ def get_appwrite_admin_client():
     client.set_project(os.getenv('APPWRITE_PROJECT_ID'))
     client.set_key(os.getenv('APPWRITE_API_KEY'))
     return client
+
+
+def get_appwrite_admin_tabledb():
+    """Initialize Appwrite TablesDB service for admin table operations."""
+    return TablesDB(get_appwrite_admin_client())
+
+
+def _row_to_payload(row_obj):
+    """Flatten Appwrite table rows so custom columns are easy to read."""
+    if hasattr(row_obj, 'to_dict'):
+        row = row_obj.to_dict()
+    elif isinstance(row_obj, dict):
+        row = row_obj
+    else:
+        return {}
+
+    data = row.get('data')
+    if isinstance(data, dict):
+        payload = dict(data)
+        for key, value in row.items():
+            if key not in payload:
+                payload[key] = value
+        return payload
+
+    return row
+
+
+def _rows_to_plain_dicts(result):
+    """Normalize Appwrite list_rows responses across SDK return shapes."""
+    if hasattr(result, 'rows'):
+        raw_rows = getattr(result, 'rows') or []
+    elif isinstance(result, dict):
+        raw_rows = result.get('rows', []) or []
+    else:
+        raw_rows = []
+
+    rows = []
+    for raw in raw_rows:
+        payload = _row_to_payload(raw)
+        if payload:
+            rows.append(payload)
+    return rows
 
 def check_admin_authorization():
     """Check if the requesting user is an admin"""
@@ -49,13 +91,11 @@ def list_users():
             Query.offset(offset)
         ]
         result = users.list(queries=queries)
-        
-        return jsonify({
-            'users': result['users'],
-            'total': result['total'],
-            'limit': limit,
-            'offset': offset
-        })
+        payload = result.model_dump()
+        payload['limit'] = limit
+        payload['offset'] = offset
+
+        return jsonify(payload)
     except Exception as e:
         print(f"Error listing users: {e}")
         return jsonify({'error': str(e)}), 500
@@ -63,60 +103,76 @@ def list_users():
 @admin_bp.route('/users/<user_id>')
 def get_user(user_id):
     """Get a specific user - Admin only"""
+    print(f"DEBUG: Attempting to fetch user with ID: {user_id}")
+    
     is_admin, _ = check_admin_authorization()
     if not is_admin:
+        print(f"WARNING: Unauthorized access attempt for user ID: {user_id}")
         return jsonify({'error': 'Unauthorized'}), 403
     
     try:
         client = get_appwrite_admin_client()
         users = Users(client)
         user = users.get(user_id)
-        return jsonify(user)
+        
+        print(f"SUCCESS: Successfully retrieved data for user ID: {user_id}")
+        return jsonify(user.model_dump())
     except Exception as e:
+        print(f"ERROR: Failed to fetch user ID {user_id}. Reason: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @admin_bp.route('/users/<user_id>/scan-history')
 def get_user_scan_history(user_id):
     """Get a user's product scan history - Admin only"""
+    print(f"DEBUG: scan-history route hit for user_id={user_id}")
     is_admin, _ = check_admin_authorization()
     if not is_admin:
+        print(f"WARNING: Unauthorized scan-history access for user_id={user_id}")
         return jsonify({'error': 'Unauthorized'}), 403
     
     try:
-        client = get_appwrite_admin_client()
-        databases = Databases(client)
-        
-        # Database and collection IDs
+        tabledb = get_appwrite_admin_tabledb()
+
+        # Database and table IDs
         database_id = os.getenv('APPWRITE_DATABASE_ID')
-        collection_id = 'lists_prod'  # Product history collection
-        
-        # Query the product history collection for this user
-        result = databases.list_documents(
+        table_id = (
+            os.getenv('APPWRITE_SCAN_HISTORY_TABLE_ID')
+            or os.getenv('APPWRITE_SCAN_HISTORY_COLLECTION_ID')
+            or 'lists_prod'
+        )
+
+        print(f"DEBUG: querying scan-history database_id={database_id} table_id={table_id} user_id={user_id}")
+
+        result = tabledb.list_rows(
             database_id=database_id,
-            collection_id=collection_id,
+            table_id=table_id,
             queries=[
-                Query.equal('userId', user_id),
-                Query.order_desc('scannedAt'),
+                Query.equal('userId', [user_id]),
                 Query.limit(100)
             ]
         )
-        
+        payload = result.model_dump()
+        rows = _rows_to_plain_dicts(result)
+        print(f"DEBUG: scan-history rows fetched count={len(rows)} total={payload.get('total')}")
+
         # Format the response
         history = []
-        for doc in result['documents']:
+        for row in rows:
             history.append({
-                '$id': doc['$id'],
-                'barcode': doc.get('barcode', ''),
-                'productName': doc.get('name', 'Unknown Product'),
-                'brand': doc.get('brand', ''),
-                'image': doc.get('image', ''),
-                'nutriscore': doc.get('nutriscore', ''),
-                'scannedAt': doc.get('scannedAt', ''),
+                '$id': row.get('$id') or row.get('$sequence'),
+                'barcode': row.get('barcode', ''),
+                'productName': row.get('productName') or row.get('name', 'Unknown Product'),
+                'brand': row.get('brand', ''),
+                'image': row.get('image', ''),
+                'nutriscore': row.get('nutriscore', ''),
+                'scannedAt': row.get('scannedAt') or row.get('$createdAt', ''),
             })
+
+        history.sort(key=lambda item: item.get('scannedAt') or '', reverse=True)
         
         return jsonify({
             'history': history,
-            'total': result['total']
+            'total': payload.get('total', len(history))
         })
     except Exception as e:
         print(f"Error fetching scan history: {e}")

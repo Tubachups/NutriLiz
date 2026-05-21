@@ -16,6 +16,7 @@ from food_recognition_helpers import (
     build_health_context,
     ensure_disambiguation_alternatives,
     normalize_food_text,
+    normalize_confidence_fields,
     requires_user_confirmation,
     extract_quantity_value,
     resolve_local_dish_mapping,
@@ -181,6 +182,26 @@ def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
 
             if not food_data.get('nutrition_source') and not confirmation_required:
                 try:
+        # Normalize to list of items to match the prompt/frontend expectation
+        if isinstance(food_data, dict) and "items" not in food_data:
+            food_items = [food_data]
+        elif isinstance(food_data, list):
+            food_items = food_data
+        else:
+            food_items = food_data.get('items', [])
+
+        for item in food_items:
+            annotate_food_safety(item)
+            normalize_confidence_fields(item)
+
+            if item.get('identified') and not to_bool(item.get('is_expired_or_spoiled')):
+                confirmation_required = requires_user_confirmation(item)
+                if confirmation_required:
+                    item['disambiguation_needed'] = True
+                    item['alternatives'] = ensure_disambiguation_alternatives(item)
+                    item['nutrition_pending_confirmation'] = True
+
+                if not item.get('nutrition_source') and not confirmation_required:
                     fnri_nutrition = get_fnri_nutrition(
                         food_name=food_data.get('food_name', ''),
                         ingredients=food_data.get('ingredients_if_dish', []),

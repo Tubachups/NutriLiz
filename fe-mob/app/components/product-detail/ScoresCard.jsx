@@ -54,12 +54,11 @@ const ScoresCard = ({ productData }) => {
         </View>
 
         <View style={styles.novaContainer}>
-          <Text style={styles.novaTitle}>NOVA Group</Text>
           {hasNovaGroup ? (
-            <>
-              <Text style={styles.novaValue}>{String(productData.nova_group)}</Text>
-              <Text style={styles.novaDescription}>{getNovaLabel(productData.nova_group)}</Text>
-            </>
+            <NovaGroupBadge
+              group={Number(productData.nova_group)}
+              label={getNovaLabel(productData.nova_group)}
+            />
           ) : (
             <Text style={styles.emptyStateText}>No data available</Text>
           )}
@@ -84,6 +83,52 @@ const ScoresCard = ({ productData }) => {
 };
 
 export default ScoresCard;
+
+const NovaGroupBadge = ({ group, label }) => {
+  const groups = [1, 2, 3, 4];
+  const colors = {
+    1: '#2ca24c',
+    2: '#f3c43b',
+    3: '#f28b2d',
+    4: '#e74c3c',
+  };
+
+  return (
+    <View style={styles.novaBadge}>
+      <Text style={styles.novaBadgeTitle}>NOVA</Text>
+      <View style={styles.novaBadgeRow}>
+        {groups.map((g) => {
+          const isActive = g === group;
+          return (
+            <View
+              key={g}
+              style={[
+                styles.novaGroupBox,
+                {
+                  backgroundColor: colors[g],
+                  opacity: isActive ? 1 : 0.6,
+                  transform: [{ scale: isActive ? 1.18 : 1 }],
+                  borderRadius: isActive ? 18 : 6,
+                  borderWidth: isActive ? 3 : 0,
+                  borderColor: 'white',
+                  elevation: isActive ? 5 : 0,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: isActive ? 0.3 : 0,
+                  shadowRadius: isActive ? 4 : 0,
+                  zIndex: isActive ? 10 : 1,
+                },
+              ]}
+            >
+              <Text style={styles.novaGroupText}>{String(g)}</Text>
+            </View>
+          );
+        })}
+      </View>
+      <Text style={styles.novaDescription}>{label}</Text>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   card: {
@@ -118,26 +163,50 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   novaContainer: {
-    backgroundColor: '#f2fcedff',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-  },
-  novaTitle: {
-    fontWeight: '600',
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 4,
+    marginVertical: 10,
+    alignItems: 'center',
   },
   novaDescription: {
     fontSize: 13,
     color: '#666',
+    marginTop: 8,
+    alignSelf: 'center',
   },
-  novaValue: {
-    fontWeight: '600',
+  novaBadge: {
+    backgroundColor: '#f2fcedff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 1, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  novaBadgeTitle: {
     fontSize: 16,
+    fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 12,
+    letterSpacing: 1,
+  },
+  novaBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  novaGroupBox: {
+    width: 40,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 6,
+    marginHorizontal: 2,
+  },
+  novaGroupText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   ecoScoreSection: {
     marginTop: 16,

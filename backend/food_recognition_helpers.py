@@ -63,6 +63,53 @@ def requires_user_confirmation(food_data: dict) -> bool:
     return False
 
 
+def normalize_confidence_fields(food_data: dict) -> dict:
+    """Normalize confidence label and score for consistent frontend display."""
+    if not isinstance(food_data, dict):
+        return food_data
+
+    confidence = normalize_food_text(food_data.get('confidence', ''))
+    raw_score = food_data.get('confidence_score', None)
+    score = None
+
+    if isinstance(raw_score, (int, float)):
+        score = float(raw_score)
+    elif isinstance(raw_score, str):
+        try:
+            score = float(raw_score.strip())
+        except ValueError:
+            score = None
+
+    if score is not None:
+        if score <= 1:
+            score *= 100
+        score = max(0, min(100, score))
+        score = int(round(score))
+
+    if score is None:
+        if confidence == 'high':
+            score = 85
+        elif confidence == 'medium':
+            score = 60
+        elif confidence == 'low':
+            score = 35
+
+    if confidence not in {'high', 'medium', 'low'} and score is not None:
+        if score >= 75:
+            confidence = 'high'
+        elif score >= 45:
+            confidence = 'medium'
+        else:
+            confidence = 'low'
+
+    if confidence:
+        food_data['confidence'] = confidence
+    if score is not None:
+        food_data['confidence_score'] = score
+
+    return food_data
+
+
 def ensure_disambiguation_alternatives(food_data: dict) -> list:
     """Ensure there is at least 1-3 plausible options when confirmation is required."""
     alternatives = []

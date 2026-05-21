@@ -15,4 +15,5 @@ requests
 google-genai
 pyserial
 gunicorn
-opencv-python-headless
+opencv-python==4.13.0.92
+opencv-python-headless==4.13.0.92

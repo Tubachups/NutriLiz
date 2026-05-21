@@ -93,9 +93,18 @@ export default function AdminDashboard() {
   };
 
   const handleUserPress = (selectedUser) => {
+    const targetUserId = selectedUser?.$id || selectedUser?.id || '';
+    const targetUserName = selectedUser?.name || selectedUser?.email || 'User';
+
+    console.log('[AdminDashboard] Opening user detail:', {
+      targetUserId,
+      targetUserName,
+      selectedUser,
+    });
+
     router.push({
       pathname: '/(admin-tabs)/users-detail',
-      params: { userId: selectedUser.$id, userName: selectedUser.name }
+      params: { userId: targetUserId, userName: targetUserName }
     });
   };
 
@@ -386,7 +395,7 @@ export default function AdminDashboard() {
       ) : (
         <FlatList
           data={users}
-          keyExtractor={(item) => item.$id}
+          keyExtractor={(item, index) => item.$id || item.id || item.email || `user-${index}`}
           renderItem={renderUserItem}
           contentContainerStyle={styles.listContent}
           refreshControl={
