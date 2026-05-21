@@ -134,12 +134,16 @@ def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
             )
 
         mime_type = "image/jpeg"
-        if image_data.startswith("iVBORw0K"):
-            mime_type = "image/png"
-        elif image_data.startswith("/9j/"):
-            mime_type = "image/jpeg"
-        elif image_data.startswith("UklGR"):
-            mime_type = "image/webp"
+        try:
+            image_bytes = base64.b64decode(image_data)
+            if image_bytes[:8] == b'\x89PNG\r\n\x1a\n':
+                mime_type = "image/png"
+            elif image_bytes[:2] == b'\xff\xd8':
+                mime_type = "image/jpeg"
+            elif image_bytes[:4] == b'RIFF' and image_bytes[8:12] == b'WEBP':
+                mime_type = "image/webp"
+        except Exception:
+            pass
 
         response = client.models.generate_content(
             model="gemini-3.1-flash-lite-preview",
@@ -156,8 +160,7 @@ def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
                         }
                     ]
                 }
-            ],
-            config={"response_mime_type": "application/json"}
+            ]
         )
 
         response_text = response.text.strip()
@@ -168,6 +171,17 @@ def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
 
         food_data = json.loads(response_text)
 
+        annotate_food_safety(food_data)
+
+        if food_data.get('identified') and not to_bool(food_data.get('is_expired_or_spoiled')):
+            confirmation_required = requires_user_confirmation(food_data)
+            if confirmation_required:
+                food_data['disambiguation_needed'] = True
+                food_data['alternatives'] = ensure_disambiguation_alternatives(food_data)
+                food_data['nutrition_pending_confirmation'] = True
+
+            if not food_data.get('nutrition_source') and not confirmation_required:
+                try:
         # Normalize to list of items to match the prompt/frontend expectation
         if isinstance(food_data, dict) and "items" not in food_data:
             food_items = [food_data]
@@ -189,58 +203,63 @@ def analyze_food_image(image_data: str, user_profile: dict = None) -> dict:
 
                 if not item.get('nutrition_source') and not confirmation_required:
                     fnri_nutrition = get_fnri_nutrition(
-                        food_name=item.get('food_name', ''),
-                        ingredients=item.get('ingredients_if_dish', []),
+                        food_name=food_data.get('food_name', ''),
+                        ingredients=food_data.get('ingredients_if_dish', []),
                         fast_mode=FOOD_ANALYSIS_FAST_MODE
                     )
-                    if fnri_nutrition:
-                        item['nutrition_per_100g'] = fnri_nutrition['nutrition_per_100g']
-                        item['nutrition_source'] = 'fnri_table'
-                        item['fnri_match'] = fnri_nutrition.get('fnri_match', {})
-                        logger.info(
-                            "Nutrition source selected: FNRI for food='%s'",
-                            item.get('food_name', ''),
-                        )
-                        print(f"[FOOD_RECOGNITION] nutrition source=FNRI food='{item.get('food_name', '')}'")
-                    else:
-                        logger.info(
-                            "FNRI returned no nutrition for food='%s'; falling back to USDA",
-                            item.get('food_name', ''),
-                        )
-                        print(f"[FOOD_RECOGNITION] FNRI miss, fallback to USDA food='{item.get('food_name', '')}'")
+                except Exception as exc:
+                    logger.exception(
+                        "FNRI lookup failed for food='%s': %s",
+                        food_data.get('food_name', ''),
+                        exc,
+                    )
+                    fnri_nutrition = {}
+                if fnri_nutrition:
+                    food_data['nutrition_per_100g'] = fnri_nutrition['nutrition_per_100g']
+                    food_data['nutrition_source'] = 'fnri_table'
+                    food_data['fnri_match'] = fnri_nutrition.get('fnri_match', {})
+                    logger.info(
+                        "Nutrition source selected: FNRI for food='%s'",
+                        food_data.get('food_name', ''),
+                    )
+                    print(f"[FOOD_RECOGNITION] nutrition source=FNRI food='{food_data.get('food_name', '')}'")
+                else:
+                    logger.info(
+                        "FNRI returned no nutrition for food='%s'; falling back to USDA",
+                        food_data.get('food_name', ''),
+                    )
+                    print(f"[FOOD_RECOGNITION] FNRI miss, fallback to USDA food='{food_data.get('food_name', '')}'")
 
-                if not item.get('nutrition_source') and not confirmation_required:
-                    usda_nutrition = get_usda_nutrition(
-                        food_name=item.get('food_name', ''),
-                        ingredients=item.get('ingredients_if_dish', []),
-                        fast_mode=FOOD_ANALYSIS_FAST_MODE
-                    )
-                    if usda_nutrition:
-                        item['nutrition_per_100g'] = usda_nutrition['nutrition_per_100g']
-                        item['nutrition_source'] = 'usda_fooddata_central'
-                        item['usda_match'] = {
-                            'fdc_id': usda_nutrition['fdc_id'],
-                            'description': usda_nutrition['description'],
-                            'data_type': usda_nutrition.get('data_type')
+            # COMMENT THIS TO CHECK FNRI
+            if not food_data.get('nutrition_source') and not confirmation_required:
+                usda_nutrition = get_usda_nutrition(
+                    food_name=food_data.get('food_name', ''),
+                    ingredients=food_data.get('ingredients_if_dish', []),
+                    fast_mode=FOOD_ANALYSIS_FAST_MODE
+                )
+                if usda_nutrition:
+                    food_data['nutrition_per_100g'] = usda_nutrition['nutrition_per_100g']
+                    food_data['nutrition_source'] = 'usda_fooddata_central'
+                    food_data['usda_match'] = {
+                        'fdc_id': usda_nutrition['fdc_id'],
+                        'description': usda_nutrition['description'],
+                        'data_type': usda_nutrition.get('data_type')
+                    }
+                    if usda_nutrition.get('estimated_fields'):
+                        food_data['nutrition_estimation'] = {
+                            'basis': usda_nutrition.get('estimation_basis'),
+                            'estimated_fields': usda_nutrition.get('estimated_fields', []),
+                            'ingredient_matches': usda_nutrition.get('ingredient_matches', [])
                         }
-                        if usda_nutrition.get('estimated_fields'):
-                            item['nutrition_estimation'] = {
-                                'basis': usda_nutrition.get('estimation_basis'),
-                                'estimated_fields': usda_nutrition.get('estimated_fields', []),
-                                'ingredient_matches': usda_nutrition.get('ingredient_matches', [])
-                            }
 
-            item['source'] = 'gemini_vision'
-            item['analysis_type'] = 'image_recognition'
+        food_data['source'] = 'gemini_vision'
+        food_data['analysis_type'] = 'image_recognition'
 
-        # the response payload back to the app is wrapped in items array for consistency
-        response_data = {"items": food_items}
-
-        cache_set(ANALYSIS_CACHE, analysis_cache_key, response_data)
+        cache_set(ANALYSIS_CACHE, analysis_cache_key, food_data)
 
         return {
             'success': True,
-            'data': response_data
+            'data': food_data
         }
 
     except json.JSONDecodeError:
@@ -281,11 +300,19 @@ def apply_user_confirmed_food_name(food_data: dict, confirmed_name: str) -> dict
         }
 
 
-    fnri_nutrition = get_fnri_nutrition(
-        food_name=canonical_name,
-        ingredients=updated.get('ingredients_if_dish', []),
-        fast_mode=FOOD_ANALYSIS_FAST_MODE
-    )
+    try:
+        fnri_nutrition = get_fnri_nutrition(
+            food_name=canonical_name,
+            ingredients=updated.get('ingredients_if_dish', []),
+            fast_mode=FOOD_ANALYSIS_FAST_MODE
+        )
+    except Exception as exc:
+        logger.exception(
+            "FNRI lookup failed during confirm for food='%s': %s",
+            canonical_name,
+            exc,
+        )
+        fnri_nutrition = {}
     if fnri_nutrition:
         updated['nutrition_per_100g'] = fnri_nutrition['nutrition_per_100g']
         updated['nutrition_source'] = 'fnri_table'
@@ -325,8 +352,7 @@ def validate_food_input(food_name: str, context: dict = None) -> dict:
 
         response = client.models.generate_content(
             model="gemini-3.1-flash-lite-preview",
-            contents=prompt,
-            config={"response_mime_type": "application/json"}
+            contents=prompt
         )
 
         response_text = response.text.strip()

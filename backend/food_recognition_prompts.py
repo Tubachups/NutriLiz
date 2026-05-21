@@ -2,9 +2,44 @@ import json
 
 def build_food_image_analysis_prompt(user_profile: dict = None, health_context: str = '') -> str:
     """Build prompt used for food image analysis."""
-    prompt = """Analyze this food image to identify all prominent food items. Provide detailed information in the following JSON format:
+    prompt = """Analyze this food image and provide detailed information in the following JSON format:
 
 {
+    "identified": true/false,
+    "confidence": "high/medium/low",
+    "has_visible_label_or_packaging": true/false,
+    "food_name": "Name of the food",
+    "food_name_local": "Local/regional name if applicable",
+    "category": "Category (e.g., Fruit, Vegetable, Meat, Dairy, Grain, etc.)",
+    "description": "Brief description of the food",
+    "food_safety_status": "safe/unsafe/uncertain",
+    "is_expired_or_spoiled": true/false,
+    "food_safety_note": "Brief note if unsafe or uncertain",
+    "serving_size": "Estimated serving size shown",
+    "nutrition_per_100g": {
+        "calories": null,
+        "protein_g": null,
+        "carbohydrates_g": null,
+        "fat_g": null,
+        "fiber_g": null,
+        "sugar_g": null,
+        "sodium_mg": null,
+        "saturated_fat_g": null
+    },
+    "health_benefits": ["benefit1", "benefit2"],
+    "potential_concerns": ["concern1", "concern2"],
+    "allergens": ["allergen1", "allergen2"],
+    "dietary_info": {
+        "is_vegetarian": true/false,
+        "is_vegan": true/false,
+        "is_gluten_free": true/false,
+        "is_dairy_free": true/false
+    },
+    "nutri_score_estimate": "A/B/C/D/E",
+    "ingredients_if_dish": ["ingredient1", "ingredient2"],
+    "preparation_notes": "How the food appears to be prepared",
+    "disambiguation_needed": false,
+    "alternatives": []
   "items": [
     {
         "identified": true/false,
@@ -47,7 +82,7 @@ def build_food_image_analysis_prompt(user_profile: dict = None, health_context: 
   ]
 }
 
-If you cannot identify any food or it's not a food item, return an array with a single item with "identified" set to false and explain in the description.
+If you cannot identify the food or it's not a food item, set "identified" to false and explain in the description.
 Do not estimate nutrition values. Keep nutrition fields null, they will be populated from an external nutrition database.
 
 Set "disambiguation_needed" to true only when the exact food identity is genuinely ambiguous due to:
