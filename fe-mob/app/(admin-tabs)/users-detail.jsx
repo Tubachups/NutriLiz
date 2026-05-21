@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, Alert, Image } from 'react-native';
 import { 
   Card, 
@@ -7,7 +7,8 @@ import {
   Surface,
   Divider,
   FAB,
-  Chip
+  Chip,
+  Searchbar
 } from 'react-native-paper';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { useAuth } from '@/hooks/auth-context';
@@ -38,10 +39,28 @@ export default function UserDetail() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredHistory = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return scanHistory;
+
+    return scanHistory.filter((item) => {
+      const haystack = [
+        item.productName,
+        item.brand,
+        item.barcode,
+        item.nutriscore,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [scanHistory, searchQuery]);
 
   useEffect(() => {
-    console.log('[UserDetail] Params resolved:', { params, userId, userName, authUserId: user?.$id });
-
     if (userId && user?.$id) {
       fetchUserScanHistory();
       return;
@@ -74,7 +93,6 @@ export default function UserDetail() {
       console.log('[UserDetail] Scan history response status:', response.status);
       
       const data = await response.json();
-      console.log('[UserDetail] Scan history response payload:', data);
       
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch scan history');
@@ -365,18 +383,17 @@ export default function UserDetail() {
         }} 
       />
       <View style={styles.container}>
-        <Surface style={styles.userHeader} elevation={1}>
-          <Text variant="titleLarge" style={styles.userName}>
-            {userName || 'User'}
-          </Text>
-          <Text variant="bodySmall" style={styles.userId}>
-            ID: {userId || 'Unavailable'}
-          </Text>
-        </Surface>
-
         <Text variant="titleMedium" style={styles.sectionTitle}>
-          Scan History
+          Scan History - {userId}
         </Text>
+
+        <Searchbar
+          placeholder="Search scan history"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={styles.searchBar}
+          inputStyle={styles.searchBarInput}
+        />
 
         <Surface style={styles.summaryCard} elevation={1}>
           <Text variant="titleLarge" style={styles.summaryValue}>
@@ -405,9 +422,15 @@ export default function UserDetail() {
               No scan history found
             </Text>
           </View>
+        ) : filteredHistory.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text variant="bodyLarge" style={styles.emptyText}>
+              No results for "{searchQuery.trim()}"
+            </Text>
+          </View>
         ) : (
           <FlatList
-            data={scanHistory}
+            data={filteredHistory}
             keyExtractor={(item, index) => item.$id || index.toString()}
             renderItem={renderScanItem}
             contentContainerStyle={styles.listContent}
@@ -478,6 +501,16 @@ const styles = StyleSheet.create({
     color: '#333',
     paddingHorizontal: 16,
     marginBottom: 12,
+    marginTop: 12,
+  },
+  searchBar: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+  },
+  searchBarInput: {
+    fontSize: 14,
   },
   listContent: {
     paddingHorizontal: 16,
@@ -570,9 +603,12 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 40,
+  },
+  emptyCard: {
+    width: '92%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
   },
   emptyText: {
     fontSize: 15,

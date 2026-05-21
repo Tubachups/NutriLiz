@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = 'http://192.168.100.69:5000';
+const DEFAULT_API_BASE_URL = 'https://nutriliz-backend-93d928b7d5d6.herokuapp.com/';
 
 const normalizeBaseUrl = (value) => {
   if (!value || typeof value !== 'string') return '';

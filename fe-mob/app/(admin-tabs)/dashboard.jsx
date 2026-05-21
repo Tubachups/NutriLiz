@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, Alert } from 'react-native';
-import { FAB } from 'react-native-paper';
+import { useState, useEffect, useMemo } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, Alert } from 'react-native'; 
+import { FAB, Searchbar, Card } from 'react-native-paper';
 import { useAuth } from '@/hooks/auth-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,8 +21,25 @@ export default function AdminDashboard() {
   const [error, setError] = useState(null);
   const [pageInput, setPageInput] = useState('');
   const [isPrinting, setIsPrinting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const totalPages = Math.ceil(total / USERS_PER_PAGE);
+  const filteredUsers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return users;
+
+    return users.filter((item) => {
+      const haystack = [item.name, item.email]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [users, searchQuery]);
+
+  const isSearching = searchQuery.trim().length > 0;
+  const paginationTotal = isSearching ? filteredUsers.length : total;
+  const totalPages = Math.max(1, Math.ceil(paginationTotal / USERS_PER_PAGE));
 
   // Get page numbers to display (up to 5 at a time)
   const getPageNumbers = () => {
@@ -99,7 +116,7 @@ export default function AdminDashboard() {
     console.log('[AdminDashboard] Opening user detail:', {
       targetUserId,
       targetUserName,
-      selectedUser,
+      // selectedUser,
     });
 
     router.push({
@@ -382,6 +399,14 @@ export default function AdminDashboard() {
         <Text style={styles.statsValue}>{total}</Text>
       </View>
 
+      <Searchbar
+        placeholder="Search by name or email"
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        style={styles.searchBar}
+        inputStyle={styles.searchBarInput}
+      />
+
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
@@ -394,10 +419,19 @@ export default function AdminDashboard() {
         </View>
       ) : (
         <FlatList
-          data={users}
+          data={filteredUsers}
           keyExtractor={(item, index) => item.$id || item.id || item.email || `user-${index}`}
           renderItem={renderUserItem}
           contentContainerStyle={styles.listContent}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {searchQuery.trim()
+                  ? `No results for "${searchQuery.trim()}"`
+                  : 'No users found'}
+              </Text>
+            </View>
+          )}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -407,58 +441,55 @@ export default function AdminDashboard() {
           }
           ListFooterComponent={() => (
             <View style={styles.paginationContainer}>
-              {/* Page Numbers */}
-              <View style={styles.pageNumbersRow}>
-                <TouchableOpacity
-                  style={[styles.navButton, currentPage === 1 && styles.navButtonDisabled]}
-                  onPress={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                >
-                  <Ionicons name="chevron-back-outline" size={16} color={currentPage === 1 ? '#999' : '#fff'} />
-                  <Ionicons name="chevron-back-outline" size={16} color={currentPage === 1 ? '#999' : '#fff'} style={{ marginLeft: -10 }} />
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[styles.navButton, currentPage === 1 && styles.navButtonDisabled]}
-                  onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <Ionicons name="chevron-back-outline" size={18} color={currentPage === 1 ? '#999' : '#fff'} />
-                </TouchableOpacity>
-                
-                {getPageNumbers().map(page => (
+              {!isSearching && totalPages > 1 && (
+                <View style={styles.pageNumbersRow}>
                   <TouchableOpacity
-                    key={page}
-                    style={[styles.pageNumber, currentPage === page && styles.pageNumberActive]}
-                    onPress={() => setCurrentPage(page)}
+                    style={[styles.navButton, currentPage === 1 && styles.navButtonDisabled]}
+                    onPress={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
                   >
-                    <Text style={[styles.pageNumberText, currentPage === page && styles.pageNumberTextActive]}>
-                      {page}
-                    </Text>
+                    <Ionicons name="chevron-back-outline" size={16} color={currentPage === 1 ? '#999' : '#fff'} />
+                    <Ionicons name="chevron-back-outline" size={16} color={currentPage === 1 ? '#999' : '#fff'} style={{ marginLeft: -10 }} />
                   </TouchableOpacity>
-                ))}
-                
-                <TouchableOpacity
-                  style={[styles.navButton, currentPage >= totalPages && styles.navButtonDisabled]}
-                  onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage >= totalPages}
-                >
-                  <Ionicons name="chevron-forward-outline" size={18} color={currentPage >= totalPages ? '#999' : '#fff'} />
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[styles.navButton, currentPage >= totalPages && styles.navButtonDisabled]}
-                  onPress={() => setCurrentPage(totalPages)}
-                  disabled={currentPage >= totalPages}
-                >
-                  <Ionicons name="chevron-forward-outline" size={16} color={currentPage >= totalPages ? '#999' : '#fff'} />
-                  <Ionicons name="chevron-forward-outline" size={16} color={currentPage >= totalPages ? '#999' : '#fff'} style={{ marginLeft: -10 }} />
-                </TouchableOpacity>
-              </View>
-              
-              <Text style={styles.pageInfo}>
-                Page {currentPage} of {totalPages}
-              </Text>
+                  
+                  <TouchableOpacity
+                    style={[styles.navButton, currentPage === 1 && styles.navButtonDisabled]}
+                    onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <Ionicons name="chevron-back-outline" size={18} color={currentPage === 1 ? '#999' : '#fff'} />
+                  </TouchableOpacity>
+                  
+                  {getPageNumbers().map(page => (
+                    <TouchableOpacity
+                      key={page}
+                      style={[styles.pageNumber, currentPage === page && styles.pageNumberActive]}
+                      onPress={() => setCurrentPage(page)}
+                    >
+                      <Text style={[styles.pageNumberText, currentPage === page && styles.pageNumberTextActive]}>
+                        {page}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  
+                  <TouchableOpacity
+                    style={[styles.navButton, currentPage >= totalPages && styles.navButtonDisabled]}
+                    onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                  >
+                    <Ionicons name="chevron-forward-outline" size={18} color={currentPage >= totalPages ? '#999' : '#fff'} />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.navButton, currentPage >= totalPages && styles.navButtonDisabled]}
+                    onPress={() => setCurrentPage(totalPages)}
+                    disabled={currentPage >= totalPages}
+                  >
+                    <Ionicons name="chevron-forward-outline" size={16} color={currentPage >= totalPages ? '#999' : '#fff'} />
+                    <Ionicons name="chevron-forward-outline" size={16} color={currentPage >= totalPages ? '#999' : '#fff'} style={{ marginLeft: -10 }} />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           )}
         />
@@ -504,6 +535,15 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
   },
+  searchBar: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+  },
+  searchBarInput: {
+    fontSize: 14,
+  },
   errorContainer: {
     backgroundColor: '#fee2e2',
     margin: 16,
@@ -516,6 +556,18 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingBottom: 100, // Extra padding for FAB
+  },
+  emptyContainer: {
+    alignItems: 'center',
+  },
+  emptyCard: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#6b7280',
   },
   userCard: {
     backgroundColor: '#fff',
