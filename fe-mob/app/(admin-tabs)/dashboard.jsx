@@ -369,12 +369,12 @@ export default function AdminDashboard() {
         styles.statusBadge, 
         { backgroundColor: item.emailVerification ? '#dcfce7' : '#fef3c7' }
       ]}>
-        <Text style={[
+        {/* <Text style={[
           styles.statusText,
           { color: item.emailVerification ? '#166534' : '#92400e' }
         ]}>
           {item.emailVerification ? 'Verified' : 'Unverified'}
-        </Text>
+        </Text> */}
       </View>
       <Ionicons name="chevron-forward" size={20} color="#888" />
     </TouchableOpacity>
@@ -621,8 +621,8 @@ const styles = StyleSheet.create({
   },
   paginationContainer: {
     paddingVertical: 16,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    gap: 12,
   },
   pageNumbersRow: {
     flexDirection: 'row',
