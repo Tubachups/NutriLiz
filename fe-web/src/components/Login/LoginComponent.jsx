@@ -12,7 +12,7 @@ export default function LoginComponent() {
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { signIn, signUp, user, isAdmin } = useAuth();
+  const { signIn, signUp, signInWithGoogle, user, isAdmin } = useAuth();
   const router = useRouter();
 
   if (user) {
@@ -65,6 +65,15 @@ export default function LoginComponent() {
     }
   }
 
+  async function handleGoogleLogin() {
+    setError('');
+    setSuccessMessage('');
+    const result = await signInWithGoogle();
+    if (result?.error) {
+      setError(result.error);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#ECF4E8] flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full space-y-8">
@@ -88,6 +97,16 @@ export default function LoginComponent() {
               <div className="w-full mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg text-sm">
                 {successMessage}
               </div>
+            )}
+
+            {!isRegisterMode && (
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="btn w-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
+              >
+                Continue with Google
+              </button>
             )}
 
             {isRegisterMode && (

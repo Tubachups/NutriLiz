@@ -164,18 +164,18 @@ function MedicalDisclaimer() {
   )
 }
 
-function FoodDetailsSection({ result }) {
-  const hasDietaryInfo = Boolean(result.dietary_info)
+function FoodDetailsSection({ food }) {
+  const hasDietaryInfo = Boolean(food?.dietary_info)
   const hasInsightCards = Boolean(
-    (result.health_benefits && result.health_benefits.length > 0)
-      || (result.potential_concerns && result.potential_concerns.length > 0)
+    (food?.health_benefits && food.health_benefits.length > 0)
+      || (food?.potential_concerns && food.potential_concerns.length > 0)
   )
 
   return (
     <>
       {hasDietaryInfo && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <DietaryInfoCard dietaryInfo={result.dietary_info} />
+          <DietaryInfoCard dietaryInfo={food?.dietary_info} />
         </div>
       )}
 
@@ -183,7 +183,7 @@ function FoodDetailsSection({ result }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <ListCard
             title="Health Benefits"
-            items={result.health_benefits}
+            items={food?.health_benefits}
             tone="text-success"
             icon={(
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -198,7 +198,7 @@ function FoodDetailsSection({ result }) {
           />
           <ListCard
             title="Potential Concerns"
-            items={result.potential_concerns}
+            items={food?.potential_concerns}
             tone="text-warning"
             icon={<AlertTriangle className="w-5 h-5" />}
             marker="!"
@@ -206,10 +206,10 @@ function FoodDetailsSection({ result }) {
         </div>
       )}
 
-      <AllergensAlert allergens={result.allergens} />
-      <IngredientsCard ingredients={result.ingredients_if_dish} />
-      <PreparationCard preparationNotes={result.preparation_notes} />
-      <PersonalizedAdviceCard advice={result.personalized_advice} />
+      <AllergensAlert allergens={food?.allergens} />
+      <IngredientsCard ingredients={food?.ingredients_if_dish} />
+      <PreparationCard preparationNotes={food?.preparation_notes} />
+      <PersonalizedAdviceCard advice={food?.personalized_advice} />
       <MedicalDisclaimer />
     </>
   )

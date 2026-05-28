@@ -104,6 +104,24 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      const successUrl = import.meta.env.VITE_APPWRITE_OAUTH_REDIRECT_URL
+        || `${window.location.origin}/`;
+      const failureUrl = import.meta.env.VITE_APPWRITE_OAUTH_FAILURE_URL
+        || `${window.location.origin}/login`;
+
+      await account.createOAuth2Session('google', successUrl, failureUrl);
+      return { success: true };
+    } catch (error) {
+      if (error instanceof Error) {
+        console.log("Error message: ", error.message);
+        return { success: false, error: error.message };
+      }
+      return { success: false, error: 'Google login failed' };
+    }
+  };
+
   const signOut = async (onLogoutCallback) => {
   try {
     await account.deleteSession("current");
@@ -139,6 +157,7 @@ export function AuthProvider({ children }) {
       userProfile, 
       signUp, 
       signIn, 
+      signInWithGoogle,
       signOut, 
       updateUserProfile, 
       forgotPassword
